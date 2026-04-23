@@ -76,11 +76,10 @@ git push -u origin main
    npm run build
    ```
 
-## 生产（概要）
+## 生产部署
 
-- 将 `apps/web/dist` 作为 Nginx 站点根；`location /api/ { proxy_pass http://127.0.0.1:3002; }`（与 `PORT=3002` 一致，保留 `/api` 路径前缀）。  
-- **PM2** 启动见根目录 [ecosystem.config.cjs](./ecosystem.config.cjs)；`PUBLIC_APP_URL=https://basketball.itorange.online`。  
-- 详见 [docs/deploy-tencent.md](./docs/deploy-tencent.md)。
+- **完整步骤**（首次部署、日常发版、Nginx、排错）：[docs/deploy-tencent.md](./docs/deploy-tencent.md)。  
+- 要点：仓库根 `.env`（`DATABASE_URL` 为 SQLite 文件路径、`PORT=3002`）、`npm run build` 后 Nginx `root` 指向 `apps/web/dist`、**PM2** 跑 [ecosystem.config.cjs](./ecosystem.config.cjs)、发版执行 `bash scripts/server-release.sh`。
 
 ## 文档
 

@@ -1,18 +1,42 @@
-# basketball.itorange.online 云上部署（itorange.online 主机）
+# 生产环境部署说明（basketball.itorange.online）
 
-与同机 `english.itorange.online`、`stock.itorange.online` 并列，在 Nginx 里为子域新启一个 `server` 块即可，不动其它站点。
+本文档描述在 **itorange.online** 服务器上从 0 到可访问的完整流程，以及与 [scripts/server-release.sh](../scripts/server-release.sh) 一致的**日常发版**。与 `english.*`、`stock.*` 同机时，仅为子域增加独立 Nginx `server` 块。
 
-## 1. 准备
+---
 
-- **主机**：`itorange.online` 上代码目录 **`/data/node_apps/basketball_drill`**（仓库根）。  
-- **代码仓库**：`git@github.com:earthturtle2/basketball_drill.git`  
-- **数据库**：**SQLite**（`better-sqlite3`），库文件由 `DATABASE_URL` 指定，默认如 `file:/data/node_apps/basketball_drill/data/basketball.db`。请**定期备份该文件**（含 `-wal` / `-shm` 若存在）。  
-- **进程管理**：**PM2**，API 监听 **`127.0.0.1:3002`**。  
-- **DNS**：`A` 记录 `basketball` → 与现有子域可相同公网 IP。  
-- **本机/服务器**：Node.js 20+、Nginx；全局安装 PM2：`npm i -g pm2`。  
-- 若 `npm install` 时编译 `better-sqlite3` 失败，需安装构建链（如 `build-essential`、`python3`），或按该包文档处理。
+## 一览
 
-## 2. 获取代码
+| 项 | 值 |
+|----|-----|
+| 代码目录（仓库根） | `/data/node_apps/basketball_drill`（若你使用 `node-apps` 等路径，下文命令中自行替换） |
+| 域名 | `basketball.itorange.online` |
+| 前端静态文件 | `…/apps/web/dist`（`npm run build` 生成） |
+| API | Node 进程，本机 **`127.0.0.1:3002`**（`PORT=3002`，`HOST=127.0.0.1`） |
+| 进程管理 | **PM2**，应用名 `basketball-api`（[ecosystem.config.cjs](../ecosystem.config.cjs)） |
+| 数据库 | **SQLite**，`DATABASE_URL` 指向单个 `.db` 文件，需**定期备份**（含同目录 `.db-wal`、`.db-shm` 若存在） |
+| 代码仓库 | `git@github.com:earthturtle2/basketball_drill.git` |
+
+---
+
+## 环境要求（首次前检查）
+
+1. **Node.js**：建议 **20+ LTS**（你使用 24 亦可，需能成功编译原生模块）。  
+2. **npm 源**：必须能下载依赖。若默认源失败，任选其一：  
+   `npm config set registry https://registry.npmjs.org/`  
+   或 `https://registry.npmmirror.com`  
+   **不要**使用无法解析的 `mirrors.tencentyun.com`（公网常见 `ENOTFOUND`）。  
+3. **编译链**（安装 `better-sqlite3`）：如 `build-essential`、`python3`（OpenCloud 等请用对应包名安装）。  
+4. **全局 PM2**：`npm i -g pm2`。  
+5. **Nginx**：已装，且能配置 SSL（可与其它子域共用证书）。  
+6. **DNS**：`basketball.itorange.online` 的 **A 记录** 指向本机公网 IP。
+
+---
+
+## 首次部署（按顺序执行）
+
+以下以 `APP=/data/node_apps/basketball_drill` 为例。
+
+### 1）拉代码
 
 ```bash
 sudo mkdir -p /data/node_apps
@@ -22,96 +46,91 @@ git clone git@github.com:earthturtle2/basketball_drill.git basketball_drill
 cd basketball_drill
 ```
 
-若目录已存在：`cd /data/node_apps/basketball_drill && git pull`。
+### 2）环境变量
 
-## 3. 环境与数据库
+```bash
+cp .env.example .env
+```
 
-1. 复制并编辑环境变量（**勿把真实 .env 提交到 git**）：
+编辑 `.env`，至少包含（生产示例见 [deploy/.env.production.example](../deploy/.env.production.example)）：
 
-   ```bash
-   cp .env.example .env
-   # 或参考 deploy/.env.production.example
-   ```
+- `DATABASE_URL=file:/data/node_apps/basketball_drill/data/basketball.db`  
+- `JWT_ACCESS_SECRET`、`JWT_REFRESH_SECRET`（长随机串）  
+- `PUBLIC_APP_URL=https://basketball.itorange.online`  
+- `HOST=127.0.0.1`  
+- `PORT=3002`  
 
-2. 设置 `DATABASE_URL`（示例）：
+确保运行 API 的系统用户**可写** `data/` 目录（不存在时应用会创建）。
 
-   ```bash
-   DATABASE_URL=file:/data/node_apps/basketball_drill/data/basketball.db
-   ```
+### 3）安装依赖、构建、建表
 
-   应用会在父目录不存在时自动创建 `data/`；**请保证运行进程的用户对该路径可写**。
+```bash
+npm ci --no-audit --no-fund
+npm run build
+npm run db:push -w @basketball/api
+```
 
-3. 生产建议：`HOST=127.0.0.1`，`PORT=3002`，`PUBLIC_APP_URL=https://basketball.itorange.online`。
-
-4. 安装与建表：
-
-   ```bash
-   npm ci
-   npm run build
-   npm run db:push -w @basketball/api
-   ```
-
-## 4. PM2 启动 API
-
-在 **仓库根**（与 `ecosystem.config.cjs` 同级）：
+### 4）PM2 启动 API 并设置开机自启
 
 ```bash
 pm2 start ecosystem.config.cjs --env production
 pm2 save
 pm2 startup
-# 按 pm2 startup 提示执行一条 sudo 命令，保证重启后自启
+# 按屏幕提示执行一条 sudo 命令
 ```
 
-- 进程名：`basketball-api`。  
-- 探活：`curl -sS http://127.0.0.1:3002/health`  
-- 日志：`pm2 logs basketball-api`
-
-## 5. 前端静态目录
-
-构建后前端在 **`/data/node_apps/basketball_drill/apps/web/dist/`**。Nginx 的 `root` 直接指向该路径。可选 `WEB_OUT` 见 [scripts/server-release.sh](../scripts/server-release.sh)。
-
-## 6. Nginx
-
-1. 参考 [deploy/nginx-basketball.itorange.online.conf.example](../deploy/nginx-basketball.itorange.online.conf.example)，`root` 为 **`/data/node_apps/basketball_drill/apps/web/dist`**。  
-2. `location /api/` 使用 `proxy_pass http://127.0.0.1:3002;`（**无 URI 尾缀**）。  
-3. 配置 SSL 后 `nginx -t` 并 `reload`。
-
-## 7. 发版小抄
-
-在服务器 **仓库根** `/data/node_apps/basketball_drill`：
+自检：
 
 ```bash
+curl -sS http://127.0.0.1:3002/health
+```
+
+应返回含 `ok` 的 JSON。
+
+### 5）Nginx
+
+1. 复制 [deploy/nginx-basketball.itorange.online.conf.example](../deploy/nginx-basketball.itorange.online.conf.example) 为站点配置并修改 **SSL 证书路径**。  
+2. **`root`**：`/data/node_apps/basketball_drill/apps/web/dist`  
+3. **`location /api/`**：`proxy_pass http://127.0.0.1:3002;`（**不要**写成 `…3002/api/` 等会改路径的写法）  
+4. **`location /`**：需 `try_files $uri $uri/ /index.html;`（SPA）  
+5. `sudo nginx -t && sudo nginx -s reload`
+
+### 6）浏览器验证
+
+访问 `https://basketball.itorange.online`：能打开页面、可注册/登录即表示前后端与反代基本正常。
+
+---
+
+## 日常发版（已有环境，仅更新代码）
+
+在**仓库根**执行：
+
+```bash
+cd /data/node_apps/basketball_drill
 git pull
 bash scripts/server-release.sh
 ```
 
-## 8. 排错
+脚本会：`npm ci` → `npm run build` → `db:push` → **PM2 重启** `basketball-api`。  
+仅改前端时逻辑相同；若某次 **仅改静态** 也可在 `git pull` 后只 `npm run build` 再按需 `pm2 restart`（无 API 变更时）。
 
-- **502 / 无响应**：`pm2 logs basketball-api`；确认 `PORT=3002`。  
-- **数据库权限**：确认 PM2/运行用户可读写 `data/*.db`；必要时 `chown` / `chmod`。  
-- **404 子路由**：`location /` 需 `try_files $uri $uri/ /index.html;`。  
-- **API 404**：勿使用会剥去 `/api` 前缀的 `proxy_pass` 写法。  
-- **`npm error Exit handler never called!`**：多为 npm 与 **原生依赖编译**（`better-sqlite3` 需 node-gyp）时子进程异常退出。处理顺序建议：  
-  1. 安装构建依赖（Debian/Ubuntu 示例）：`apt-get install -y build-essential python3`；  
-  2. 使用 **Node 20+ LTS**，并升级 npm：`npm install -g npm@10`；  
-  3. 在仓库根重新安装：`rm -rf node_modules apps/*/node_modules packages/*/node_modules && npm ci --no-audit --no-fund`；  
-  4. 仅重建 SQLite 原生模块：`npm rebuild better-sqlite3 -w @basketball/api`；  
-  5. 仍失败时查看 `cat /root/.npm/_logs/*-debug-*.log` 中 **node-gyp / g++** 报错。  
-- **不要用 root 跑业务进程**；但 root 下 `npm ci` 一般可，若遇权限怪问题可改用语义化用户 + 该用户 home 下 npm 缓存（`npm config get cache`）。  
-- **`http fetch ... mirrors.tencentyun.com ... ENOTFOUND` / 大量包下载失败**：说明当前 **npm 源** 指向的 `mirrors.tencentyun.com` 在你这台机子上 **DNS 不可解析**（常见：镜像仅供内网/VPC、或公网已变更）。**不要**再使用该源，先查再改：  
-  ```bash
-  npm config get registry
-  cat ~/.npmrc
-  ```  
-  二选一设成可访问的源后重试 `npm ci`：  
-  - 官方源：`npm config set registry https://registry.npmjs.org/`  
-  - 或国内公网常用：`npm config set registry https://registry.npmmirror.com`  
-  若 `~/.npmrc` 或 `/root/.npmrc` 里写了 `mirrors.tencentyun.com`，可注释掉或删除整行，再执行上述 `set registry`。
+---
+
+## 排错速查
+
+| 现象 | 处理 |
+|------|------|
+| 502 / 页面空白 API | `pm2 logs basketball-api`；`curl 127.0.0.1:3002/health` |
+| 前端路由 404 | Nginx 未配 `try_files … /index.html` |
+| API 404 | `proxy_pass` 写错，导致 `/api` 路径被剥掉 |
+| SQLite 权限 | 进程用户无法写 `data/*.db` → `chown`/`chmod` |
+| `npm ci` 失败、**ENOTFOUND 镜像** | 改 `registry`（见上文「环境要求」）；见 [deploy/.npmrc.example](../deploy/.npmrc.example) |
+| `Exit handler never called` / **node-gyp** | 安装 `build-essential`、`python3`；`npm rebuild better-sqlite3 -w @basketball/api` |
+
+更细的说明见上文各节及历史排错段落（已并入「排错速查」；若需 **systemd** 替代 PM2，见 [deploy/basketball-api.service.example](../deploy/basketball-api.service.example)）。
+
+---
 
 ## 附：从旧版 PostgreSQL 迁出
 
-若你曾用 PostgreSQL 部署，需**新库重新注册账号**；战术数据请自行导出/迁移（无自动迁移工具）。
-
-## 附：systemd（可选）
-
-若不用 PM2，可参考 [deploy/basketball-api.service.example](../deploy/basketball-api.service.example)。
+若早期曾用 PostgreSQL，切换 SQLite 后需**重新注册账号**；旧数据需自行导出/迁移，无自动迁移工具。
