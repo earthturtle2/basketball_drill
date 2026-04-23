@@ -3,7 +3,7 @@
 #   sudo systemctl daemon-reload
 #   sudo systemctl enable --now basketball-api
 #
-# 将 User/Group 改为能读取 /data/node_app/basketball_drill 的部署用户（与目录属主一致）。
+# 将 User/Group 改为能读取 /data/node_apps/basketball_drill 的部署用户（与目录属主一致）。
 # 与 Nginx 反代一致：需 Environment=PORT=3002 或使用含 PORT=3002 的 EnvironmentFile。
 
 
@@ -15,8 +15,8 @@ After=network.target
 Type=simple
 User=www-data
 Group=www-data
-WorkingDirectory=/data/node_app/basketball_drill
-EnvironmentFile=/data/node_app/basketball_drill/.env
+WorkingDirectory=/data/node_apps/basketball_drill
+EnvironmentFile=/data/node_apps/basketball_drill/.env
 # 若 .env 未设 PORT，可取消下行注释
 # Environment=PORT=3002
 ExecStart=/usr/bin/node apps/api/dist/index.js

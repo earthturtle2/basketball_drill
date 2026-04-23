@@ -42,7 +42,7 @@ git push -u origin main
 
 `.env`、各 `dist` 构建目录已列入 `.gitignore`，勿将生产密钥提交进仓库。
 
-**生产机（itorange.online）** 上代码目录为 **`/data/node_app/basketball_drill`**。详见 [docs/deploy-tencent.md](docs/deploy-tencent.md)。
+**生产机（itorange.online）** 上代码目录为 **`/data/node_apps/basketball_drill`**。详见 [docs/deploy-tencent.md](docs/deploy-tencent.md)。
 
 ## 本地开发
 

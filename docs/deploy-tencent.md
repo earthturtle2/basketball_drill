@@ -4,7 +4,7 @@
 
 ## 1. 准备
 
-- **主机**：`itorange.online` 上代码目录 **`/data/node_app/basketball_drill`**（仓库根）。  
+- **主机**：`itorange.online` 上代码目录 **`/data/node_apps/basketball_drill`**（仓库根）。  
 - **代码仓库**：`git@github.com:earthturtle2/basketball_drill.git`  
 - **进程管理**：**PM2**（推荐），API 监听 **`127.0.0.1:3002`**（与根目录 `.env` 中 `PORT=3002` 一致）。  
 - **DNS**：`A` 记录 `basketball` → 与现有子域可相同公网 IP。  
@@ -13,14 +13,14 @@
 ## 2. 获取代码
 
 ```bash
-sudo mkdir -p /data/node_app
-sudo chown -R "$USER":"$USER" /data/node_app
-cd /data/node_app
+sudo mkdir -p /data/node_apps
+sudo chown -R "$USER":"$USER" /data/node_apps
+cd /data/node_apps
 git clone git@github.com:earthturtle2/basketball_drill.git basketball_drill
 cd basketball_drill
 ```
 
-若目录已存在：`cd /data/node_app/basketball_drill && git pull`。
+若目录已存在：`cd /data/node_apps/basketball_drill && git pull`。
 
 ## 3. 环境与数据库
 
@@ -58,17 +58,17 @@ pm2 startup
 
 ## 5. 前端静态目录
 
-构建后前端在 **`/data/node_app/basketball_drill/apps/web/dist/`**。Nginx 的 `root` 直接指向该路径即可。可选 `WEB_OUT` 见 [scripts/server-release.sh](../scripts/server-release.sh)。
+构建后前端在 **`/data/node_apps/basketball_drill/apps/web/dist/`**。Nginx 的 `root` 直接指向该路径即可。可选 `WEB_OUT` 见 [scripts/server-release.sh](../scripts/server-release.sh)。
 
 ## 6. Nginx
 
-1. 参考 [deploy/nginx-basketball.itorange.online.conf.example](../deploy/nginx-basketball.itorange.online.conf.example)，`root` 为 **`/data/node_app/basketball_drill/apps/web/dist`**。  
+1. 参考 [deploy/nginx-basketball.itorange.online.conf.example](../deploy/nginx-basketball.itorange.online.conf.example)，`root` 为 **`/data/node_apps/basketball_drill/apps/web/dist`**。  
 2. `location /api/` 使用 `proxy_pass http://127.0.0.1:3002;`（**无 URI 尾缀**），与 `PORT=3002` 一致。  
 3. 配置 SSL 后 `nginx -t` 并 `reload`。
 
 ## 7. 发版小抄
 
-在服务器 **仓库根** `/data/node_app/basketball_drill`：
+在服务器 **仓库根** `/data/node_apps/basketball_drill`：
 
 ```bash
 git pull

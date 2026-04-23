@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# 在服务器仓库根执行：/data/node_app/basketball_drill
+# 在服务器仓库根执行：/data/node_apps/basketball_drill
 # 用法：bash scripts/server-release.sh
 # 若需把 dist 同步到其它目录，设置：WEB_OUT=/path/to/web
 set -euo pipefail
