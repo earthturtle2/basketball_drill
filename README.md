@@ -32,12 +32,17 @@ basketball_drill/
 
 ## Git
 
+**远程（GitHub）**：`git@github.com:earthturtle2/basketball_drill.git`
+
 ```bash
-git remote add origin <你的远程仓库 URL>
+git remote add origin git@github.com:earthturtle2/basketball_drill.git
+# 若已存在 origin：git remote set-url origin git@github.com:earthturtle2/basketball_drill.git
 git push -u origin main
 ```
 
 `.env`、各 `dist` 构建目录已列入 `.gitignore`，勿将生产密钥提交进仓库。
+
+**生产机（itorange.online）** 上代码目录为 **`/data/node_app/basketball_drill`**。详见 [docs/deploy-tencent.md](docs/deploy-tencent.md)。
 
 ## 本地开发
 
