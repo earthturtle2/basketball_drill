@@ -97,7 +97,16 @@ bash scripts/server-release.sh
   3. 在仓库根重新安装：`rm -rf node_modules apps/*/node_modules packages/*/node_modules && npm ci --no-audit --no-fund`；  
   4. 仅重建 SQLite 原生模块：`npm rebuild better-sqlite3 -w @basketball/api`；  
   5. 仍失败时查看 `cat /root/.npm/_logs/*-debug-*.log` 中 **node-gyp / g++** 报错。  
-- **不要用 root 跑业务进程**；但 root 下 `npm ci` 一般可，若遇权限怪问题可改用语义化用户 + 该用户 home 下 npm 缓存（`npm config get cache`）。
+- **不要用 root 跑业务进程**；但 root 下 `npm ci` 一般可，若遇权限怪问题可改用语义化用户 + 该用户 home 下 npm 缓存（`npm config get cache`）。  
+- **`http fetch ... mirrors.tencentyun.com ... ENOTFOUND` / 大量包下载失败**：说明当前 **npm 源** 指向的 `mirrors.tencentyun.com` 在你这台机子上 **DNS 不可解析**（常见：镜像仅供内网/VPC、或公网已变更）。**不要**再使用该源，先查再改：  
+  ```bash
+  npm config get registry
+  cat ~/.npmrc
+  ```  
+  二选一设成可访问的源后重试 `npm ci`：  
+  - 官方源：`npm config set registry https://registry.npmjs.org/`  
+  - 或国内公网常用：`npm config set registry https://registry.npmmirror.com`  
+  若 `~/.npmrc` 或 `/root/.npmrc` 里写了 `mirrors.tencentyun.com`，可注释掉或删除整行，再执行上述 `set registry`。
 
 ## 附：从旧版 PostgreSQL 迁出
 
