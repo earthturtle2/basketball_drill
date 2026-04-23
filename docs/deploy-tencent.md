@@ -126,6 +126,7 @@ bash scripts/server-release.sh
 | SQLite 权限 | 进程用户无法写 `data/*.db` → `chown`/`chmod` |
 | `npm ci` 失败、**ENOTFOUND 镜像** | 改 `registry`（见上文「环境要求」）；见 [deploy/.npmrc.example](../deploy/.npmrc.example) |
 | `Exit handler never called` / **node-gyp** | 安装 `build-essential`、`python3`；`npm rebuild better-sqlite3 -w @basketball/api` |
+| **`Cannot find module @rollup/rollup-linux-x64-gnu`**（`vite build`） | Rollup 可选原生包在 workspace 下被漏装（[npm#4828](https://github.com/npm/cli/issues/4828)）。仓库根已锁 `optionalDependencies`；若在旧目录仍报错：删掉 `node_modules` 与 `package-lock.json` 后重新 `git pull` 再 `npm ci`，且**勿**在 `NODE_ENV=production` 下执行 `npm ci`（见 [server-release.sh](../scripts/server-release.sh)）。**Alpine/musl** 若报 `linux-x64-musl`，可再执行：`npm i @rollup/rollup-linux-x64-musl@4.60.2 -D -w @basketball/web`（版本与 lock 中 rollup 一致）。 |
 
 更细的说明见上文各节及历史排错段落（已并入「排错速查」；若需 **systemd** 替代 PM2，见 [deploy/basketball-api.service.example](../deploy/basketball-api.service.example)）。
 

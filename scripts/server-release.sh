@@ -6,11 +6,13 @@ set -euo pipefail
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 cd "$ROOT"
 
-export NODE_ENV="${NODE_ENV:-production}"
-# 降低 npm 自身偶发 "Exit handler never called" 概率；原生模块需本机有 python3、make、g++
+# 安装阶段不要用 NODE_ENV=production，否则部分 npm 版本会忽略 devDependencies，
+# 导致 Vite/Rollup 未装全；build 前再设生产环境即可。
 export NPM_CONFIG_AUDIT="${NPM_CONFIG_AUDIT:-false}"
 export NPM_CONFIG_FUND="${NPM_CONFIG_FUND:-false}"
+# Rollup 4 的原生包为 optional，workspace 下偶发漏装（npm#4828），根 package.json 已显式 optionalDependencies
 npm ci --no-audit --no-fund
+export NODE_ENV="${NODE_ENV:-production}"
 npm run build
 npm run db:push -w @basketball/api
 
