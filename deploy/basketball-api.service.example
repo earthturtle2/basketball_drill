@@ -1,8 +1,11 @@
+# （可选）当前生产推荐用 PM2 + ecosystem.config.cjs，本文件为不用 PM2 时的参考。
 # 复制为 /etc/systemd/system/basketball-api.service 后：
 #   sudo systemctl daemon-reload
 #   sudo systemctl enable --now basketball-api
 #
 # 将 User/Group 改为能读取 /data/node_app/basketball_drill 的部署用户（与目录属主一致）。
+# 与 Nginx 反代一致：需 Environment=PORT=3002 或使用含 PORT=3002 的 EnvironmentFile。
+
 
 [Unit]
 Description=Basketball drill API (Node)
@@ -14,6 +17,8 @@ User=www-data
 Group=www-data
 WorkingDirectory=/data/node_app/basketball_drill
 EnvironmentFile=/data/node_app/basketball_drill/.env
+# 若 .env 未设 PORT，可取消下行注释
+# Environment=PORT=3002
 ExecStart=/usr/bin/node apps/api/dist/index.js
 Restart=on-failure
 RestartSec=5

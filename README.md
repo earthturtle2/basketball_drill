@@ -24,7 +24,7 @@ basketball_drill/
 ├── packages/
 │   └── shared/                 # 战术 v1 类型 + Zod
 └── apps/
-    ├── api/                    # :3001
+    ├── api/                    # 默认 :3002
     │   ├── src/...
     │   └── drizzle.config.ts
     └── web/                    # 开发 :5173，构建产物 dist/
@@ -68,7 +68,7 @@ git push -u origin main
    npm run dev
    ```
 
-   - 前端 <http://localhost:5173>，通过 Vite 代理将 `/api` 转发到 <http://127.0.0.1:3001>。  
+   - 前端 <http://localhost:5173>，通过 Vite 代理将 `/api` 转发到 <http://127.0.0.1:3002>。  
    - 注册/登录后创建「战术」；在编辑页可改 **战术 JSON**、半场预览、**生成分享链接**；学员在 `/view/{token}` 只读。
 
 4. **构建**
@@ -79,9 +79,9 @@ git push -u origin main
 
 ## 生产（概要）
 
-- 将 `apps/web/dist` 作为 Nginx 站点根；`location /api/ { proxy_pass http://127.0.0.1:3001; }`（保留 `/api` 路径前缀，与现实现一致）。  
-- `PUBLIC_APP_URL=https://basketball.itorange.online`，以便分享链接中的 `viewUrl` 正确。  
-- 在服务器上为 `@basketball/api` 配置 `node dist/index.js` 与 `DATABASE_URL` 等。详见 [docs/deploy-tencent.md](./docs/deploy-tencent.md)。
+- 将 `apps/web/dist` 作为 Nginx 站点根；`location /api/ { proxy_pass http://127.0.0.1:3002; }`（与 `PORT=3002` 一致，保留 `/api` 路径前缀）。  
+- **PM2** 启动见根目录 [ecosystem.config.cjs](./ecosystem.config.cjs)；`PUBLIC_APP_URL=https://basketball.itorange.online`。  
+- 详见 [docs/deploy-tencent.md](./docs/deploy-tencent.md)。
 
 ## 文档
 

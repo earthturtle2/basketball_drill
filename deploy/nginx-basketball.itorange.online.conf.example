@@ -26,7 +26,7 @@ server {
 
     # 反代 API：保留 /api 前缀，与 apps/api 中 register(..., { prefix: "/api/v1" }) 一致
     location /api/ {
-        proxy_pass http://127.0.0.1:3001;
+        proxy_pass http://127.0.0.1:3002;
         proxy_http_version 1.1;
         proxy_set_header Host $host;
         proxy_set_header X-Real-IP $remote_addr;

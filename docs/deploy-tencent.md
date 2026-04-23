@@ -4,10 +4,11 @@
 
 ## 1. 准备
 
-- **主机**：`itorange.online` 上的应用目录为 **`/data/node_app/basketball_drill`**（仓库根，即本 monorepo 根目录），需与 [deploy/basketball-api.service.example](../deploy/basketball-api.service.example) 中 `WorkingDirectory` 一致。  
+- **主机**：`itorange.online` 上代码目录 **`/data/node_app/basketball_drill`**（仓库根）。  
 - **代码仓库**：`git@github.com:earthturtle2/basketball_drill.git`  
+- **进程管理**：**PM2**（推荐），API 监听 **`127.0.0.1:3002`**（与根目录 `.env` 中 `PORT=3002` 一致）。  
 - **DNS**：`A` 记录 `basketball` → 与现有子域可相同公网 IP。  
-- **本机/服务器**：Node.js 20+、PostgreSQL、Nginx。  
+- **本机/服务器**：Node.js 20+、PostgreSQL、Nginx；全局安装 PM2：`npm i -g pm2`。
 
 ## 2. 获取代码
 
@@ -19,7 +20,7 @@ git clone git@github.com:earthturtle2/basketball_drill.git basketball_drill
 cd basketball_drill
 ```
 
-若目录已存在且需拉取更新：`cd /data/node_app/basketball_drill && git pull`。
+若目录已存在：`cd /data/node_app/basketball_drill && git pull`。
 
 ## 3. 环境与数据库
 
@@ -30,7 +31,7 @@ cd basketball_drill
    # 或参考 deploy/.env.production.example
    ```
 
-2. 生产建议：`HOST=127.0.0.1`，仅本机 Nginx 反代到 `PORT`（默认 3001）。  
+2. 生产建议：`HOST=127.0.0.1`，`PORT=3002`，仅本机 Nginx 反代到 `3002`。  
 3. 设置 `PUBLIC_APP_URL=https://basketball.itorange.online`。  
 4. 在 PostgreSQL 中建库、用户、授权，将连接串写入 `DATABASE_URL`，然后：
 
@@ -40,29 +41,30 @@ cd basketball_drill
    npm run db:push -w @basketball/api
    ```
 
-## 4. 前端静态目录
+## 4. PM2 启动 API
 
-构建后前端在 **`/data/node_app/basketball_drill/apps/web/dist/`**。Nginx 的 `root` 直接指向该路径即可，**一般无需**再 rsync 到其它目录。若你坚持使用单独目录，可通过环境变量 `WEB_OUT` 见 [scripts/server-release.sh](../scripts/server-release.sh)。
+在 **仓库根**（与 `ecosystem.config.cjs` 同级）：
 
-## 5. systemd 托管 API
+```bash
+pm2 start ecosystem.config.cjs --env production
+pm2 save
+pm2 startup
+# 按 pm2 startup 提示执行一条 sudo 命令，保证重启后自启
+```
 
-1. 复制 [deploy/basketball-api.service.example](../deploy/basketball-api.service.example) 为 `/etc/systemd/system/basketball-api.service`，将 `User` / `Group` 改为与 `/data/node_app` 下目录属主一致（如部署用户，而非 root）。  
-2. `WorkingDirectory` 为 **`/data/node_app/basketball_drill`**，`EnvironmentFile` 为同目录下 `.env`。  
-3. 加载并启动：
+- 进程名：`basketball-api`（见 [ecosystem.config.cjs](../ecosystem.config.cjs)）。  
+- 探活：`curl -sS http://127.0.0.1:3002/health`  
+- 日志：`pm2 logs basketball-api`
 
-   ```bash
-   sudo systemctl daemon-reload
-   sudo systemctl enable --now basketball-api
-   sudo systemctl status basketball-api
-   ```
+## 5. 前端静态目录
 
-4. 本机探活：`curl -sS http://127.0.0.1:3001/health`。
+构建后前端在 **`/data/node_app/basketball_drill/apps/web/dist/`**。Nginx 的 `root` 直接指向该路径即可。可选 `WEB_OUT` 见 [scripts/server-release.sh](../scripts/server-release.sh)。
 
 ## 6. Nginx
 
 1. 参考 [deploy/nginx-basketball.itorange.online.conf.example](../deploy/nginx-basketball.itorange.online.conf.example)，`root` 为 **`/data/node_app/basketball_drill/apps/web/dist`**。  
-2. `location /api/` 使用 `proxy_pass http://127.0.0.1:3001;`（**无 URI 尾缀**），使上游路径仍为 `/api/v1/...`。  
-3. 配置与现有子域共用的 **SSL 证书**（如泛域 `*.itorange.online`），`nginx -t` 后 `reload`。
+2. `location /api/` 使用 `proxy_pass http://127.0.0.1:3002;`（**无 URI 尾缀**），与 `PORT=3002` 一致。  
+3. 配置 SSL 后 `nginx -t` 并 `reload`。
 
 ## 7. 发版小抄
 
@@ -79,11 +81,15 @@ bash scripts/server-release.sh
 npm ci
 npm run build
 npm run db:push -w @basketball/api
-sudo systemctl restart basketball-api
+pm2 restart basketball-api --update-env
 ```
 
 ## 8. 排错
 
-- **502 / 无响应**：`journalctl -u basketball-api -f`；确认 `PORT`、本机可连 `DATABASE_URL`。  
+- **502 / 无响应**：`pm2 logs basketball-api`；确认 `PORT=3002`、本机可连 `DATABASE_URL`。  
 - **404 子路由**：`location /` 需 `try_files $uri $uri/ /index.html;`。  
 - **API 404**：勿使用会剥去 `/api` 前缀的 `proxy_pass` 写法。
+
+## 附：systemd（可选）
+
+若不用 PM2，可参考 [deploy/basketball-api.service.example](../deploy/basketball-api.service.example)，并确保 `ExecStart` 环境内 `PORT=3002` 与 Nginx 一致。
