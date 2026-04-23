@@ -30,6 +30,15 @@ basketball_drill/
     └── web/                    # 开发 :5173，构建产物 dist/
 ```
 
+## Git
+
+```bash
+git remote add origin <你的远程仓库 URL>
+git push -u origin main
+```
+
+`.env`、各 `dist` 构建目录已列入 `.gitignore`，勿将生产密钥提交进仓库。
+
 ## 本地开发
 
 1. **环境变量**（已复制则跳过）
