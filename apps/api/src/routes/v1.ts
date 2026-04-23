@@ -1,6 +1,6 @@
 import type { FastifyInstance } from "fastify";
 import { z } from "zod";
-import { and, count, desc, eq, ilike, isNull, sql, type SQL } from "drizzle-orm";
+import { and, count, desc, eq, isNull, sql, type SQL } from "drizzle-orm";
 import { db } from "../db/index.js";
 import { playShares, plays, refreshTokens, users } from "../db/schema.js";
 import { buildDocumentFromInput, buildDocumentOnUpdate, DEFAULT_TACTIC_DOCUMENT } from "../lib/tactic.js";
@@ -204,10 +204,12 @@ export async function registerV1(fastify: FastifyInstance) {
       const conditions: [SQL, ...SQL[]] = [eq(plays.userId, uid), isNull(plays.deletedAt)];
       if (q.q) {
         const pattern = `%${escapeIlike(q.q)}%`;
-        conditions.push(ilike(plays.name, pattern));
+        conditions.push(sql`lower(${plays.name}) like lower(${pattern})`);
       }
       if (q.tag) {
-        conditions.push(sql`${q.tag} = ANY(${plays.tags})`);
+        conditions.push(
+          sql`exists (select 1 from json_each(${plays.tags}) as j where j.value = ${q.tag})`,
+        );
       }
       const where = and(...conditions);
       const totalRow = await db

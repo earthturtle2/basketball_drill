@@ -1,70 +1,78 @@
-import { index, jsonb, pgTable, text, timestamp, uuid } from "drizzle-orm/pg-core";
+import { index, integer, sqliteTable, text } from "drizzle-orm/sqlite-core";
 import type { TacticDocumentV1 } from "@basketball/shared";
 
-export const users = pgTable("users", {
-  id: uuid("id").primaryKey().defaultRandom(),
+export const users = sqliteTable("users", {
+  id: text("id")
+    .primaryKey()
+    .$defaultFn(() => crypto.randomUUID()),
   email: text("email").notNull().unique(),
   passwordHash: text("password_hash").notNull(),
   name: text("name"),
   role: text("role").notNull().default("coach"),
-  createdAt: timestamp("created_at", { withTimezone: true, mode: "date" })
+  createdAt: integer("created_at", { mode: "timestamp_ms" })
     .notNull()
-    .defaultNow(),
+    .$defaultFn(() => new Date()),
 });
 
-export const refreshTokens = pgTable(
+export const refreshTokens = sqliteTable(
   "refresh_tokens",
   {
-    id: uuid("id").primaryKey().defaultRandom(),
-    userId: uuid("user_id")
+    id: text("id")
+      .primaryKey()
+      .$defaultFn(() => crypto.randomUUID()),
+    userId: text("user_id")
       .notNull()
       .references(() => users.id, { onDelete: "cascade" }),
     tokenHash: text("token_hash").notNull().unique(),
-    expiresAt: timestamp("expires_at", { withTimezone: true, mode: "date" }).notNull(),
-    createdAt: timestamp("created_at", { withTimezone: true, mode: "date" })
+    expiresAt: integer("expires_at", { mode: "timestamp_ms" }).notNull(),
+    createdAt: integer("created_at", { mode: "timestamp_ms" })
       .notNull()
-      .defaultNow(),
+      .$defaultFn(() => new Date()),
   },
   (t) => [index("idx_refresh_user").on(t.userId)],
 );
 
-export const plays = pgTable(
+export const plays = sqliteTable(
   "plays",
   {
-    id: uuid("id").primaryKey().defaultRandom(),
-    userId: uuid("user_id")
+    id: text("id")
+      .primaryKey()
+      .$defaultFn(() => crypto.randomUUID()),
+    userId: text("user_id")
       .notNull()
       .references(() => users.id, { onDelete: "cascade" }),
     name: text("name").notNull(),
     description: text("description"),
-    tags: text("tags")
-      .array()
+    tags: text("tags", { mode: "json" })
+      .$type<string[]>()
       .notNull()
-      .default([]),
-    document: jsonb("document").$type<TacticDocumentV1>().notNull(),
-    createdAt: timestamp("created_at", { withTimezone: true, mode: "date" })
+      .$defaultFn(() => []),
+    document: text("document", { mode: "json" }).$type<TacticDocumentV1>().notNull(),
+    createdAt: integer("created_at", { mode: "timestamp_ms" })
       .notNull()
-      .defaultNow(),
-    updatedAt: timestamp("updated_at", { withTimezone: true, mode: "date" })
+      .$defaultFn(() => new Date()),
+    updatedAt: integer("updated_at", { mode: "timestamp_ms" })
       .notNull()
-      .defaultNow(),
-    deletedAt: timestamp("deleted_at", { withTimezone: true, mode: "date" }),
+      .$defaultFn(() => new Date()),
+    deletedAt: integer("deleted_at", { mode: "timestamp_ms" }),
   },
   (t) => [index("idx_plays_user").on(t.userId), index("idx_plays_user_updated").on(t.userId, t.updatedAt)],
 );
 
-export const playShares = pgTable(
+export const playShares = sqliteTable(
   "play_shares",
   {
-    id: uuid("id").primaryKey().defaultRandom(),
-    playId: uuid("play_id")
+    id: text("id")
+      .primaryKey()
+      .$defaultFn(() => crypto.randomUUID()),
+    playId: text("play_id")
       .notNull()
       .references(() => plays.id, { onDelete: "cascade" }),
     token: text("token").notNull().unique(),
-    expiresAt: timestamp("expires_at", { withTimezone: true, mode: "date" }),
-    createdAt: timestamp("created_at", { withTimezone: true, mode: "date" })
+    expiresAt: integer("expires_at", { mode: "timestamp_ms" }),
+    createdAt: integer("created_at", { mode: "timestamp_ms" })
       .notNull()
-      .defaultNow(),
+      .$defaultFn(() => new Date()),
   },
   (t) => [index("idx_shares_play").on(t.playId)],
 );

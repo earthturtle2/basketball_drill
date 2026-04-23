@@ -30,7 +30,7 @@
 
 ## 战术（Tactic / Play）
 
-战术正文为 **JSON 文档**（与 `examples/tactic-play.v1.json` 结构一致，存库可用 `jsonb`）。
+战术正文为 **JSON 文档**（与 `examples/tactic-play.v1.json` 结构一致，存库存为 JSON 文本）。
 
 | 方法 | 路径 | 说明 |
 |------|------|------|

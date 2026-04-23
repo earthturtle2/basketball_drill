@@ -8,7 +8,6 @@
   "scripts": {
     "dev": "concurrently -n web,api -c cyan,magenta \"npm run dev -w @basketball/web\" \"npm run dev -w @basketball/api\"",
     "build": "npm run build -w @basketball/shared && npm run build -w @basketball/api && npm run build -w @basketball/web",
-    "db:up": "docker compose up -d",
     "db:push": "npm run db:push -w @basketball/api"
   },
   "devDependencies": {

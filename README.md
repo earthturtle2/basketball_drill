@@ -7,7 +7,7 @@
 | 层 | 选型 |
 |----|------|
 | 前端 | Vite 6、React 19、TypeScript、react-router-dom 7 |
-| 后端 | Fastify 5、Drizzle ORM、PostgreSQL（`postgres` 驱动） |
+| 后端 | Fastify 5、Drizzle ORM、SQLite（`better-sqlite3`） |
 | 共享 | `packages/shared`：Zod 校验战术 JSON v1 |
 | 鉴权 | JWT 短期 access + Opaque refresh（SHA-256 存库） |
 
@@ -16,8 +16,8 @@
 ```
 basketball_drill/
 ├── package.json
-├── docker-compose.yml          # 本地 PostgreSQL
 ├── .env.example
+├── data/                       # 本地 SQLite 文件（*.db 已 ignore）
 ├── docs/
 ├── examples/
 │   └── tactic-play.v1.json
@@ -53,14 +53,13 @@ git push -u origin main
    # 若自行修改，至少配置 DATABASE_URL、JWT_ACCESS_SECRET、JWT_REFRESH_SECRET
    ```
 
-2. **数据库**（需本机已装 Docker，可选）
+2. **数据库（SQLite）**
 
    ```bash
-   docker compose up -d
    npm run db:push -w @basketball/api
    ```
 
-   默认 `DATABASE_URL=postgres://basketball:basketball@127.0.0.1:5433/basketball`（与 `docker-compose.yml` 一致）。
+   默认在仓库根下使用 `file:./data/basketball.db`（见 `.env.example`），首次 `db:push` 会建表。
 
 3. **联调**
 

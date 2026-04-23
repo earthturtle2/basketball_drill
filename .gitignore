@@ -7,3 +7,5 @@ dist
 *.log
 .turbo
 .drizzle
+data/*.db
+data/*.db-*
