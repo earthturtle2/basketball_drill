@@ -1,0 +1,241 @@
+:root {
+  --bg: #0f1419;
+  --surface: #1a222c;
+  --text: #e7edf3;
+  --muted: #8a9aa8;
+  --accent: #ff6b2c;
+  --accent-dim: #c14e20;
+  --border: #2a3542;
+  font-family:
+    "DM Sans",
+    "PingFang SC",
+    "Hiragino Sans GB",
+    "Microsoft YaHei",
+    system-ui,
+    sans-serif;
+  color: var(--text);
+  background: var(--bg);
+  line-height: 1.5;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+a {
+  color: var(--accent);
+  text-decoration: none;
+}
+a:hover {
+  text-decoration: underline;
+}
+
+body {
+  margin: 0;
+  min-height: 100vh;
+  background: radial-gradient(1000px 500px at 20% 0%, #1a2a3a 0%, transparent 60%),
+    var(--bg);
+}
+
+.app-shell {
+  max-width: 960px;
+  margin: 0 auto;
+  padding: 1.5rem 1.25rem 3rem;
+}
+
+.top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  margin-bottom: 2rem;
+  padding-bottom: 1rem;
+  border-bottom: 1px solid var(--border);
+}
+
+.brand {
+  font-size: 1.25rem;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  color: var(--text);
+  text-decoration: none;
+}
+.brand:hover {
+  text-decoration: none;
+  color: var(--accent);
+}
+
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0.55rem 1.1rem;
+  border-radius: 10px;
+  border: 1px solid var(--border);
+  background: var(--surface);
+  color: var(--text);
+  font-size: 0.95rem;
+  cursor: pointer;
+}
+.btn:hover {
+  border-color: var(--accent-dim);
+}
+.btn-primary {
+  background: linear-gradient(180deg, #ff7a3d, var(--accent-dim));
+  border-color: #ff8a55;
+  font-weight: 600;
+  color: #1a0f0a;
+}
+.btn-primary:hover {
+  filter: brightness(1.05);
+}
+.btn-ghost {
+  background: transparent;
+}
+
+.card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  padding: 1.25rem 1.35rem;
+}
+
+input,
+textarea {
+  width: 100%;
+  padding: 0.6rem 0.75rem;
+  border-radius: 10px;
+  border: 1px solid var(--border);
+  background: #121820;
+  color: var(--text);
+  font: inherit;
+}
+label {
+  display: block;
+  font-size: 0.85rem;
+  color: var(--muted);
+  margin-bottom: 0.35rem;
+}
+.field {
+  margin-bottom: 1rem;
+}
+.form-actions {
+  display: flex;
+  gap: 0.75rem;
+  margin-top: 1.25rem;
+}
+
+.list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+}
+.list-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  padding: 0.85rem 1rem;
+  border-radius: 12px;
+  background: #141b24;
+  border: 1px solid var(--border);
+}
+.list-item:hover {
+  border-color: #3a4a5c;
+}
+.list-item h3 {
+  margin: 0 0 0.2rem 0;
+  font-size: 1rem;
+}
+.muted {
+  color: var(--muted);
+  font-size: 0.85rem;
+}
+.row-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.hint {
+  color: var(--muted);
+  font-size: 0.9rem;
+  margin: 0 0 1rem 0;
+}
+
+pre.doc {
+  margin: 0;
+  max-height: 50vh;
+  overflow: auto;
+  font-size: 0.8rem;
+  line-height: 1.4;
+  padding: 1rem;
+  background: #0a0e12;
+  border-radius: 10px;
+  border: 1px solid var(--border);
+}
+
+.error {
+  color: #ff8a7a;
+  font-size: 0.9rem;
+  margin: 0 0 0.5rem 0;
+}
+
+.viewer {
+  min-height: 200px;
+  border: 1px dashed var(--border);
+  border-radius: 12px;
+  position: relative;
+  overflow: hidden;
+  background: #0d1a0f
+    url("data:image/svg+xml,%3Csvg width='20' height='20' viewBox='0 0 20 20' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M0 10h20M10 0v20' fill='none' stroke='%23335544' stroke-width='.5'/%3E%3C/svg%3E");
+  background-size: 20px 20px;
+}
+.viewer .court {
+  position: relative;
+  width: 100%;
+  aspect-ratio: 14 / 15;
+  max-height: 52vh;
+  margin: 0 auto;
+  border: 2px solid #2d5a3d;
+  border-radius: 6px;
+  background: linear-gradient(90deg, #0f2418 0%, #1a3d2a 50%, #0f2418 100%);
+}
+.viewer .dot {
+  position: absolute;
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  transform: translate(-50%, -50%);
+  background: #e53935;
+  box-shadow: 0 0 0 2px #1118;
+  font-size: 8px;
+  line-height: 12px;
+  text-align: center;
+  color: #fff;
+  font-weight: 700;
+}
+.viewer .dot.ball {
+  width: 10px;
+  height: 10px;
+  line-height: 10px;
+  background: #ffab40;
+  color: #3d2200;
+}
+
+.controls {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  margin: 0.75rem 0 0.25rem;
+  flex-wrap: wrap;
+}
+.controls input[type="range"] {
+  width: 180px;
+}
+
+@media (min-width: 700px) {
+  .row-actions {
+    flex-wrap: nowrap;
+  }
+}

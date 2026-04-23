@@ -1,0 +1,69 @@
+import { useState } from "react";
+import { Link, useNavigate } from "react-router-dom";
+import { api, setTokens, ApiError } from "../api";
+
+export function LoginPage() {
+  const nav = useNavigate();
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [err, setErr] = useState<string | null>(null);
+
+  async function onSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    setErr(null);
+    try {
+      const data = await api<{ accessToken: string; refreshToken: string; expiresIn: number }>(
+        "/api/v1/auth/login",
+        { method: "POST", body: JSON.stringify({ email, password }) },
+      );
+      setTokens(data.accessToken, data.refreshToken);
+      nav("/plays", { replace: true });
+    } catch (e2) {
+      if (e2 instanceof ApiError) {
+        setErr(e2.message);
+      } else {
+        setErr("登录失败");
+      }
+    }
+  }
+
+  return (
+    <div className="card" style={{ maxWidth: 420, margin: "0 auto" }}>
+      <h1 style={{ margin: "0 0 0.5rem" }}>教练登录</h1>
+      <p className="hint">使用邮箱与密码。学员无需登录，通过教练分享的链接观战。</p>
+      {err ? <p className="error">{err}</p> : null}
+      <form onSubmit={onSubmit}>
+        <div className="field">
+          <label htmlFor="e">邮箱</label>
+          <input
+            id="e"
+            type="email"
+            autoComplete="email"
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+            required
+          />
+        </div>
+        <div className="field">
+          <label htmlFor="p">密码</label>
+          <input
+            id="p"
+            type="password"
+            autoComplete="current-password"
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+            required
+          />
+        </div>
+        <div className="form-actions">
+          <button className="btn btn-primary" type="submit">
+            登录
+          </button>
+          <Link to="/register" className="btn btn-ghost">
+            去注册
+          </Link>
+        </div>
+      </form>
+    </div>
+  );
+}

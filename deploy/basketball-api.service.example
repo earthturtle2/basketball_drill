@@ -1,0 +1,19 @@
+# 复制为 /etc/systemd/system/basketball-api.service 后：
+#   sudo systemctl daemon-reload
+#   sudo systemctl enable --now basketball-api
+
+[Unit]
+Description=Basketball drill API (Node)
+After=network.target
+
+[Service]
+Type=simple
+User=www-data
+WorkingDirectory=/var/www/basketball-drill/app
+EnvironmentFile=/var/www/basketball-drill/app/.env
+ExecStart=/usr/bin/node apps/api/dist/index.js
+Restart=on-failure
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target

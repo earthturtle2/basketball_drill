@@ -1,0 +1,78 @@
+{
+  "schemaVersion": 1,
+  "meta": {
+    "name": "高位挡拆 - 左弧启动",
+    "description": "1号在左弧控球，5号上提掩护后下顺。",
+    "tags": ["pick_and_roll", "half_court", "U12"],
+    "court": {
+      "preset": "half",
+      "orientation": "home_attacks_right",
+      "sizeMeters": { "length": 14, "width": 15 }
+    },
+    "durationMs": 8000
+  },
+  "teams": {
+    "offense": { "id": "off", "label": "进攻", "color": "#e53935" },
+    "defense": { "id": "def", "label": "防守", "color": "#1e88e5" }
+  },
+  "actors": [
+    {
+      "id": "p1",
+      "type": "player",
+      "team": "offense",
+      "number": 1,
+      "label": "1"
+    },
+    {
+      "id": "p5",
+      "type": "player",
+      "team": "offense",
+      "number": 5,
+      "label": "5"
+    },
+    {
+      "id": "ball",
+      "type": "ball",
+      "heldBy": "p1"
+    }
+  ],
+  "keyframes": [
+    {
+      "t": 0,
+      "poses": {
+        "p1": { "x": 0.22, "y": 0.45, "facingDeg": 90 },
+        "p5": { "x": 0.5, "y": 0.62, "facingDeg": 90 }
+      }
+    },
+    {
+      "t": 2000,
+      "poses": {
+        "p1": { "x": 0.3, "y": 0.45, "facingDeg": 85 },
+        "p5": { "x": 0.45, "y": 0.38, "facingDeg": 95 }
+      }
+    },
+    {
+      "t": 4000,
+      "poses": {
+        "p1": { "x": 0.55, "y": 0.42, "facingDeg": 75 }
+      }
+    }
+  ],
+  "events": [
+    {
+      "t": 4000,
+      "kind": "pass",
+      "from": "p1",
+      "to": "p5",
+      "note": "击地给下顺"
+    }
+  ],
+  "interpolation": {
+    "position": "linear",
+    "facing": "shortestAngle"
+  },
+  "rules": {
+    "coordinateSystem": "normalized",
+    "bounds": { "x": [0, 1], "y": [0, 1] }
+  }
+}
