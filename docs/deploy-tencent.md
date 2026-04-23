@@ -90,7 +90,14 @@ bash scripts/server-release.sh
 - **502 / 无响应**：`pm2 logs basketball-api`；确认 `PORT=3002`。  
 - **数据库权限**：确认 PM2/运行用户可读写 `data/*.db`；必要时 `chown` / `chmod`。  
 - **404 子路由**：`location /` 需 `try_files $uri $uri/ /index.html;`。  
-- **API 404**：勿使用会剥去 `/api` 前缀的 `proxy_pass` 写法。
+- **API 404**：勿使用会剥去 `/api` 前缀的 `proxy_pass` 写法。  
+- **`npm error Exit handler never called!`**：多为 npm 与 **原生依赖编译**（`better-sqlite3` 需 node-gyp）时子进程异常退出。处理顺序建议：  
+  1. 安装构建依赖（Debian/Ubuntu 示例）：`apt-get install -y build-essential python3`；  
+  2. 使用 **Node 20+ LTS**，并升级 npm：`npm install -g npm@10`；  
+  3. 在仓库根重新安装：`rm -rf node_modules apps/*/node_modules packages/*/node_modules && npm ci --no-audit --no-fund`；  
+  4. 仅重建 SQLite 原生模块：`npm rebuild better-sqlite3 -w @basketball/api`；  
+  5. 仍失败时查看 `cat /root/.npm/_logs/*-debug-*.log` 中 **node-gyp / g++** 报错。  
+- **不要用 root 跑业务进程**；但 root 下 `npm ci` 一般可，若遇权限怪问题可改用语义化用户 + 该用户 home 下 npm 缓存（`npm config get cache`）。
 
 ## 附：从旧版 PostgreSQL 迁出
 

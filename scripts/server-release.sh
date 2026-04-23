@@ -7,7 +7,10 @@ ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 cd "$ROOT"
 
 export NODE_ENV="${NODE_ENV:-production}"
-npm ci
+# 降低 npm 自身偶发 "Exit handler never called" 概率；原生模块需本机有 python3、make、g++
+export NPM_CONFIG_AUDIT="${NPM_CONFIG_AUDIT:-false}"
+export NPM_CONFIG_FUND="${NPM_CONFIG_FUND:-false}"
+npm ci --no-audit --no-fund
 npm run build
 npm run db:push -w @basketball/api
 
