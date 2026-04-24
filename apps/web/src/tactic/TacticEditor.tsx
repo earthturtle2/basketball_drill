@@ -75,7 +75,15 @@ export function TacticEditor({ document: doc, onChange, onOpenTemplates, courtMo
         } else if (passSource !== actorId) {
           const newEvent = { t: currentT, kind: "pass" as const, from: passSource, to: actorId };
           const events = [...(doc.events ?? []), newEvent];
-          onChange({ ...doc, events });
+          // Transfer ball to the receiver
+          let newActors = doc.actors.map((a) => {
+            if (a.type === "ball") return { ...a, heldBy: actorId };
+            return a;
+          });
+          if (!newActors.some((a) => a.type === "ball")) {
+            newActors = [...newActors, { id: "ball", type: "ball" as const, heldBy: actorId }];
+          }
+          onChange({ ...doc, actors: newActors, events });
           setPassSource(null);
           setTool("select");
         }
