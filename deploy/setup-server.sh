@@ -34,7 +34,7 @@ cat > "$GIT_DIR/hooks/post-receive" << 'HOOK'
 set -euo pipefail
 export NVM_DIR="$HOME/.nvm"
 [ -s "$NVM_DIR/nvm.sh" ] && source "$NVM_DIR/nvm.sh"
-APP="/data/node_apps/basketball_drill"
+APP="/data/node-apps/basketball_drill"
 echo ">>> checkout"
 git --work-tree="$APP" --git-dir="$(cd "$(dirname "$0")/.."; pwd)" checkout -f main
 cd "$APP"
