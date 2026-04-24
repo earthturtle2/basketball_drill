@@ -2,7 +2,8 @@
 # 构建 + 重启，由 post-receive hook 或手动执行
 # 用法：bash scripts/server-release.sh
 set -euo pipefail
-export PATH="/usr/local/bin:/usr/bin:/bin:$PATH"
+export NVM_DIR="${NVM_DIR:-$HOME/.nvm}"
+[ -s "$NVM_DIR/nvm.sh" ] && source "$NVM_DIR/nvm.sh"
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 cd "$ROOT"
 

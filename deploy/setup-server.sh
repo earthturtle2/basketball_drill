@@ -32,8 +32,8 @@ echo "=== 5/7 写入 post-receive 钩子 ==="
 cat > "$GIT_DIR/hooks/post-receive" << 'HOOK'
 #!/bin/bash
 set -euo pipefail
-export PATH="/usr/local/bin:/usr/bin:/bin:$PATH"
-source /root/.bashrc 2>/dev/null || true
+export NVM_DIR="$HOME/.nvm"
+[ -s "$NVM_DIR/nvm.sh" ] && source "$NVM_DIR/nvm.sh"
 APP="/data/node_apps/basketball_drill"
 echo ">>> checkout"
 git --work-tree="$APP" --git-dir="$(cd "$(dirname "$0")/.."; pwd)" checkout -f main
