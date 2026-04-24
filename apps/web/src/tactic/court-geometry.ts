@@ -1,69 +1,142 @@
 /**
- * FIBA half-court geometry in decimeters (viewBox 0 0 140 150).
- * Court: 14m length x 15m width.
+ * FIBA court geometry in decimeters.
+ * Half court: viewBox 0 0 140 150 (14m × 15m).
+ * Full court: viewBox 0 0 280 150 (28m × 15m).
  * Origin top-left, x right, y down.
- * Tactic coords (tx,ty) → SVG: (tx*140, (1-ty)*150).
  */
 
-export const COURT_W = 140;
+export const HALF_W = 140;
+export const FULL_W = 280;
 export const COURT_H = 150;
 
-export function tacticToSvg(tx: number, ty: number): [number, number] {
-  return [tx * COURT_W, (1 - ty) * COURT_H];
+export type CourtMode = "half" | "full";
+
+export function courtWidth(mode: CourtMode): number {
+  return mode === "full" ? FULL_W : HALF_W;
 }
 
-export function svgToTactic(sx: number, sy: number): [number, number] {
+export function tacticToSvg(tx: number, ty: number, mode: CourtMode = "half"): [number, number] {
+  return [tx * courtWidth(mode), (1 - ty) * COURT_H];
+}
+
+export function svgToTactic(sx: number, sy: number, mode: CourtMode = "half"): [number, number] {
+  const w = courtWidth(mode);
   return [
-    Math.max(0, Math.min(1, sx / COURT_W)),
+    Math.max(0, Math.min(1, sx / w)),
     Math.max(0, Math.min(1, 1 - sy / COURT_H)),
   ];
 }
 
-const BASKET_X = COURT_W - 15.75; // 1.575m from endline
-const BASKET_Y = COURT_H / 2;     // center
-
-const FT_LANE_W = 49;  // 4.9m wide
-const FT_LANE_L = 58;  // 5.8m from endline
-const FT_LEFT = COURT_W - FT_LANE_L;
-const FT_TOP = BASKET_Y - FT_LANE_W / 2;
-const FT_BOT = BASKET_Y + FT_LANE_W / 2;
-
-const FT_CIRCLE_R = 18; // 1.8m
-const THREE_R = 67.5;   // 6.75m
-const THREE_CORNER_Y_TOP = 9;  // 0.9m from sideline
-const THREE_CORNER_Y_BOT = COURT_H - 9;
+// FIBA measurements in decimeters
+const CY = COURT_H / 2;
+const BASKET_OFF = 15.75; // basket center from baseline
+const FT_LANE_W = 49;     // 4.9m
+const FT_LANE_D = 58;     // 5.8m from baseline
+const FT_R = 18;           // 1.8m free-throw circle
+const THREE_R = 67.5;      // 6.75m
+const THREE_CORNER = 9;    // 0.9m from sideline
 const RESTRICTED_R = 12.5; // 1.25m
-const CENTER_R = 18;
-const RIM_R = 2.25;
-const BACKBOARD_X = COURT_W - 12; // 1.2m from endline
-const BACKBOARD_HALF = 9; // 0.9m each side
+const CENTER_R = 18;       // 1.8m
+const RIM_R = 2.25;        // 0.225m (45cm diameter)
+const BB_OFF = 12;          // backboard 1.2m from baseline
+const BB_HALF = 9;          // backboard half-width 0.9m
 
-// Three-point arc meets corner straight lines
-const dx3 = Math.sqrt(THREE_R ** 2 - (THREE_CORNER_Y_TOP - BASKET_Y) ** 2);
-const THREE_ARC_X = BASKET_X - dx3;
+export interface HalfPaths {
+  ftLane: string;
+  ftCircle: string;
+  threePt: string;
+  restricted: string;
+  rim: { cx: number; cy: number; r: number };
+  backboard: string;
+}
 
-export function courtPaths() {
+/**
+ * Right-side half court (basket on the right, court extends left).
+ * Baseline at `bl`.
+ */
+function rightHalf(bl: number): HalfPaths {
+  const bx = bl - BASKET_OFF;
+  const ft = bl - FT_LANE_D;
+  const ftT = CY - FT_LANE_W / 2;
+  const ftB = CY + FT_LANE_W / 2;
+  const dx = Math.sqrt(THREE_R ** 2 - (THREE_CORNER - CY) ** 2);
+  const ax = bx - dx;
+  const bb = bl - BB_OFF;
+
   return {
-    boundary: `M 0 0 H ${COURT_W} V ${COURT_H} H 0 Z`,
-
-    ftLane: `M ${COURT_W} ${FT_TOP} H ${FT_LEFT} V ${FT_BOT} H ${COURT_W}`,
-
-    ftCircle: `M ${FT_LEFT} ${BASKET_Y - FT_CIRCLE_R} A ${FT_CIRCLE_R} ${FT_CIRCLE_R} 0 1 1 ${FT_LEFT} ${BASKET_Y + FT_CIRCLE_R} A ${FT_CIRCLE_R} ${FT_CIRCLE_R} 0 1 1 ${FT_LEFT} ${BASKET_Y - FT_CIRCLE_R}`,
-
-    threePt: [
-      `M ${COURT_W} ${THREE_CORNER_Y_TOP} H ${THREE_ARC_X}`,
-      `A ${THREE_R} ${THREE_R} 0 1 0 ${THREE_ARC_X} ${THREE_CORNER_Y_BOT}`,
-      `H ${COURT_W}`,
+    ftLane: `M ${bl} ${ftT} H ${ft} V ${ftB} H ${bl}`,
+    ftCircle: [
+      `M ${ft} ${CY - FT_R}`,
+      `A ${FT_R} ${FT_R} 0 1 1 ${ft} ${CY + FT_R}`,
+      `A ${FT_R} ${FT_R} 0 1 1 ${ft} ${CY - FT_R}`,
     ].join(" "),
+    // Arc sweep=0 with right-side center → short arc on LEFT (toward center court)
+    threePt: `M ${bl} ${THREE_CORNER} H ${ax} A ${THREE_R} ${THREE_R} 0 0 0 ${ax} ${COURT_H - THREE_CORNER} H ${bl}`,
+    // Semi-circle opening LEFT (toward center court): sweep=1 (CW on screen → goes left from top)
+    restricted: `M ${bx} ${CY - RESTRICTED_R} A ${RESTRICTED_R} ${RESTRICTED_R} 0 0 1 ${bx} ${CY + RESTRICTED_R}`,
+    rim: { cx: bx, cy: CY, r: RIM_R },
+    backboard: `M ${bb} ${CY - BB_HALF} V ${CY + BB_HALF}`,
+  };
+}
 
-    restricted: `M ${BASKET_X} ${BASKET_Y - RESTRICTED_R} A ${RESTRICTED_R} ${RESTRICTED_R} 0 0 0 ${BASKET_X} ${BASKET_Y + RESTRICTED_R}`,
+/**
+ * Left-side half court (basket on the left, court extends right).
+ * Baseline at `bl`.
+ */
+function leftHalf(bl: number): HalfPaths {
+  const bx = bl + BASKET_OFF;
+  const ft = bl + FT_LANE_D;
+  const ftT = CY - FT_LANE_W / 2;
+  const ftB = CY + FT_LANE_W / 2;
+  const dx = Math.sqrt(THREE_R ** 2 - (THREE_CORNER - CY) ** 2);
+  const ax = bx + dx;
+  const bb = bl + BB_OFF;
 
-    centerCircle: `M 0 ${BASKET_Y - CENTER_R} A ${CENTER_R} ${CENTER_R} 0 0 1 0 ${BASKET_Y + CENTER_R}`,
+  return {
+    ftLane: `M ${bl} ${ftT} H ${ft} V ${ftB} H ${bl}`,
+    ftCircle: [
+      `M ${ft} ${CY - FT_R}`,
+      `A ${FT_R} ${FT_R} 0 1 0 ${ft} ${CY + FT_R}`,
+      `A ${FT_R} ${FT_R} 0 1 0 ${ft} ${CY - FT_R}`,
+    ].join(" "),
+    // Arc sweep=1 with left-side center → short arc on RIGHT (toward center court)
+    threePt: `M ${bl} ${THREE_CORNER} H ${ax} A ${THREE_R} ${THREE_R} 0 0 1 ${ax} ${COURT_H - THREE_CORNER} H ${bl}`,
+    // Semi-circle opening RIGHT (toward center court): sweep=0 (CCW on screen → goes right from top)
+    restricted: `M ${bx} ${CY - RESTRICTED_R} A ${RESTRICTED_R} ${RESTRICTED_R} 0 0 0 ${bx} ${CY + RESTRICTED_R}`,
+    rim: { cx: bx, cy: CY, r: RIM_R },
+    backboard: `M ${bb} ${CY - BB_HALF} V ${CY + BB_HALF}`,
+  };
+}
 
-    halfLine: `M 0 0 V ${COURT_H}`,
+export interface CourtPathSet {
+  boundary: string;
+  centerLine: string;
+  centerCircle: string;
+  halves: HalfPaths[];
+}
 
-    rim: { cx: BASKET_X, cy: BASKET_Y, r: RIM_R },
+export function courtPaths(mode: CourtMode = "half"): CourtPathSet {
+  const w = courtWidth(mode);
 
-    backboard: `M ${BACKBOARD_X} ${BASKET_Y - BACKBOARD_HALF} V ${BASKET_Y + BACKBOARD_HALF}`,
+  const halves: HalfPaths[] = [rightHalf(w)];
+  if (mode === "full") {
+    halves.push(leftHalf(0));
+  }
+
+  const centerX = mode === "full" ? w / 2 : 0;
+  const centerCircle =
+    mode === "full"
+      ? [
+          `M ${centerX} ${CY - CENTER_R}`,
+          `A ${CENTER_R} ${CENTER_R} 0 1 1 ${centerX} ${CY + CENTER_R}`,
+          `A ${CENTER_R} ${CENTER_R} 0 1 1 ${centerX} ${CY - CENTER_R}`,
+        ].join(" ")
+      : `M 0 ${CY - CENTER_R} A ${CENTER_R} ${CENTER_R} 0 0 1 0 ${CY + CENTER_R}`;
+
+  return {
+    boundary: `M 0 0 H ${w} V ${COURT_H} H 0 Z`,
+    centerLine: mode === "full" ? `M ${w / 2} 0 V ${COURT_H}` : `M 0 0 V ${COURT_H}`,
+    centerCircle,
+    halves,
   };
 }

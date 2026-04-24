@@ -1,12 +1,13 @@
 import type { TacticDocumentV1 } from "@basketball/shared";
 import { samplePoses } from "./viewer-math";
-import { tacticToSvg } from "./court-geometry";
+import { tacticToSvg, type CourtMode } from "./court-geometry";
 
 interface Props {
   document: TacticDocumentV1;
+  courtMode?: CourtMode;
 }
 
-export function PassLines({ document }: Props) {
+export function PassLines({ document, courtMode = "half" }: Props) {
   const passes = (document.events ?? []).filter(
     (e) => e.kind === "pass" && e.from && e.to,
   );
@@ -19,8 +20,8 @@ export function PassLines({ document }: Props) {
         const fromP = poses[ev.from!];
         const toP = poses[ev.to!];
         if (!fromP || !toP) return null;
-        const [x1, y1] = tacticToSvg(fromP.x, fromP.y);
-        const [x2, y2] = tacticToSvg(toP.x, toP.y);
+        const [x1, y1] = tacticToSvg(fromP.x, fromP.y, courtMode);
+        const [x2, y2] = tacticToSvg(toP.x, toP.y, courtMode);
         return (
           <line
             key={i}

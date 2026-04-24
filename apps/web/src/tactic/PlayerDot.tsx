@@ -7,6 +7,7 @@ interface Props {
   color: string;
   label: string;
   selected: boolean;
+  hasBall: boolean;
   onDrag: (actorId: string, svgX: number, svgY: number) => void;
   onSelect: (actorId: string) => void;
 }
@@ -18,6 +19,7 @@ export function PlayerDot({
   color,
   label,
   selected,
+  hasBall,
   onDrag,
   onSelect,
 }: Props) {
@@ -68,17 +70,31 @@ export function PlayerDot({
       onPointerMove={onPointerMove}
       onPointerUp={onPointerUp}
     >
-      {selected && (
+      {/* Ball halo — yellow ring around the holder */}
+      {hasBall && (
         <circle
           cx={cx}
           cy={cy}
           r={6}
+          fill="none"
+          stroke="#ffab40"
+          strokeWidth="1.2"
+          opacity="0.85"
+        />
+      )}
+      {/* Selection ring */}
+      {selected && (
+        <circle
+          cx={cx}
+          cy={cy}
+          r={hasBall ? 8 : 6}
           fill="none"
           stroke="#fff"
           strokeWidth="0.6"
           strokeDasharray="1.5 1"
         />
       )}
+      {/* Player circle */}
       <circle cx={cx} cy={cy} r={4} fill={color} stroke="#000" strokeWidth="0.4" />
       <text
         x={cx}

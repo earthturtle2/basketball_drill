@@ -190,22 +190,110 @@ pre.doc {
   user-select: none;
 }
 .court-svg--editor {
-  cursor: crosshair;
   border: 1px solid var(--border);
+  cursor: default;
 }
+.court-svg--crosshair { cursor: crosshair; }
+.court-svg--pointer { cursor: pointer; }
 
-/* Tactic editor */
+/* Tactic editor — grid layout: bench left, court right, timeline bottom */
 .tactic-editor {
+  display: grid;
+  grid-template-columns: 170px 1fr;
+  grid-template-rows: 1fr auto;
+  gap: 0.65rem;
   margin-bottom: 1rem;
 }
+.editor-bench {
+  grid-row: 1;
+  grid-column: 1;
+}
+.editor-court {
+  grid-row: 1;
+  grid-column: 2;
+}
+.editor-timeline {
+  grid-row: 2;
+  grid-column: 1 / -1;
+}
 
-/* Editor toolbar */
-.editor-toolbar {
+/* Bench panel */
+.editor-bench {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 0.75rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+  overflow-y: auto;
+  max-height: 70vh;
+}
+.bench-section {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+}
+.bench-label {
+  font-size: 0.72rem;
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  font-weight: 600;
+}
+.bench-row {
   display: flex;
   flex-wrap: wrap;
-  gap: 0.4rem;
-  margin-bottom: 0.5rem;
+  gap: 0.35rem;
+  align-items: center;
 }
+.bench-hint {
+  font-size: 0.78rem;
+  color: var(--muted);
+}
+.bench-tip {
+  font-size: 0.78rem;
+  color: #ffab40;
+  margin: 0.2rem 0 0;
+}
+.bench-field {
+  margin-bottom: 0.35rem;
+}
+.bench-field label {
+  font-size: 0.75rem;
+  margin-bottom: 0.15rem;
+}
+.bench-field input {
+  padding: 0.35rem 0.5rem;
+  font-size: 0.85rem;
+}
+
+/* Bench player tokens */
+.bench-token {
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  border: 2px solid transparent;
+  color: #fff;
+  font-weight: bold;
+  font-size: 16px;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  transition: border-color 0.15s, box-shadow 0.15s;
+  padding: 0;
+}
+.bench-token--offense { background: #e53935; }
+.bench-token--defense { background: #1e88e5; }
+.bench-token--active {
+  border-color: #fff;
+  box-shadow: 0 0 8px rgba(255, 255, 255, 0.4);
+}
+.bench-token:hover {
+  border-color: rgba(255, 255, 255, 0.5);
+}
+
 .btn-sm {
   padding: 0.35rem 0.75rem;
   font-size: 0.82rem;
@@ -391,15 +479,48 @@ select.btn {
     width: auto;
   }
 
-  .editor-toolbar {
-    gap: 0.3rem;
+  /* Editor grid → single column on mobile */
+  .tactic-editor {
+    grid-template-columns: 1fr;
+    grid-template-rows: auto 1fr auto;
   }
+  .editor-bench {
+    grid-row: 1;
+    grid-column: 1;
+    flex-direction: row;
+    flex-wrap: wrap;
+    max-height: none;
+    overflow-y: visible;
+    gap: 0.5rem 1rem;
+  }
+  .bench-section {
+    flex-direction: row;
+    align-items: center;
+    gap: 0.4rem;
+    flex-wrap: wrap;
+  }
+  .bench-field {
+    margin-bottom: 0;
+  }
+  .editor-court {
+    grid-row: 2;
+    grid-column: 1;
+  }
+  .editor-timeline {
+    grid-row: 3;
+    grid-column: 1;
+  }
+
   .btn-sm {
     min-height: 44px;
     padding: 0.4rem 0.65rem;
   }
   .btn {
     min-height: 44px;
+  }
+  .bench-token {
+    width: 40px;
+    height: 40px;
   }
 
   .kf-timeline__bar {

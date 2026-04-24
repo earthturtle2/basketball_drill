@@ -1,12 +1,13 @@
 import type { TacticDocumentV1 } from "@basketball/shared";
-import { tacticToSvg } from "./court-geometry";
+import { tacticToSvg, type CourtMode } from "./court-geometry";
 
 interface Props {
   document: TacticDocumentV1;
   teamColors: { offense: string; defense: string };
+  courtMode?: CourtMode;
 }
 
-export function MovementTrails({ document, teamColors }: Props) {
+export function MovementTrails({ document, teamColors, courtMode = "half" }: Props) {
   const actorTeam: Record<string, "offense" | "defense"> = {};
   for (const a of document.actors) {
     if (a.type === "player") actorTeam[a.id] = a.team;
@@ -20,7 +21,7 @@ export function MovementTrails({ document, teamColors }: Props) {
         const points = document.keyframes
           .map((kf) => kf.poses[id])
           .filter(Boolean)
-          .map((p) => tacticToSvg(p!.x, p!.y));
+          .map((p) => tacticToSvg(p!.x, p!.y, courtMode));
 
         if (points.length < 2) return null;
 

@@ -4,9 +4,9 @@ import { CourtSVG } from "./CourtSVG";
 import { PlayerDot } from "./PlayerDot";
 import { MovementTrails } from "./MovementTrails";
 import { PassLines } from "./PassLines";
-import { EditorToolbar, type EditorTool } from "./EditorToolbar";
+import { EditorBench, type EditorTool } from "./EditorBench";
 import { KeyframeTimeline } from "./KeyframeTimeline";
-import { tacticToSvg, svgToTactic } from "./court-geometry";
+import { tacticToSvg, svgToTactic, type CourtMode } from "./court-geometry";
 
 interface Props {
   document: TacticDocumentV1;
@@ -23,6 +23,8 @@ export function TacticEditor({ document: doc, onChange, onOpenTemplates }: Props
   const [activeKfIdx, setActiveKfIdx] = useState(0);
   const [selectedActorId, setSelectedActorId] = useState<string | null>(null);
   const [tool, setTool] = useState<EditorTool>("select");
+  const [courtMode, setCourtMode] = useState<CourtMode>("half");
+  const [passSource, setPassSource] = useState<string | null>(null);
   const svgRef = useRef<SVGSVGElement>(null);
 
   const teamColors = {
@@ -33,28 +35,66 @@ export function TacticEditor({ document: doc, onChange, onOpenTemplates }: Props
   const kf = doc.keyframes[activeKfIdx];
   const currentT = kf?.t ?? 0;
 
+  // Ball holder
+  const ballActor = doc.actors.find((a) => a.type === "ball");
+  const ballHolderId = ballActor?.type === "ball" ? ballActor.heldBy : undefined;
+
+  // Selected actor (player type only)
+  const selectedPlayer = selectedActorId
+    ? doc.actors.find((a) => a.id === selectedActorId && a.type === "player")
+    : null;
+  const selectedPlayerData =
+    selectedPlayer?.type === "player"
+      ? selectedPlayer
+      : null;
+
+  // Tool change resets pass state
+  const handleToolChange = useCallback((t: EditorTool) => {
+    setTool(t);
+    setPassSource(null);
+  }, []);
+
   const handleDrag = useCallback(
     (actorId: string, svgX: number, svgY: number) => {
-      const [tx, ty] = svgToTactic(svgX, svgY);
+      const [tx, ty] = svgToTactic(svgX, svgY, courtMode);
       const newKfs = doc.keyframes.map((k, i) => {
         if (i !== activeKfIdx) return k;
         return { ...k, poses: { ...k.poses, [actorId]: { ...k.poses[actorId], x: tx, y: ty } } };
       });
       onChange({ ...doc, keyframes: newKfs });
     },
-    [doc, activeKfIdx, onChange],
+    [doc, activeKfIdx, onChange, courtMode],
+  );
+
+  const handleActorClick = useCallback(
+    (actorId: string) => {
+      if (tool === "pass") {
+        if (!passSource) {
+          setPassSource(actorId);
+        } else if (passSource !== actorId) {
+          const newEvent = { t: currentT, kind: "pass" as const, from: passSource, to: actorId };
+          const events = [...(doc.events ?? []), newEvent];
+          onChange({ ...doc, events });
+          setPassSource(null);
+          setTool("select");
+        }
+      } else {
+        setSelectedActorId(actorId);
+      }
+    },
+    [tool, passSource, currentT, doc, onChange],
   );
 
   const handleCourtClick = useCallback(
     (e: React.MouseEvent<SVGSVGElement>) => {
-      if (tool === "select") return;
+      if (tool !== "addOffense" && tool !== "addDefense") return;
       const svg = svgRef.current;
       if (!svg) return;
       const ctm = svg.getScreenCTM();
       if (!ctm) return;
       const svgX = (e.clientX - ctm.e) / ctm.a;
       const svgY = (e.clientY - ctm.f) / ctm.d;
-      const [tx, ty] = svgToTactic(svgX, svgY);
+      const [tx, ty] = svgToTactic(svgX, svgY, courtMode);
 
       const team: "offense" | "defense" = tool === "addOffense" ? "offense" : "defense";
       const existing = doc.actors.filter((a) => a.type === "player" && a.team === team);
@@ -79,7 +119,7 @@ export function TacticEditor({ document: doc, onChange, onOpenTemplates }: Props
       setSelectedActorId(id);
       setTool("select");
     },
-    [tool, doc, onChange],
+    [tool, doc, onChange, courtMode],
   );
 
   const handleRemoveSelected = useCallback(() => {
@@ -90,14 +130,45 @@ export function TacticEditor({ document: doc, onChange, onOpenTemplates }: Props
       const { [selectedActorId]: _, ...rest } = k.poses;
       return { ...k, poses: rest };
     });
-    onChange({ ...doc, actors: newActors, keyframes: newKfs });
+    // Clear ball holder if removed player was holding it
+    const updatedActors = newActors.map((a) => {
+      if (a.type === "ball" && a.heldBy === selectedActorId) {
+        return { ...a, heldBy: undefined };
+      }
+      return a;
+    });
+    onChange({ ...doc, actors: updatedActors, keyframes: newKfs });
     setSelectedActorId(null);
   }, [selectedActorId, doc, onChange]);
 
+  const handleActorUpdate = useCallback(
+    (actorId: string, updates: { label?: string; number?: number }) => {
+      const newActors = doc.actors.map((a) => {
+        if (a.id !== actorId || a.type !== "player") return a;
+        return { ...a, ...updates };
+      });
+      onChange({ ...doc, actors: newActors });
+    },
+    [doc, onChange],
+  );
+
+  const handleToggleBall = useCallback(
+    (actorId: string) => {
+      let newActors = doc.actors.map((a) => {
+        if (a.type !== "ball") return a;
+        return { ...a, heldBy: a.heldBy === actorId ? undefined : actorId };
+      });
+      if (!newActors.some((a) => a.type === "ball")) {
+        newActors = [...newActors, { id: "ball", type: "ball" as const, heldBy: actorId }];
+      }
+      onChange({ ...doc, actors: newActors });
+    },
+    [doc, onChange],
+  );
+
   const handleAddKeyframe = useCallback(
     (t: number) => {
-      const existing = doc.keyframes.find((k) => k.t === t);
-      if (existing) return;
+      if (doc.keyframes.find((k) => k.t === t)) return;
       const prevKf = [...doc.keyframes].reverse().find((k) => k.t <= t);
       const newKf = { t, poses: prevKf ? { ...prevKf.poses } : {} };
       const newKfs = [...doc.keyframes, newKf].sort((a, b) => a.t - b.t);
@@ -125,66 +196,91 @@ export function TacticEditor({ document: doc, onChange, onOpenTemplates }: Props
     [doc, onChange],
   );
 
+  const courtCursor =
+    tool === "addOffense" || tool === "addDefense"
+      ? "crosshair"
+      : tool === "pass"
+        ? "pointer"
+        : undefined;
+
   return (
     <div className="tactic-editor">
-      <EditorToolbar
+      <EditorBench
         tool={tool}
-        onToolChange={setTool}
-        hasSelected={!!selectedActorId}
-        onRemoveSelected={handleRemoveSelected}
+        onToolChange={handleToolChange}
+        courtMode={courtMode}
+        onCourtModeChange={setCourtMode}
+        doc={doc}
+        selectedActor={selectedPlayerData}
+        ballHolderId={ballHolderId}
+        passSource={passSource}
+        onActorUpdate={handleActorUpdate}
+        onToggleBall={handleToggleBall}
+        onRemoveActor={handleRemoveSelected}
         onOpenTemplates={onOpenTemplates}
       />
 
-      <CourtSVG ref={svgRef} className="court-svg court-svg--editor" onClick={handleCourtClick}>
-        <MovementTrails document={doc} teamColors={teamColors} />
-        <PassLines document={doc} />
-        {doc.actors.map((a) => {
-          if (a.type === "ball") {
-            const holder = a.heldBy ? kf?.poses[a.heldBy] : null;
-            const p = holder ?? kf?.poses[a.id] ?? { x: 0.5, y: 0.5 };
-            const [sx, sy] = tacticToSvg(p.x, p.y);
+      <div className="editor-court">
+        <CourtSVG
+          ref={svgRef}
+          mode={courtMode}
+          className={`court-svg court-svg--editor${courtCursor ? ` court-svg--${courtCursor}` : ""}`}
+          onClick={handleCourtClick}
+        >
+          <MovementTrails document={doc} teamColors={teamColors} courtMode={courtMode} />
+          <PassLines document={doc} courtMode={courtMode} />
+          {doc.actors.map((a) => {
+            if (a.type === "ball") {
+              if (ballHolderId) return null;
+              const p = kf?.poses[a.id] ?? { x: 0.5, y: 0.5 };
+              const [sx, sy] = tacticToSvg(p.x, p.y, courtMode);
+              return (
+                <circle
+                  key={a.id}
+                  cx={sx}
+                  cy={sy}
+                  r={2.2}
+                  fill="#ffab40"
+                  stroke="#3d2200"
+                  strokeWidth="0.4"
+                />
+              );
+            }
+            const p = kf?.poses[a.id];
+            if (!p) return null;
+            const [sx, sy] = tacticToSvg(p.x, p.y, courtMode);
+            const color = teamColors[a.team] ?? teamColors.offense;
+            const isPassSrc = passSource === a.id;
             return (
-              <circle
+              <PlayerDot
                 key={a.id}
+                actorId={a.id}
                 cx={sx}
                 cy={sy}
-                r={2.8}
-                fill="#ffab40"
-                stroke="#3d2200"
-                strokeWidth="0.5"
+                color={isPassSrc ? "#4caf50" : color}
+                label={a.label}
+                selected={a.id === selectedActorId}
+                hasBall={a.id === ballHolderId}
+                onDrag={handleDrag}
+                onSelect={handleActorClick}
               />
             );
-          }
-          const p = kf?.poses[a.id];
-          if (!p) return null;
-          const [sx, sy] = tacticToSvg(p.x, p.y);
-          const color = teamColors[a.team] ?? teamColors.offense;
-          return (
-            <PlayerDot
-              key={a.id}
-              actorId={a.id}
-              cx={sx}
-              cy={sy}
-              color={color}
-              label={a.label}
-              selected={a.id === selectedActorId}
-              onDrag={handleDrag}
-              onSelect={setSelectedActorId}
-            />
-          );
-        })}
-      </CourtSVG>
+          })}
+        </CourtSVG>
+      </div>
 
-      <KeyframeTimeline
-        keyframes={doc.keyframes}
-        activeIndex={activeKfIdx}
-        durationMs={doc.meta.durationMs ?? 8000}
-        currentT={currentT}
-        onSelect={setActiveKfIdx}
-        onAdd={handleAddKeyframe}
-        onRemove={handleRemoveKeyframe}
-        onDurationChange={handleDurationChange}
-      />
+      <div className="editor-timeline">
+        <KeyframeTimeline
+          keyframes={doc.keyframes}
+          activeIndex={activeKfIdx}
+          durationMs={doc.meta.durationMs ?? 8000}
+          currentT={currentT}
+          onSelect={setActiveKfIdx}
+          onAdd={handleAddKeyframe}
+          onRemove={handleRemoveKeyframe}
+          onDurationChange={handleDurationChange}
+        />
+      </div>
     </div>
   );
 }
