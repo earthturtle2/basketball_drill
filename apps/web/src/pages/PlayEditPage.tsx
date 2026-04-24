@@ -305,12 +305,36 @@ export function PlayEditPage() {
               }}
               style={{ flex: 1 }}
             />
-            <button type="button" className="btn" onClick={() => setPlaying((p) => !p)}>
+            <button
+              type="button"
+              className="btn"
+              onClick={() => {
+                if (playing) {
+                  setPlaying(false);
+                } else {
+                  if (tMs >= duration) setTms(0);
+                  setPlaying(true);
+                }
+              }}
+            >
               {playing ? t("edit.pause") : t("edit.play")}
             </button>
-            <label style={{ display: "inline-flex", alignItems: "center", gap: "0.3rem", fontSize: "0.85rem", color: "var(--muted)", cursor: "pointer", flexShrink: 0 }}>
+            <label
+              className="controls__loop"
+              style={{
+                display: "inline-flex",
+                alignItems: "center",
+                gap: "0.35rem",
+                fontSize: "0.85rem",
+                color: "var(--muted)",
+                cursor: "pointer",
+                flexShrink: 0,
+                whiteSpace: "nowrap",
+                lineHeight: 1.2,
+              }}
+            >
               <input type="checkbox" checked={loop} onChange={(e) => setLoop(e.target.checked)} />
-              {t("edit.loop")}
+              <span>{t("edit.loop")}</span>
             </label>
           </div>
         </div>
