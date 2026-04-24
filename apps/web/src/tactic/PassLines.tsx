@@ -5,16 +5,47 @@ import { tacticToSvg, type CourtMode } from "./court-geometry";
 interface Props {
   document: TacticDocumentV1;
   courtMode?: CourtMode;
-  /** Only show pass events with event time t <= this (ms). Omitted = show all. */
-  upToTMs?: number;
+  /**
+   * Editor: only show passes whose event time falls in [kf0.t .. kf[k].t] across
+   * the union of time windows for segments 1..k (same scope as movement trails).
+   * k=0 means show nothing. When omitted, show all passes (no editor clipping).
+   */
+  cumulativeUptoKeyframeIndex?: number;
 }
 
-export function PassLines({ document, courtMode = "half", upToTMs }: Props) {
+/**
+ * True iff the pass instant falls in the union of time segments
+ * [i-1]→[i] for i=1..k in **document** keyframe order, matching MovementTrails.
+ * k=0: nothing (no “past” yet). Same as showing passes only for motion drawn up to k.
+ */
+function passInCumulativeKeyRange(
+  t: number,
+  keyframes: { t: number }[],
+  k: number,
+): boolean {
+  if (k < 1) return false;
+  const n = keyframes.length;
+  if (n < 2) return false;
+  const kClamped = Math.min(k, n - 1);
+  for (let i = 1; i <= kClamped; i++) {
+    const a = keyframes[i - 1]!.t;
+    const b = keyframes[i]!.t;
+    const lo = Math.min(a, b);
+    const hi = Math.max(a, b);
+    if (t >= lo && t <= hi) return true;
+  }
+  return false;
+}
+
+export function PassLines({ document, courtMode = "half", cumulativeUptoKeyframeIndex }: Props) {
   const passes = (document.events ?? []).filter(
     (e) => e.kind === "pass" && e.from && e.to,
   );
+  const kfs = document.keyframes;
   const filtered =
-    upToTMs === undefined ? passes : passes.filter((e) => e.t <= upToTMs);
+    cumulativeUptoKeyframeIndex === undefined
+      ? passes
+      : passes.filter((e) => passInCumulativeKeyRange(e.t, kfs, cumulativeUptoKeyframeIndex));
   if (filtered.length === 0) return null;
 
   return (
