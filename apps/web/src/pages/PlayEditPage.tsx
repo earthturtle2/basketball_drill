@@ -38,12 +38,17 @@ export function PlayEditPage() {
   const [saveStatus, setSaveStatus] = useState<SaveStatus>("saved");
   const [courtMode, setCourtMode] = useState<CourtMode>("half");
   const [frameByFrame, setFrameByFrame] = useState(true);
+  const [frameStepTarget, setFrameStepTarget] = useState<{ from: number; to: number } | null>(null);
   const [loop, setLoop] = useState(false);
   const [playbackSpeed, setPlaybackSpeed] = useState<0.5 | 1 | 2>(0.5);
 
   const savedSnapshotRef = useRef<string>("");
   const tMsRef = useRef(0);
   tMsRef.current = tMs;
+  const speedRef = useRef(playbackSpeed);
+  speedRef.current = playbackSpeed;
+  const frameStepTargetRef = useRef(frameStepTarget);
+  frameStepTargetRef.current = frameStepTarget;
   const autoSaveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const isDirty = useCallback(() => {
@@ -125,6 +130,36 @@ export function PlayEditPage() {
   }, [frameByFrame]);
 
   useEffect(() => {
+    if (!frameByFrame) setFrameStepTarget(null);
+  }, [frameByFrame]);
+
+  // Frame-by-frame: play sim time from `from` to `to` (same speed rules as full playback, then stop)
+  useEffect(() => {
+    if (!doc || !frameStepTarget) return;
+    const { from, to } = frameStepTarget;
+    if (from === to) {
+      setFrameStepTarget(null);
+      return;
+    }
+    const total = Math.abs(to - from);
+    const dir = to >= from ? 1 : -1;
+    const t0 = performance.now();
+    let raf: number;
+    const tick = (now: number) => {
+      const dt = (now - t0) * speedRef.current;
+      if (dt >= total) {
+        setTms(to);
+        setFrameStepTarget(null);
+        return;
+      }
+      setTms(from + dir * dt);
+      raf = requestAnimationFrame(tick);
+    };
+    raf = requestAnimationFrame(tick);
+    return () => cancelAnimationFrame(raf);
+  }, [doc, frameStepTarget]);
+
+  useEffect(() => {
     if (!doc || !playing || frameByFrame) return;
     const dur = doc.meta?.durationMs ?? 8000;
     const speed = playbackSpeed;
@@ -152,16 +187,15 @@ export function PlayEditPage() {
   if (!user) return <Navigate to="/login" replace />;
   if (!id) return <p className="error">{t("edit.missingId")}</p>;
 
-  const stepNextKeyframe = useCallback(() => {
-    if (!doc) return;
+  const startFrameStep = useCallback(() => {
+    if (!doc || frameStepTargetRef.current) return;
     const times = [...new Set(doc.keyframes.map((k) => k.t))].sort((a, b) => a - b);
     if (times.length === 0) return;
     const E = 0.5;
-    setTms((prev) => {
-      const nextT = times.find((tm) => tm > prev + E);
-      if (nextT !== undefined) return nextT;
-      return times[0]!;
-    });
+    const from = tMsRef.current;
+    const nextT = times.find((tm) => tm > from + E) ?? times[0]!;
+    if (Math.abs(nextT - from) < 0.25) return;
+    setFrameStepTarget({ from, to: nextT });
   }, [doc]);
 
   function handleDocChange(newDoc: TacticDocumentV1) {
@@ -322,6 +356,7 @@ export function PlayEditPage() {
               value={tMs}
               onChange={(e) => {
                 setPlaying(false);
+                setFrameStepTarget(null);
                 setTms(Number(e.target.value));
               }}
               style={{ flex: 1 }}
@@ -329,9 +364,10 @@ export function PlayEditPage() {
             <button
               type="button"
               className="btn"
+              disabled={!!(frameByFrame && frameStepTarget !== null)}
               onClick={() => {
                 if (frameByFrame) {
-                  stepNextKeyframe();
+                  void startFrameStep();
                   return;
                 }
                 if (playing) {
@@ -342,7 +378,11 @@ export function PlayEditPage() {
                 }
               }}
             >
-              {frameByFrame ? t("edit.play") : playing ? t("edit.pause") : t("edit.play")}
+              {frameByFrame
+                ? t("edit.play")
+                : playing
+                  ? t("edit.pause")
+                  : t("edit.play")}
             </button>
             <label
               className="controls__loop"
@@ -407,7 +447,6 @@ export function PlayEditPage() {
                   type="button"
                   className={`btn btn-sm ${playbackSpeed === s ? "btn-active" : ""}`}
                   onClick={() => setPlaybackSpeed(s)}
-                  disabled={frameByFrame}
                   style={{ minWidth: 44, padding: "0.25rem 0.45rem" }}
                 >
                   {s}×

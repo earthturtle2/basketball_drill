@@ -23,9 +23,14 @@ export function ViewPage() {
   const [tMs, setTms] = useState(0);
   const [playing, setPlaying] = useState(false);
   const [frameByFrame, setFrameByFrame] = useState(true);
+  const [frameStepTarget, setFrameStepTarget] = useState<{ from: number; to: number } | null>(null);
   const [playbackSpeed, setPlaybackSpeed] = useState<0.5 | 1 | 2>(0.5);
   const tMsRef = useRef(0);
   tMsRef.current = tMs;
+  const speedRef = useRef(playbackSpeed);
+  speedRef.current = playbackSpeed;
+  const frameStepTargetRef = useRef(frameStepTarget);
+  frameStepTargetRef.current = frameStepTarget;
 
   useEffect(() => {
     if (!token) return;
@@ -56,22 +61,51 @@ export function ViewPage() {
   const doc = data?.play.document;
   const duration = doc?.meta?.durationMs ?? 8000;
 
-  const stepNextKeyframe = useCallback(() => {
-    if (!doc) return;
+  const startFrameStep = useCallback(() => {
+    if (!doc || frameStepTargetRef.current) return;
     const times = [...new Set(doc.keyframes.map((k) => k.t))].sort((a, b) => a - b);
     if (times.length === 0) return;
     const E = 0.5;
-    setTms((prev) => {
-      const nextT = times.find((tm) => tm > prev + E);
-      if (nextT !== undefined) return nextT;
-      return times[0]!;
-    });
+    const from = tMsRef.current;
+    const nextT = times.find((tm) => tm > from + E) ?? times[0]!;
+    if (Math.abs(nextT - from) < 0.25) return;
+    setFrameStepTarget({ from, to: nextT });
   }, [doc]);
 
   const startRef = useRef(0);
   useEffect(() => {
     if (frameByFrame) setPlaying(false);
   }, [frameByFrame]);
+
+  useEffect(() => {
+    if (!frameByFrame) setFrameStepTarget(null);
+  }, [frameByFrame]);
+
+  // Frame-by-frame: play sim time from `from` to `to` (same speed rules as full playback, then stop)
+  useEffect(() => {
+    if (!doc || !frameStepTarget) return;
+    const { from, to } = frameStepTarget;
+    if (from === to) {
+      setFrameStepTarget(null);
+      return;
+    }
+    const total = Math.abs(to - from);
+    const dir = to >= from ? 1 : -1;
+    const t0 = performance.now();
+    let raf: number;
+    const tick = (now: number) => {
+      const dt = (now - t0) * speedRef.current;
+      if (dt >= total) {
+        setTms(to);
+        setFrameStepTarget(null);
+        return;
+      }
+      setTms(from + dir * dt);
+      raf = requestAnimationFrame(tick);
+    };
+    raf = requestAnimationFrame(tick);
+    return () => cancelAnimationFrame(raf);
+  }, [doc, frameStepTarget]);
 
   useEffect(() => {
     if (!doc || !playing || frameByFrame) return;
@@ -108,15 +142,17 @@ export function ViewPage() {
           value={tMs}
           onChange={(e) => {
             setPlaying(false);
+            setFrameStepTarget(null);
             setTms(Number(e.target.value));
           }}
         />
         <button
           type="button"
           className="btn"
+          disabled={!!(frameByFrame && frameStepTarget !== null)}
           onClick={() => {
             if (frameByFrame) {
-              stepNextKeyframe();
+              void startFrameStep();
               return;
             }
             setPlaying((p) => !p);
@@ -159,7 +195,6 @@ export function ViewPage() {
               type="button"
               className={`btn btn-sm ${playbackSpeed === s ? "btn-active" : ""}`}
               onClick={() => setPlaybackSpeed(s)}
-              disabled={frameByFrame}
               style={{ minWidth: 44, padding: "0.25rem 0.45rem" }}
             >
               {s}×
