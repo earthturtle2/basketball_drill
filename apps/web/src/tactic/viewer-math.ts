@@ -62,13 +62,15 @@ export function samplePoses(
   return out;
 }
 
-export const PASS_FLY_MS = 400;
+/** Kept for API compatibility; passes complete at event time (no aerial delay). */
+export const PASS_FLY_MS = 0;
 
 /** The pass currently in the air (ball not held) at tMs, if any. */
 export function findInFlightPass(
   doc: TacticDocumentV1,
   tMs: number,
 ): { t: number; from: string; to: string } | null {
+  if (PASS_FLY_MS <= 0) return null;
   const passes = (doc.events ?? [])
     .filter((e) => e.kind === "pass" && e.from && e.to)
     .sort((a, b) => a.t - b.t);
@@ -87,14 +89,13 @@ export function findInFlightPass(
 /**
  * Who holds the ball at t.
  *
- * @param accountForFlight  When true, pass events only take effect after
- *   PASS_FLY_MS (ball must "arrive" before ownership changes). When false
- *   (default, used by the editor), ownership changes at the pass instant.
+ * Pass events apply at their timestamp (ball with receiver for tMs >= pass.t).
+ * `accountForFlight` is kept for callers but matches editor semantics when PASS_FLY_MS is 0.
  */
 export function resolveBallHolderAt(
   doc: TacticDocumentV1,
   tMs: number,
-  accountForFlight = false,
+  _accountForFlight = false,
 ): string | undefined {
   const ball = doc.actors.find((a) => a.type === "ball");
   let holder = ball?.type === "ball" ? ball.heldBy : undefined;
@@ -108,7 +109,9 @@ export function resolveBallHolderAt(
         e.kind === "possess_end",
     )
     .filter(({ e }) => {
-      if (accountForFlight && e.kind === "pass") return e.t + PASS_FLY_MS <= tMs;
+      if (_accountForFlight && e.kind === "pass" && PASS_FLY_MS > 0) {
+        return e.t + PASS_FLY_MS <= tMs;
+      }
       return e.t <= tMs;
     })
     .sort((a, b) => a.e.t - b.e.t || a.i - b.i);
@@ -188,7 +191,7 @@ export function resolveBallState(
   poses: Record<string, Vec>,
 ): { holder: string | undefined; flight?: BallFlightInfo } {
   const inflight = findInFlightPass(doc, tMs);
-  if (inflight) {
+  if (inflight && PASS_FLY_MS > 0) {
     const progress = (tMs - inflight.t) / PASS_FLY_MS;
     const fp = poses[inflight.from];
     const tp = poses[inflight.to];

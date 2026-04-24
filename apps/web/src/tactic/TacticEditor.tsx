@@ -111,10 +111,11 @@ export function TacticEditor({ document: doc, onChange, onOpenTemplates, courtMo
           const events = [...(doc.events ?? []), newEvent];
           let newActors = doc.actors;
           if (!newActors.some((a) => a.type === "ball")) {
-            newActors = [
-              ...newActors,
-              { id: "ball", type: "ball" as const, heldBy: passSource },
-            ];
+            newActors = [...newActors, { id: "ball", type: "ball" as const, heldBy: actorId }];
+          } else {
+            newActors = newActors.map((a) =>
+              a.type === "ball" ? { ...a, heldBy: actorId } : a,
+            );
           }
           onChange({ ...doc, actors: newActors, events });
           setPassSource(null);
@@ -296,12 +297,17 @@ export function TacticEditor({ document: doc, onChange, onOpenTemplates, courtMo
   const handleRemoveScreen = useCallback(() => {
     if (!selectedActorId) return;
     const evs = doc.events ?? [];
-    if (getActiveScreenEventIndex(evs, selectedActorId, currentT) === null) return;
-    const events = [
-      ...evs,
-      { t: currentT, kind: "screen_end" as const, from: selectedActorId },
-    ];
-    onChange({ ...doc, events });
+    const idx = getActiveScreenEventIndex(evs, selectedActorId, currentT);
+    if (idx === null) return;
+    const e = evs[idx];
+    if (e.kind === "screen" && e.t === currentT) {
+      onChange({ ...doc, events: evs.filter((_, i) => i !== idx) });
+    } else {
+      onChange({
+        ...doc,
+        events: [...evs, { t: currentT, kind: "screen_end" as const, from: selectedActorId }],
+      });
+    }
   }, [selectedActorId, doc, onChange, currentT]);
 
   const handleDurationChange = useCallback(
@@ -460,7 +466,6 @@ export function TacticEditor({ document: doc, onChange, onOpenTemplates, courtMo
             const [sx, sy] = tacticToSvg(p.x, p.y, courtMode);
             const color = teamColors[a.team] ?? teamColors.offense;
             const isPassSrc = passSource === a.id;
-            const screenAngle = screenMap.get(a.id);
             return (
               <g key={a.id}>
                 <PlayerDot
@@ -474,15 +479,26 @@ export function TacticEditor({ document: doc, onChange, onOpenTemplates, courtMo
                   onDrag={handleDrag}
                   onSelect={handleActorClick}
                 />
-                {screenAngle !== undefined && (
-                  <g transform={`translate(${sx}, ${sy}) rotate(${screenAngle})`} style={{ pointerEvents: "none" }}>
-                    <line x1={-3.5} y1={-9} x2={3.5} y2={-9} stroke="#ffeb3b" strokeWidth="1.2" strokeLinecap="round" />
-                    <line x1={0} y1={-9} x2={0} y2={-5} stroke="#ffeb3b" strokeWidth="1.2" strokeLinecap="round" />
-                  </g>
-                )}
               </g>
             );
           })}
+          {/* Screen T-markers above all players so they are never occluded */}
+          <g style={{ pointerEvents: "none" }}>
+            {doc.actors.map((a) => {
+              if (a.type !== "player") return null;
+              const p = kf?.poses[a.id];
+              if (!p) return null;
+              const screenAngle = screenMap.get(a.id);
+              if (screenAngle === undefined) return null;
+              const [sx, sy] = tacticToSvg(p.x, p.y, courtMode);
+              return (
+                <g key={`screen-${a.id}`} transform={`translate(${sx}, ${sy}) rotate(${screenAngle})`}>
+                  <line x1={-3.5} y1={-9} x2={3.5} y2={-9} stroke="#ffeb3b" strokeWidth="1.2" strokeLinecap="round" />
+                  <line x1={0} y1={-9} x2={0} y2={-5} stroke="#ffeb3b" strokeWidth="1.2" strokeLinecap="round" />
+                </g>
+              );
+            })}
+          </g>
         </CourtSVG>
       </div>
 

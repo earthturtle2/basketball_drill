@@ -103,7 +103,7 @@ export function PlayPreview({
       const [x1, y1] = tacticToSvg(fromP.x, fromP.y, courtMode);
       const [x2, y2] = tacticToSvg(toP.x, toP.y, courtMode);
 
-      if (tMs < endT) {
+      if (PASS_FLY_MS > 0 && tMs < endT) {
         // Pass in flight — partial dashed trail
         const progress = (tMs - ev.t) / PASS_FLY_MS;
         const bx = lerp(x1, x2, progress);
@@ -276,7 +276,6 @@ export function PlayPreview({
         const [sx, sy] = tacticToSvg(p.x, p.y, courtMode);
         const color = teamColors[a.team] ?? teamColors.offense;
         const holdsBall = a.id === ballState.holder;
-        const scrAngle = screenMap.get(a.id);
         return (
           <g key={a.id}>
             {holdsBall && (
@@ -291,15 +290,27 @@ export function PlayPreview({
             >
               {a.label}
             </text>
-            {scrAngle !== undefined && (
-              <g transform={`translate(${sx}, ${sy}) rotate(${scrAngle})`}>
-                <line x1={-3.5} y1={-9} x2={3.5} y2={-9} stroke="#ffeb3b" strokeWidth="1.2" strokeLinecap="round" />
-                <line x1={0} y1={-9} x2={0} y2={-5} stroke="#ffeb3b" strokeWidth="1.2" strokeLinecap="round" />
-              </g>
-            )}
           </g>
         );
       })}
+
+      {/* Screen markers above all players; ball in flight stays on top */}
+      <g style={{ pointerEvents: "none" }}>
+        {doc.actors.map((a) => {
+          if (a.type !== "player") return null;
+          const p = poses[a.id];
+          if (!p) return null;
+          const scrAngle = screenMap.get(a.id);
+          if (scrAngle === undefined) return null;
+          const [sx, sy] = tacticToSvg(p.x, p.y, courtMode);
+          return (
+            <g key={`screen-${a.id}`} transform={`translate(${sx}, ${sy}) rotate(${scrAngle})`}>
+              <line x1={-3.5} y1={-9} x2={3.5} y2={-9} stroke="#ffeb3b" strokeWidth="1.2" strokeLinecap="round" />
+              <line x1={0} y1={-9} x2={0} y2={-5} stroke="#ffeb3b" strokeWidth="1.2" strokeLinecap="round" />
+            </g>
+          );
+        })}
+      </g>
 
       {/* Ball in flight — rendered above player dots so it stays visible */}
       {ballFlight}
