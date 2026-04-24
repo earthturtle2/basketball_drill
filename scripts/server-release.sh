@@ -2,6 +2,7 @@
 # 构建 + 重启，由 post-receive hook 或手动执行
 # 用法：bash scripts/server-release.sh
 set -euo pipefail
+export PATH="/usr/local/bin:/usr/bin:/bin:$PATH"
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 cd "$ROOT"
 
