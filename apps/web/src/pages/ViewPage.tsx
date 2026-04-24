@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { useParams } from "react-router-dom";
 import type { TacticDocumentV1 } from "@basketball/shared";
 import { PlayPreview } from "../tactic/PlayPreview";
+import { PASS_FLY_MS } from "../tactic/viewer-math";
 import { useT } from "../i18n";
 
 type SharePayload = {
@@ -60,6 +61,14 @@ export function ViewPage() {
 
   const doc = data?.play.document;
   const duration = doc?.meta?.durationMs ?? 8000;
+  const effectiveEnd = (() => {
+    if (!doc?.events?.length) return duration;
+    let maxEnd = duration;
+    for (const e of doc.events) {
+      if (e.kind === "pass" && e.t + PASS_FLY_MS > maxEnd) maxEnd = e.t + PASS_FLY_MS;
+    }
+    return maxEnd;
+  })();
 
   const startFrameStep = useCallback(() => {
     if (!doc || frameStepTargetRef.current) return;
@@ -113,14 +122,14 @@ export function ViewPage() {
     startRef.current = performance.now() - tMsRef.current / speed;
     let raf: number;
     const tick = (now: number) => {
-      const elapsed = ((now - startRef.current) * speed) % (duration || 1);
+      const elapsed = ((now - startRef.current) * speed) % (effectiveEnd || 1);
       setTms(elapsed);
       raf = requestAnimationFrame(tick);
     };
     raf = requestAnimationFrame(tick);
     return () => cancelAnimationFrame(raf);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [doc, playing, duration, playbackSpeed, frameByFrame]);
+  }, [doc, playing, effectiveEnd, playbackSpeed, frameByFrame]);
 
   if (err) return <p className="error">{err}</p>;
   if (!data || !doc) return <p className="hint">{t("view.loading")}</p>;
@@ -132,13 +141,13 @@ export function ViewPage() {
       <PlayPreview document={doc} tMs={tMs} />
       <div className="controls">
         <label className="muted" htmlFor="v">
-          {t("view.time")} {Math.round(tMs)} ms / {duration} ms
+          {t("view.time")} {Math.round(tMs)} ms / {effectiveEnd} ms
         </label>
         <input
           id="v"
           type="range"
           min={0}
-          max={duration}
+          max={effectiveEnd}
           value={tMs}
           onChange={(e) => {
             setPlaying(false);

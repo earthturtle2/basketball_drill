@@ -31,6 +31,35 @@ function equalKeyframeTimes(count: number, durationMs: number): number[] {
   );
 }
 
+/**
+ * Remap event timestamps when keyframe times change so events stay aligned
+ * with the keyframes they were originally placed on.
+ *
+ * @param events      Current event array
+ * @param pairs       Array of [oldTime, newTime] for corresponding keyframes
+ * @param allNewTimes All new keyframe times (used as fallback for unmatched events)
+ */
+function remapEventTimes(
+  events: TacticDocumentV1["events"],
+  pairs: [number, number][],
+  allNewTimes: number[],
+): TacticDocumentV1["events"] {
+  if (!events?.length || allNewTimes.length === 0) return events;
+  const exactMap = new Map<number, number>();
+  for (const [oldT, newT] of pairs) exactMap.set(oldT, newT);
+  return events.map((e) => {
+    const mapped = exactMap.get(e.t);
+    if (mapped !== undefined) return mapped === e.t ? e : { ...e, t: mapped };
+    let best = allNewTimes[0]!;
+    let bestDist = Math.abs(e.t - best);
+    for (const nt of allNewTimes) {
+      const d = Math.abs(e.t - nt);
+      if (d < bestDist) { bestDist = d; best = nt; }
+    }
+    return best === e.t ? e : { ...e, t: best };
+  });
+}
+
 export function TacticEditor({ document: doc, onChange, onOpenTemplates, courtMode, onCourtModeChange }: Props) {
   const [activeKfIdx, setActiveKfIdx] = useState(0);
   const [selectedActorId, setSelectedActorId] = useState<string | null>(null);
@@ -193,12 +222,15 @@ export function TacticEditor({ document: doc, onChange, onOpenTemplates, courtMo
   const handleAddKeyframe = useCallback(() => {
     const duration = doc.meta.durationMs ?? 8000;
     const sorted = [...doc.keyframes].sort((a, b) => a.t - b.t);
+    const oldTimes = sorted.map((k) => k.t);
     const last = sorted[sorted.length - 1];
     const newKf = { t: 0, poses: last ? { ...last.poses } : {} };
     const combined = [...sorted, newKf];
     const times = equalKeyframeTimes(combined.length, duration);
     const newKfs = combined.map((k, i) => ({ ...k, t: times[i]! }));
-    onChange({ ...doc, keyframes: newKfs });
+    const pairs: [number, number][] = oldTimes.map((ot, i) => [ot, times[i]!]);
+    const newEvents = remapEventTimes(doc.events, pairs, times);
+    onChange({ ...doc, keyframes: newKfs, events: newEvents });
     setActiveKfIdx(newKfs.length - 1);
   }, [doc, onChange]);
 
@@ -206,11 +238,19 @@ export function TacticEditor({ document: doc, onChange, onOpenTemplates, courtMo
     (idx: number) => {
       if (doc.keyframes.length <= 1) return;
       const duration = doc.meta.durationMs ?? 8000;
+      const oldSorted = [...doc.keyframes].sort((a, b) => a.t - b.t);
       const filtered = doc.keyframes.filter((_, i) => i !== idx);
       const sorted = [...filtered].sort((a, b) => a.t - b.t);
       const times = equalKeyframeTimes(sorted.length, duration);
       const newKfs = sorted.map((k, i) => ({ ...k, t: times[i]! }));
-      onChange({ ...doc, keyframes: newKfs });
+      const pairs: [number, number][] = [];
+      for (let i = 0, j = 0; i < oldSorted.length; i++) {
+        if (i === idx) continue;
+        pairs.push([oldSorted[i].t, times[j]!]);
+        j++;
+      }
+      const newEvents = remapEventTimes(doc.events, pairs, times);
+      onChange({ ...doc, keyframes: newKfs, events: newEvents });
       let newActive = activeKfIdx;
       if (idx < activeKfIdx) newActive = activeKfIdx - 1;
       else if (idx > activeKfIdx) newActive = activeKfIdx;
@@ -225,11 +265,17 @@ export function TacticEditor({ document: doc, onChange, onOpenTemplates, courtMo
       const dur = doc.meta.durationMs ?? 8000;
       const snapped = Math.round(Math.max(0, Math.min(newT, dur)) / 50) * 50;
       if (doc.keyframes.some((k, i) => i !== idx && k.t === snapped)) return;
+      const oldT = doc.keyframes[idx].t;
       const newKfs = doc.keyframes
         .map((k, i) => (i === idx ? { ...k, t: snapped } : k))
         .sort((a, b) => a.t - b.t);
       const newIdx = newKfs.findIndex((k) => k.t === snapped);
-      onChange({ ...doc, keyframes: newKfs });
+      const newEvents = remapEventTimes(
+        doc.events,
+        [[oldT, snapped]],
+        newKfs.map((k) => k.t),
+      );
+      onChange({ ...doc, keyframes: newKfs, events: newEvents });
       setActiveKfIdx(newIdx);
     },
     [doc, onChange],

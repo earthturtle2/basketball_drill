@@ -85,10 +85,17 @@ export function findInFlightPass(
 }
 
 /**
- * Who holds the ball at t (ignoring in-flight; use resolveBallState for that).
- * Applies `ball.heldBy` as t=0 baseline, then all `pass`, `possess`, and `possess_end` with e.t &lt;= t in time (then index) order.
+ * Who holds the ball at t.
+ *
+ * @param accountForFlight  When true, pass events only take effect after
+ *   PASS_FLY_MS (ball must "arrive" before ownership changes). When false
+ *   (default, used by the editor), ownership changes at the pass instant.
  */
-export function resolveBallHolderAt(doc: TacticDocumentV1, tMs: number): string | undefined {
+export function resolveBallHolderAt(
+  doc: TacticDocumentV1,
+  tMs: number,
+  accountForFlight = false,
+): string | undefined {
   const ball = doc.actors.find((a) => a.type === "ball");
   let holder = ball?.type === "ball" ? ball.heldBy : undefined;
   const all = doc.events ?? [];
@@ -100,7 +107,10 @@ export function resolveBallHolderAt(doc: TacticDocumentV1, tMs: number): string 
         (e.kind === "possess" && e.to) ||
         e.kind === "possess_end",
     )
-    .filter(({ e }) => e.t <= tMs)
+    .filter(({ e }) => {
+      if (accountForFlight && e.kind === "pass") return e.t + PASS_FLY_MS <= tMs;
+      return e.t <= tMs;
+    })
     .sort((a, b) => a.e.t - b.e.t || a.i - b.i);
   for (const { e } of chain) {
     if (e.kind === "pass") holder = e.to;
@@ -195,5 +205,5 @@ export function resolveBallState(
       };
     }
   }
-  return { holder: resolveBallHolderAt(doc, tMs) };
+  return { holder: resolveBallHolderAt(doc, tMs, true) };
 }

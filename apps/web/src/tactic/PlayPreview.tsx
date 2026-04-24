@@ -160,7 +160,7 @@ export function PlayPreview({
         const [x1, y1] = tacticToSvg(currPose.x, currPose.y, courtMode);
         if (Math.abs(x1 - x0) < 0.5 && Math.abs(y1 - y0) < 0.5) continue;
 
-        const holder = resolveBallHolderAt(doc, kfs[i - 1].t);
+        const holder = resolveBallHolderAt(doc, kfs[i - 1].t, true);
         const isDribble = holder === actor.id;
         const hasCp = currPose.cpx !== undefined && currPose.cpy !== undefined;
         const cp: [number, number] | null = hasCp
@@ -258,9 +258,6 @@ export function PlayPreview({
       {/* Pass trails */}
       {passTrails}
 
-      {/* Ball in flight */}
-      {ballFlight}
-
       {doc.actors.map((a) => {
         if (a.type === "ball") {
           if (ballState.holder || ballState.flight) return null;
@@ -303,6 +300,9 @@ export function PlayPreview({
           </g>
         );
       })}
+
+      {/* Ball in flight — rendered above player dots so it stays visible */}
+      {ballFlight}
     </CourtSVG>
   );
 }
