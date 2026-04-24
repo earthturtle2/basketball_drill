@@ -33,6 +33,12 @@ export const CourtSVG = forwardRef<SVGSVGElement, Props>(
           <marker id="arrow" markerWidth="6" markerHeight="4" refX="5" refY="2" orient="auto">
             <path d="M0,0 L6,2 L0,4" fill="rgba(255,200,60,0.8)" />
           </marker>
+          <marker id="moveArrowOff" markerWidth="5" markerHeight="4" refX="4" refY="2" orient="auto" markerUnits="strokeWidth">
+            <path d="M0,0.5 L4,2 L0,3.5" fill="rgba(255,255,255,0.55)" />
+          </marker>
+          <marker id="moveArrowDrib" markerWidth="5" markerHeight="4" refX="4" refY="2" orient="auto" markerUnits="strokeWidth">
+            <path d="M0,0.5 L4,2 L0,3.5" fill="rgba(255,180,50,0.7)" />
+          </marker>
           <linearGradient id="courtGrad" x1="0" y1="0" x2="1" y2="0">
             <stop offset="0%" stopColor="#0f3d1f" stopOpacity="0.5" />
             <stop offset="50%" stopColor="transparent" stopOpacity="0" />

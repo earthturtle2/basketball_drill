@@ -4,6 +4,8 @@ const vec2d = z.object({
   x: z.number().min(0).max(1),
   y: z.number().min(0).max(1),
   facingDeg: z.number().optional(),
+  cpx: z.number().optional(),
+  cpy: z.number().optional(),
 });
 
 const keyframe = z.object({

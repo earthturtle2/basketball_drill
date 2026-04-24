@@ -29,8 +29,9 @@ export function PassLines({ document, courtMode = "half" }: Props) {
             y1={y1}
             x2={x2}
             y2={y2}
-            stroke="rgba(255,200,60,0.7)"
+            stroke="rgba(255,200,60,0.5)"
             strokeWidth="0.8"
+            strokeDasharray="3 2"
             markerEnd="url(#arrow)"
           />
         );

@@ -26,6 +26,7 @@ export function TacticEditor({ document: doc, onChange, onOpenTemplates, courtMo
   const [selectedActorId, setSelectedActorId] = useState<string | null>(null);
   const [tool, setTool] = useState<EditorTool>("select");
   const [passSource, setPassSource] = useState<string | null>(null);
+  const [draggingCp, setDraggingCp] = useState<{ actorId: string; kfIdx: number } | null>(null);
   const svgRef = useRef<SVGSVGElement>(null);
 
   const teamColors = {
@@ -36,20 +37,15 @@ export function TacticEditor({ document: doc, onChange, onOpenTemplates, courtMo
   const kf = doc.keyframes[activeKfIdx];
   const currentT = kf?.t ?? 0;
 
-  // Ball holder
   const ballActor = doc.actors.find((a) => a.type === "ball");
   const ballHolderId = ballActor?.type === "ball" ? ballActor.heldBy : undefined;
 
-  // Selected actor (player type only)
   const selectedPlayer = selectedActorId
     ? doc.actors.find((a) => a.id === selectedActorId && a.type === "player")
     : null;
   const selectedPlayerData =
-    selectedPlayer?.type === "player"
-      ? selectedPlayer
-      : null;
+    selectedPlayer?.type === "player" ? selectedPlayer : null;
 
-  // Tool change resets pass state
   const handleToolChange = useCallback((t: EditorTool) => {
     setTool(t);
     setPassSource(null);
@@ -75,7 +71,6 @@ export function TacticEditor({ document: doc, onChange, onOpenTemplates, courtMo
         } else if (passSource !== actorId) {
           const newEvent = { t: currentT, kind: "pass" as const, from: passSource, to: actorId };
           const events = [...(doc.events ?? []), newEvent];
-          // Transfer ball to the receiver
           let newActors = doc.actors.map((a) => {
             if (a.type === "ball") return { ...a, heldBy: actorId };
             return a;
@@ -87,6 +82,11 @@ export function TacticEditor({ document: doc, onChange, onOpenTemplates, courtMo
           setPassSource(null);
           setTool("select");
         }
+      } else if (tool === "screen") {
+        const newEvent = { t: currentT, kind: "screen" as const, from: actorId };
+        const events = [...(doc.events ?? []), newEvent];
+        onChange({ ...doc, events });
+        setTool("select");
       } else {
         setSelectedActorId(actorId);
       }
@@ -139,14 +139,16 @@ export function TacticEditor({ document: doc, onChange, onOpenTemplates, courtMo
       const { [selectedActorId]: _, ...rest } = k.poses;
       return { ...k, poses: rest };
     });
-    // Clear ball holder if removed player was holding it
     const updatedActors = newActors.map((a) => {
       if (a.type === "ball" && a.heldBy === selectedActorId) {
         return { ...a, heldBy: undefined };
       }
       return a;
     });
-    onChange({ ...doc, actors: updatedActors, keyframes: newKfs });
+    const updatedEvents = (doc.events ?? []).filter(
+      (ev) => ev.from !== selectedActorId && ev.to !== selectedActorId,
+    );
+    onChange({ ...doc, actors: updatedActors, keyframes: newKfs, events: updatedEvents });
     setSelectedActorId(null);
   }, [selectedActorId, doc, onChange]);
 
@@ -205,12 +207,97 @@ export function TacticEditor({ document: doc, onChange, onOpenTemplates, courtMo
     [doc, onChange],
   );
 
+  // --- Control point drag ---
+  const handleCpPointerDown = useCallback(
+    (actorId: string, kfIdx: number, e: React.PointerEvent) => {
+      e.stopPropagation();
+      setDraggingCp({ actorId, kfIdx });
+      (e.target as SVGElement).setPointerCapture(e.pointerId);
+    },
+    [],
+  );
+
+  const handleCpPointerMove = useCallback(
+    (e: React.PointerEvent) => {
+      if (!draggingCp) return;
+      const svg = svgRef.current;
+      if (!svg) return;
+      const ctm = svg.getScreenCTM();
+      if (!ctm) return;
+      const svgX = (e.clientX - ctm.e) / ctm.a;
+      const svgY = (e.clientY - ctm.f) / ctm.d;
+      const [tx, ty] = svgToTactic(svgX, svgY, courtMode);
+      const { actorId, kfIdx } = draggingCp;
+      const newKfs = doc.keyframes.map((k, i) => {
+        if (i !== kfIdx) return k;
+        const pose = k.poses[actorId];
+        if (!pose) return k;
+        return { ...k, poses: { ...k.poses, [actorId]: { ...pose, cpx: tx, cpy: ty } } };
+      });
+      onChange({ ...doc, keyframes: newKfs });
+    },
+    [draggingCp, doc, onChange, courtMode],
+  );
+
+  const handleCpPointerUp = useCallback(() => {
+    setDraggingCp(null);
+  }, []);
+
+  // Screen events for current time
+  const screenEvents = (doc.events ?? []).filter(
+    (e) => e.kind === "screen" && e.from,
+  );
+  const screenActorIds = new Set(screenEvents.map((e) => e.from!));
+
   const courtCursor =
     tool === "addOffense" || tool === "addDefense"
       ? "crosshair"
-      : tool === "pass"
+      : tool === "pass" || tool === "screen"
         ? "pointer"
         : undefined;
+
+  // Build control point handles for selected actor
+  const cpHandles: React.ReactNode[] = [];
+  if (selectedActorId) {
+    for (let i = 1; i < doc.keyframes.length; i++) {
+      const prevPose = doc.keyframes[i - 1].poses[selectedActorId];
+      const currPose = doc.keyframes[i].poses[selectedActorId];
+      if (!prevPose || !currPose) continue;
+
+      const [x0, y0] = tacticToSvg(prevPose.x, prevPose.y, courtMode);
+      const [x1, y1] = tacticToSvg(currPose.x, currPose.y, courtMode);
+      if (Math.abs(x1 - x0) < 0.5 && Math.abs(y1 - y0) < 0.5) continue;
+
+      const hasCp = currPose.cpx !== undefined && currPose.cpy !== undefined;
+      const cpx = hasCp ? currPose.cpx! : (prevPose.x + currPose.x) / 2;
+      const cpy = hasCp ? currPose.cpy! : (prevPose.y + currPose.y) / 2;
+      const [hx, hy] = tacticToSvg(cpx, cpy, courtMode);
+
+      cpHandles.push(
+        <g key={`cp-${selectedActorId}-${i}`}>
+          {/* Dashed line to endpoints */}
+          <line x1={x0} y1={y0} x2={hx} y2={hy} stroke="rgba(255,255,255,0.2)" strokeWidth="0.4" strokeDasharray="1.5 1" />
+          <line x1={hx} y1={hy} x2={x1} y2={y1} stroke="rgba(255,255,255,0.2)" strokeWidth="0.4" strokeDasharray="1.5 1" />
+          {/* Draggable diamond */}
+          <rect
+            x={hx - 2.5}
+            y={hy - 2.5}
+            width={5}
+            height={5}
+            rx={1}
+            fill={hasCp ? "rgba(255,200,60,0.8)" : "rgba(255,255,255,0.3)"}
+            stroke="#fff"
+            strokeWidth="0.4"
+            style={{ cursor: "grab" }}
+            transform={`rotate(45,${hx},${hy})`}
+            onPointerDown={(e) => handleCpPointerDown(selectedActorId!, i, e)}
+            onPointerMove={handleCpPointerMove}
+            onPointerUp={handleCpPointerUp}
+          />
+        </g>,
+      );
+    }
+  }
 
   return (
     <div className="tactic-editor">
@@ -238,6 +325,10 @@ export function TacticEditor({ document: doc, onChange, onOpenTemplates, courtMo
         >
           <MovementTrails document={doc} teamColors={teamColors} courtMode={courtMode} />
           <PassLines document={doc} courtMode={courtMode} />
+
+          {/* Control point handles */}
+          {cpHandles}
+
           {doc.actors.map((a) => {
             if (a.type === "ball") {
               if (ballHolderId) return null;
@@ -260,19 +351,28 @@ export function TacticEditor({ document: doc, onChange, onOpenTemplates, courtMo
             const [sx, sy] = tacticToSvg(p.x, p.y, courtMode);
             const color = teamColors[a.team] ?? teamColors.offense;
             const isPassSrc = passSource === a.id;
+            const hasScreen = screenActorIds.has(a.id);
             return (
-              <PlayerDot
-                key={a.id}
-                actorId={a.id}
-                cx={sx}
-                cy={sy}
-                color={isPassSrc ? "#4caf50" : color}
-                label={a.label}
-                selected={a.id === selectedActorId}
-                hasBall={a.id === ballHolderId}
-                onDrag={handleDrag}
-                onSelect={handleActorClick}
-              />
+              <g key={a.id}>
+                <PlayerDot
+                  actorId={a.id}
+                  cx={sx}
+                  cy={sy}
+                  color={isPassSrc ? "#4caf50" : color}
+                  label={a.label}
+                  selected={a.id === selectedActorId}
+                  hasBall={a.id === ballHolderId}
+                  onDrag={handleDrag}
+                  onSelect={handleActorClick}
+                />
+                {/* Screen T-icon */}
+                {hasScreen && (
+                  <g transform={`translate(${sx}, ${sy - 7})`} style={{ pointerEvents: "none" }}>
+                    <line x1={-3.5} y1={0} x2={3.5} y2={0} stroke="#ffeb3b" strokeWidth="1.2" strokeLinecap="round" />
+                    <line x1={0} y1={0} x2={0} y2={4} stroke="#ffeb3b" strokeWidth="1.2" strokeLinecap="round" />
+                  </g>
+                )}
+              </g>
             );
           })}
         </CourtSVG>

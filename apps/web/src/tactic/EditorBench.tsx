@@ -1,7 +1,7 @@
 import type { TacticDocumentV1 } from "@basketball/shared";
 import type { CourtMode } from "./court-geometry";
 
-export type EditorTool = "select" | "addOffense" | "addDefense" | "pass";
+export type EditorTool = "select" | "addOffense" | "addDefense" | "pass" | "screen";
 
 type PlayerActor = {
   id: string;
@@ -105,6 +105,13 @@ export function EditorBench({
           >
             传球
           </button>
+          <button
+            type="button"
+            className={`btn btn-sm ${tool === "screen" ? "btn-active" : ""}`}
+            onClick={() => onToolChange("screen")}
+          >
+            挡拆
+          </button>
           <button type="button" className="btn btn-sm" onClick={onOpenTemplates}>
             模板
           </button>
@@ -113,6 +120,7 @@ export function EditorBench({
         {tool === "addDefense" && <p className="bench-tip">点击球场放置防守球员</p>}
         {tool === "pass" && !passSource && <p className="bench-tip">点击传球发起者</p>}
         {tool === "pass" && passSource && <p className="bench-tip">点击接球球员</p>}
+        {tool === "screen" && <p className="bench-tip">点击设置挡拆的球员</p>}
       </div>
 
       {/* Selected player editor */}

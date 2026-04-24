@@ -1,33 +1,74 @@
 import { useMemo } from "react";
 import type { TacticDocumentV1 } from "@basketball/shared";
-import { samplePoses } from "./viewer-math";
+import {
+  samplePoses,
+  resolveBallState,
+  resolveBallHolderAt,
+  PASS_FLY_MS,
+} from "./viewer-math";
 import { CourtSVG } from "./CourtSVG";
 import { tacticToSvg, type CourtMode } from "./court-geometry";
 
-/**
- * Resolve who holds the ball at time `tMs` by replaying pass events
- * on top of the initial heldBy value.
- */
-function resolveBallHolder(doc: TacticDocumentV1, tMs: number): string | undefined {
-  const ball = doc.actors.find((a) => a.type === "ball");
-  let holder = ball?.type === "ball" ? ball.heldBy : undefined;
-
-  const passes = (doc.events ?? [])
-    .filter((e) => e.kind === "pass" && e.from && e.to)
-    .sort((a, b) => a.t - b.t);
-
-  for (const p of passes) {
-    if (p.t <= tMs) {
-      holder = p.to;
-    } else {
-      break;
-    }
+function sampleBezier(
+  p0: [number, number],
+  cp: [number, number],
+  p1: [number, number],
+  n: number = 24,
+): [number, number][] {
+  const pts: [number, number][] = [];
+  for (let i = 0; i <= n; i++) {
+    const t = i / n;
+    const u = 1 - t;
+    pts.push([
+      u * u * p0[0] + 2 * u * t * cp[0] + t * t * p1[0],
+      u * u * p0[1] + 2 * u * t * cp[1] + t * t * p1[1],
+    ]);
   }
-  return holder;
+  return pts;
+}
+
+function wavyPathD(points: [number, number][], amp = 1.8, waveLen = 5): string {
+  if (points.length < 2) return "";
+  let total = 0;
+  const cum = [0];
+  for (let i = 1; i < points.length; i++) {
+    const dx = points[i][0] - points[i - 1][0];
+    const dy = points[i][1] - points[i - 1][1];
+    total += Math.sqrt(dx * dx + dy * dy);
+    cum.push(total);
+  }
+  if (total < 1) return `M ${points[0][0]} ${points[0][1]} L ${points[points.length - 1][0]} ${points[points.length - 1][1]}`;
+  const waves = Math.max(2, Math.round(total / waveLen));
+  const steps = waves * 4;
+  let d = `M ${points[0][0]} ${points[0][1]}`;
+  for (let si = 1; si <= steps; si++) {
+    const t = si / steps;
+    const dist = t * total;
+    let seg = 0;
+    for (let j = 1; j < cum.length; j++) {
+      if (cum[j] >= dist) { seg = j - 1; break; }
+    }
+    const segLen = cum[seg + 1] - cum[seg];
+    const segT = segLen > 0 ? (dist - cum[seg]) / segLen : 0;
+    const px = points[seg][0] + (points[seg + 1][0] - points[seg][0]) * segT;
+    const py = points[seg][1] + (points[seg + 1][1] - points[seg][1]) * segT;
+    const dx = points[seg + 1][0] - points[seg][0];
+    const dy = points[seg + 1][1] - points[seg][1];
+    const sl = Math.sqrt(dx * dx + dy * dy) || 1;
+    const nx = -dy / sl;
+    const ny = dx / sl;
+    const w = si === steps ? 0 : Math.sin(t * waves * 2 * Math.PI) * amp;
+    d += ` L ${(px + nx * w).toFixed(2)} ${(py + ny * w).toFixed(2)}`;
+  }
+  return d;
+}
+
+function lerp(a: number, b: number, t: number) {
+  return a + (b - a) * t;
 }
 
 export function PlayPreview({
-  document,
+  document: doc,
   tMs,
   courtMode = "half",
 }: {
@@ -35,30 +76,180 @@ export function PlayPreview({
   tMs: number;
   courtMode?: CourtMode;
 }) {
-  const poses = useMemo(() => samplePoses(document, tMs), [document, tMs]);
-  const ballHolderId = useMemo(() => resolveBallHolder(document, tMs), [document, tMs]);
+  const poses = useMemo(() => samplePoses(doc, tMs), [doc, tMs]);
+  const ballState = useMemo(() => resolveBallState(doc, tMs, poses), [doc, tMs, poses]);
 
   const teamColors = {
-    offense: document.teams.offense.color ?? "#e53935",
-    defense: document.teams.defense.color ?? "#1e88e5",
+    offense: doc.teams.offense.color ?? "#e53935",
+    defense: doc.teams.defense.color ?? "#1e88e5",
   };
+
+  const screenActorIds = useMemo(() => {
+    const ids = new Set<string>();
+    for (const ev of doc.events ?? []) {
+      if (ev.kind === "screen" && ev.from && ev.t <= tMs) ids.add(ev.from);
+    }
+    return ids;
+  }, [doc, tMs]);
+
+  // Completed pass trail lines (dashed, fade after pass)
+  const passTrails = useMemo(() => {
+    const passes = (doc.events ?? []).filter((e) => e.kind === "pass" && e.from && e.to);
+    const trails: React.ReactNode[] = [];
+    for (let i = 0; i < passes.length; i++) {
+      const ev = passes[i];
+      if (ev.t > tMs) continue;
+      const endT = ev.t + PASS_FLY_MS;
+      const passPoses = samplePoses(doc, ev.t);
+      const fromP = passPoses[ev.from!];
+      const endPoses = samplePoses(doc, endT);
+      const toP = endPoses[ev.to!];
+      if (!fromP || !toP) continue;
+      const [x1, y1] = tacticToSvg(fromP.x, fromP.y, courtMode);
+      const [x2, y2] = tacticToSvg(toP.x, toP.y, courtMode);
+
+      if (tMs < endT) {
+        // Pass in flight — partial dashed trail
+        const progress = (tMs - ev.t) / PASS_FLY_MS;
+        const bx = lerp(x1, x2, progress);
+        const by = lerp(y1, y2, progress);
+        trails.push(
+          <line
+            key={`trail-${i}`}
+            x1={x1} y1={y1} x2={bx} y2={by}
+            stroke="rgba(255,200,60,0.6)"
+            strokeWidth="0.8"
+            strokeDasharray="2 1.5"
+          />,
+        );
+      } else {
+        // Completed pass — full dashed trail, fading
+        const fadeAge = tMs - endT;
+        const opacity = Math.max(0, 0.5 - fadeAge / 3000);
+        if (opacity > 0.02) {
+          trails.push(
+            <line
+              key={`trail-${i}`}
+              x1={x1} y1={y1} x2={x2} y2={y2}
+              stroke="rgba(255,200,60,0.5)"
+              strokeWidth="0.7"
+              strokeDasharray="2.5 1.5"
+              opacity={opacity}
+              markerEnd="url(#arrow)"
+            />,
+          );
+        }
+      }
+    }
+    return trails;
+  }, [doc, tMs, courtMode]);
+
+  // Movement trails for preview
+  const movementTrails = useMemo(() => {
+    const players = doc.actors.filter((a) => a.type === "player");
+    const kfs = doc.keyframes;
+    if (kfs.length < 2) return null;
+    const trails: React.ReactNode[] = [];
+    for (const actor of players) {
+      if (actor.type !== "player") continue;
+      const color = teamColors[actor.team] ?? teamColors.offense;
+      for (let i = 1; i < kfs.length; i++) {
+        if (kfs[i].t > tMs) break;
+        const prevPose = kfs[i - 1].poses[actor.id];
+        const currPose = kfs[i].poses[actor.id];
+        if (!prevPose || !currPose) continue;
+        const [x0, y0] = tacticToSvg(prevPose.x, prevPose.y, courtMode);
+        const [x1, y1] = tacticToSvg(currPose.x, currPose.y, courtMode);
+        if (Math.abs(x1 - x0) < 0.5 && Math.abs(y1 - y0) < 0.5) continue;
+
+        const holder = resolveBallHolderAt(doc, kfs[i - 1].t);
+        const isDribble = holder === actor.id;
+        const hasCp = currPose.cpx !== undefined && currPose.cpy !== undefined;
+        const cp: [number, number] | null = hasCp
+          ? tacticToSvg(currPose.cpx!, currPose.cpy!, courtMode)
+          : null;
+
+        if (isDribble) {
+          const pts: [number, number][] = cp
+            ? sampleBezier([x0, y0], cp, [x1, y1], 30)
+            : [[x0, y0], [x1, y1]];
+          trails.push(
+            <path
+              key={`mv-${actor.id}-${i}`}
+              d={wavyPathD(pts)}
+              fill="none"
+              stroke={color}
+              strokeWidth="0.7"
+              opacity="0.35"
+            />,
+          );
+        } else if (cp) {
+          trails.push(
+            <path
+              key={`mv-${actor.id}-${i}`}
+              d={`M ${x0} ${y0} Q ${cp[0]} ${cp[1]} ${x1} ${y1}`}
+              fill="none"
+              stroke={color}
+              strokeWidth="0.6"
+              opacity="0.3"
+            />,
+          );
+        } else {
+          trails.push(
+            <line
+              key={`mv-${actor.id}-${i}`}
+              x1={x0} y1={y0} x2={x1} y2={y1}
+              stroke={color}
+              strokeWidth="0.6"
+              opacity="0.3"
+            />,
+          );
+        }
+      }
+    }
+    return trails.length > 0 ? <g className="preview-trails">{trails}</g> : null;
+  }, [doc, tMs, courtMode, teamColors]);
+
+  // Ball in flight
+  const ballFlight = useMemo(() => {
+    if (!ballState.flight) return null;
+    const { fromX, fromY, toX, toY, progress } = ballState.flight;
+    const bx = lerp(fromX, toX, progress);
+    const by = lerp(fromY, toY, progress);
+    const [sx, sy] = tacticToSvg(bx, by, courtMode);
+    return (
+      <circle
+        cx={sx}
+        cy={sy}
+        r={2.2}
+        fill="#ffab40"
+        stroke="#3d2200"
+        strokeWidth="0.5"
+      />
+    );
+  }, [ballState.flight, courtMode]);
 
   return (
     <CourtSVG mode={courtMode}>
-      {document.actors.map((a) => {
+      {/* Movement trails (subtle) */}
+      {movementTrails}
+
+      {/* Pass trails */}
+      {passTrails}
+
+      {/* Ball in flight */}
+      {ballFlight}
+
+      {doc.actors.map((a) => {
         if (a.type === "ball") {
-          if (ballHolderId) return null;
+          if (ballState.holder || ballState.flight) return null;
           const p = poses[a.id] ?? { x: 0.5, y: 0.5 };
           const [sx, sy] = tacticToSvg(p.x, p.y, courtMode);
           return (
             <circle
               key={a.id}
-              cx={sx}
-              cy={sy}
-              r={2.2}
-              fill="#ffab40"
-              stroke="#3d2200"
-              strokeWidth="0.4"
+              cx={sx} cy={sy} r={2.2}
+              fill="#ffab40" stroke="#3d2200" strokeWidth="0.4"
             />
           );
         }
@@ -66,7 +257,8 @@ export function PlayPreview({
         if (!p) return null;
         const [sx, sy] = tacticToSvg(p.x, p.y, courtMode);
         const color = teamColors[a.team] ?? teamColors.offense;
-        const holdsBall = a.id === ballHolderId;
+        const holdsBall = a.id === ballState.holder;
+        const hasScreen = screenActorIds.has(a.id);
         return (
           <g key={a.id}>
             {holdsBall && (
@@ -74,17 +266,20 @@ export function PlayPreview({
             )}
             <circle cx={sx} cy={sy} r={4} fill={color} stroke="#000" strokeWidth="0.4" />
             <text
-              x={sx}
-              y={sy}
-              textAnchor="middle"
-              dominantBaseline="central"
-              fill="#fff"
-              fontSize={3.2}
-              fontWeight="bold"
+              x={sx} y={sy}
+              textAnchor="middle" dominantBaseline="central"
+              fill="#fff" fontSize={3.2} fontWeight="bold"
               style={{ pointerEvents: "none" }}
             >
               {a.label}
             </text>
+            {/* Screen T-icon */}
+            {hasScreen && (
+              <g transform={`translate(${sx}, ${sy - 7})`}>
+                <line x1={-3.5} y1={0} x2={3.5} y2={0} stroke="#ffeb3b" strokeWidth="1.2" strokeLinecap="round" />
+                <line x1={0} y1={0} x2={0} y2={4} stroke="#ffeb3b" strokeWidth="1.2" strokeLinecap="round" />
+              </g>
+            )}
           </g>
         );
       })}
