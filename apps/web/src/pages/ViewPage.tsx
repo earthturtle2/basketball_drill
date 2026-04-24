@@ -22,6 +22,9 @@ export function ViewPage() {
   const [err, setErr] = useState<string | null>(null);
   const [tMs, setTms] = useState(0);
   const [playing, setPlaying] = useState(false);
+  const [playbackSpeed, setPlaybackSpeed] = useState<0.5 | 1 | 2>(0.5);
+  const tMsRef = useRef(0);
+  tMsRef.current = tMs;
 
   useEffect(() => {
     if (!token) return;
@@ -55,17 +58,18 @@ export function ViewPage() {
   const startRef = useRef(0);
   useEffect(() => {
     if (!doc || !playing) return;
-    startRef.current = performance.now() - tMs;
+    const speed = playbackSpeed;
+    startRef.current = performance.now() - tMsRef.current / speed;
     let raf: number;
     const tick = (now: number) => {
-      const elapsed = (now - startRef.current) % (duration || 1);
+      const elapsed = ((now - startRef.current) * speed) % (duration || 1);
       setTms(elapsed);
       raf = requestAnimationFrame(tick);
     };
     raf = requestAnimationFrame(tick);
     return () => cancelAnimationFrame(raf);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [doc, playing]);
+  }, [doc, playing, duration, playbackSpeed]);
 
   if (err) return <p className="error">{err}</p>;
   if (!data || !doc) return <p className="hint">{t("view.loading")}</p>;
@@ -93,6 +97,29 @@ export function ViewPage() {
         <button type="button" className="btn" onClick={() => setPlaying((p) => !p)}>
           {playing ? t("view.pause") : t("view.play")}
         </button>
+        <span
+          className="muted"
+          style={{
+            fontSize: "0.82rem",
+            display: "inline-flex",
+            alignItems: "center",
+            gap: "0.35rem",
+            flexWrap: "wrap",
+          }}
+        >
+          {t("view.speed")}
+          {([0.5, 1, 2] as const).map((s) => (
+            <button
+              key={s}
+              type="button"
+              className={`btn btn-sm ${playbackSpeed === s ? "btn-active" : ""}`}
+              onClick={() => setPlaybackSpeed(s)}
+              style={{ minWidth: 44, padding: "0.25rem 0.45rem" }}
+            >
+              {s}×
+            </button>
+          ))}
+        </span>
       </div>
     </div>
   );

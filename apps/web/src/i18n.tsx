@@ -77,6 +77,7 @@ const zh: Record<string, string> = {
   "edit.jsonInvalid": "JSON 无效",
   "edit.missingId": "缺少 id",
   "edit.loop": "循环",
+  "edit.speed": "倍速",
   "edit.copySuffix": "（副本）",
   "edit.statusSaved": "已保存",
   "edit.statusSaving": "保存中…",
@@ -107,6 +108,7 @@ const zh: Record<string, string> = {
   "view.time": "时间",
   "view.pause": "暂停",
   "view.play": "播放",
+  "view.speed": "倍速",
 
   // Editor bench
   "bench.court": "球场",
@@ -234,6 +236,7 @@ const en: Record<string, string> = {
   "edit.jsonInvalid": "Invalid JSON",
   "edit.missingId": "Missing id",
   "edit.loop": "Loop",
+  "edit.speed": "Speed",
   "edit.copySuffix": " (Copy)",
   "edit.statusSaved": "Saved",
   "edit.statusSaving": "Saving…",
@@ -264,6 +267,7 @@ const en: Record<string, string> = {
   "view.time": "Time",
   "view.pause": "Pause",
   "view.play": "Play",
+  "view.speed": "Speed",
 
   // Editor bench
   "bench.court": "Court",

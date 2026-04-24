@@ -38,8 +38,11 @@ export function PlayEditPage() {
   const [saveStatus, setSaveStatus] = useState<SaveStatus>("saved");
   const [courtMode, setCourtMode] = useState<CourtMode>("half");
   const [loop, setLoop] = useState(false);
+  const [playbackSpeed, setPlaybackSpeed] = useState<0.5 | 1 | 2>(0.5);
 
   const savedSnapshotRef = useRef<string>("");
+  const tMsRef = useRef(0);
+  tMsRef.current = tMs;
   const autoSaveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const isDirty = useCallback(() => {
@@ -119,10 +122,11 @@ export function PlayEditPage() {
   useEffect(() => {
     if (!doc || !playing) return;
     const dur = doc.meta?.durationMs ?? 8000;
-    startRef.current = performance.now() - tMs;
+    const speed = playbackSpeed;
+    startRef.current = performance.now() - tMsRef.current / speed;
     let raf: number;
     const tick = (now: number) => {
-      const raw = now - startRef.current;
+      const raw = (now - startRef.current) * speed;
       if (loop) {
         setTms(raw % (dur || 1));
       } else {
@@ -138,7 +142,7 @@ export function PlayEditPage() {
     raf = requestAnimationFrame(tick);
     return () => cancelAnimationFrame(raf);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [doc, playing, loop]);
+  }, [doc, playing, loop, playbackSpeed]);
 
   if (!user) return <Navigate to="/login" replace />;
   if (!id) return <p className="error">{t("edit.missingId")}</p>;
@@ -336,6 +340,30 @@ export function PlayEditPage() {
               <input type="checkbox" checked={loop} onChange={(e) => setLoop(e.target.checked)} />
               <span>{t("edit.loop")}</span>
             </label>
+            <span
+              className="muted"
+              style={{
+                fontSize: "0.82rem",
+                flexShrink: 0,
+                whiteSpace: "nowrap",
+                display: "inline-flex",
+                alignItems: "center",
+                gap: "0.35rem",
+              }}
+            >
+              {t("edit.speed")}
+              {([0.5, 1, 2] as const).map((s) => (
+                <button
+                  key={s}
+                  type="button"
+                  className={`btn btn-sm ${playbackSpeed === s ? "btn-active" : ""}`}
+                  onClick={() => setPlaybackSpeed(s)}
+                  style={{ minWidth: 44, padding: "0.25rem 0.45rem" }}
+                >
+                  {s}×
+                </button>
+              ))}
+            </span>
           </div>
         </div>
       ) : null}
