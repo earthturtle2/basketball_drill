@@ -21,6 +21,15 @@ function genId() {
   return `p${Date.now().toString(36)}${_nextId++}`;
 }
 
+/** Evenly space keyframe times from 0 to durationMs (inclusive ends when count >= 2). */
+function equalKeyframeTimes(count: number, durationMs: number): number[] {
+  if (count <= 0) return [];
+  if (count === 1) return [0];
+  return Array.from({ length: count }, (_, i) =>
+    Math.round((i * durationMs) / (count - 1)),
+  );
+}
+
 export function TacticEditor({ document: doc, onChange, onOpenTemplates, courtMode, onCourtModeChange }: Props) {
   const [activeKfIdx, setActiveKfIdx] = useState(0);
   const [selectedActorId, setSelectedActorId] = useState<string | null>(null);
@@ -177,25 +186,32 @@ export function TacticEditor({ document: doc, onChange, onOpenTemplates, courtMo
     [doc, onChange],
   );
 
-  const handleAddKeyframe = useCallback(
-    (t: number) => {
-      if (doc.keyframes.find((k) => k.t === t)) return;
-      const prevKf = [...doc.keyframes].reverse().find((k) => k.t <= t);
-      const newKf = { t, poses: prevKf ? { ...prevKf.poses } : {} };
-      const newKfs = [...doc.keyframes, newKf].sort((a, b) => a.t - b.t);
-      const newIdx = newKfs.findIndex((k) => k.t === t);
-      onChange({ ...doc, keyframes: newKfs });
-      setActiveKfIdx(newIdx);
-    },
-    [doc, onChange],
-  );
+  const handleAddKeyframe = useCallback(() => {
+    const duration = doc.meta.durationMs ?? 8000;
+    const sorted = [...doc.keyframes].sort((a, b) => a.t - b.t);
+    const last = sorted[sorted.length - 1];
+    const newKf = { t: 0, poses: last ? { ...last.poses } : {} };
+    const combined = [...sorted, newKf];
+    const times = equalKeyframeTimes(combined.length, duration);
+    const newKfs = combined.map((k, i) => ({ ...k, t: times[i]! }));
+    onChange({ ...doc, keyframes: newKfs });
+    setActiveKfIdx(newKfs.length - 1);
+  }, [doc, onChange]);
 
   const handleRemoveKeyframe = useCallback(
     (idx: number) => {
       if (doc.keyframes.length <= 1) return;
-      const newKfs = doc.keyframes.filter((_, i) => i !== idx);
+      const duration = doc.meta.durationMs ?? 8000;
+      const filtered = doc.keyframes.filter((_, i) => i !== idx);
+      const sorted = [...filtered].sort((a, b) => a.t - b.t);
+      const times = equalKeyframeTimes(sorted.length, duration);
+      const newKfs = sorted.map((k, i) => ({ ...k, t: times[i]! }));
       onChange({ ...doc, keyframes: newKfs });
-      setActiveKfIdx(Math.min(activeKfIdx, newKfs.length - 1));
+      let newActive = activeKfIdx;
+      if (idx < activeKfIdx) newActive = activeKfIdx - 1;
+      else if (idx > activeKfIdx) newActive = activeKfIdx;
+      else newActive = Math.min(activeKfIdx, newKfs.length - 1);
+      setActiveKfIdx(newActive);
     },
     [doc, activeKfIdx, onChange],
   );

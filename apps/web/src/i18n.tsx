@@ -139,8 +139,8 @@ const zh: Record<string, string> = {
   "kf.dragHint": "拖动调整时间",
   "kf.addFrame": "+ 帧",
   "kf.removeFrame": "- 帧",
-  "kf.addTitle": "添加关键帧（等分间隔）",
-  "kf.removeTitle": "删除当前关键帧",
+  "kf.addTitle": "添加关键帧（自动均匀分布在总时长上）",
+  "kf.removeTitle": "删除当前关键帧（其余帧自动均匀重排）",
   "kf.duration": "时长",
   "kf.frame": "帧",
 
@@ -296,8 +296,8 @@ const en: Record<string, string> = {
   "kf.dragHint": "Drag to adjust time",
   "kf.addFrame": "+ Frame",
   "kf.removeFrame": "- Frame",
-  "kf.addTitle": "Add keyframe (evenly spaced)",
-  "kf.removeTitle": "Delete current keyframe",
+  "kf.addTitle": "Add keyframe (evenly spaced across duration)",
+  "kf.removeTitle": "Delete keyframe (remaining frames re-spaced evenly)",
   "kf.duration": "Duration",
   "kf.frame": "Frame",
 

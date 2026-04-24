@@ -12,7 +12,7 @@ interface Props {
   durationMs: number;
   currentT: number;
   onSelect: (idx: number) => void;
-  onAdd: (t: number) => void;
+  onAdd: () => void;
   onRemove: (idx: number) => void;
   onMove: (idx: number, t: number) => void;
   onDurationChange: (ms: number) => void;
@@ -34,23 +34,8 @@ export function KeyframeTimeline({
   const draggingIdx = useRef<number | null>(null);
 
   const handleAdd = useCallback(() => {
-    const times = keyframes.map((k) => k.t).sort((a, b) => a - b);
-    const lastT = times[times.length - 1] ?? 0;
-    const ts = new Set(times);
-
-    if (lastT < durationMs) {
-      // Place at midpoint between last frame and duration end
-      let newT = Math.round((lastT + durationMs) / 2 / 50) * 50;
-      while (ts.has(newT)) newT += 50;
-      onAdd(Math.min(newT, durationMs));
-    } else {
-      // Last frame is at duration — extend duration and add at end
-      const avgGap = times.length > 1 ? Math.round((lastT / (times.length - 1)) / 50) * 50 : 1000;
-      const gap = Math.max(avgGap, 500);
-      onDurationChange(durationMs + gap);
-      onAdd(durationMs + gap);
-    }
-  }, [durationMs, keyframes, onAdd, onDurationChange]);
+    onAdd();
+  }, [onAdd]);
 
   const pctFromEvent = useCallback(
     (clientX: number): number => {
