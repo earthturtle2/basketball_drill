@@ -7,8 +7,16 @@ export NVM_DIR="${NVM_DIR:-$HOME/.nvm}"
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 cd "$ROOT"
 
-echo "[1/4] npm ci"
-NPM_CONFIG_AUDIT=false NPM_CONFIG_FUND=false npm ci --no-audit --no-fund
+echo "[1/4] npm ci (skip if lockfile unchanged)"
+LOCK_HASH=$(sha256sum package-lock.json | cut -d' ' -f1)
+CACHED_HASH=""
+[ -f node_modules/.lockfile-hash ] && CACHED_HASH=$(cat node_modules/.lockfile-hash)
+if [ "$LOCK_HASH" = "$CACHED_HASH" ]; then
+  echo "  lockfile unchanged — skipping npm ci"
+else
+  NPM_CONFIG_AUDIT=false NPM_CONFIG_FUND=false npm ci --no-audit --no-fund
+  echo "$LOCK_HASH" > node_modules/.lockfile-hash
+fi
 
 echo "[2/4] build"
 NODE_ENV=production npm run build
