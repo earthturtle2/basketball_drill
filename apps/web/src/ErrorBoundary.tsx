@@ -1,4 +1,5 @@
 import { Component, type ReactNode } from "react";
+import { LangContext } from "./i18n";
 
 interface Props {
   children: ReactNode;
@@ -9,6 +10,8 @@ interface State {
 }
 
 export class ErrorBoundary extends Component<Props, State> {
+  static contextType = LangContext;
+  declare context: React.ContextType<typeof LangContext>;
   state: State = { error: null };
 
   static getDerivedStateFromError(error: Error) {
@@ -17,12 +20,13 @@ export class ErrorBoundary extends Component<Props, State> {
 
   render() {
     if (this.state.error) {
+      const { t } = this.context;
       return (
         <div
           className="card"
           style={{ maxWidth: 500, margin: "2rem auto", textAlign: "center" }}
         >
-          <h2 style={{ margin: "0 0 0.5rem" }}>出了点问题</h2>
+          <h2 style={{ margin: "0 0 0.5rem" }}>{t("error.title")}</h2>
           <p className="muted">{this.state.error.message}</p>
           <button
             className="btn btn-primary"
@@ -31,7 +35,7 @@ export class ErrorBoundary extends Component<Props, State> {
               window.location.href = "/";
             }}
           >
-            返回首页
+            {t("error.backHome")}
           </button>
         </div>
       );

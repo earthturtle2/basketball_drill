@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { useParams } from "react-router-dom";
 import type { TacticDocumentV1 } from "@basketball/shared";
 import { PlayPreview } from "../tactic/PlayPreview";
+import { useT } from "../i18n";
 
 type SharePayload = {
   play: {
@@ -16,6 +17,7 @@ type SharePayload = {
 
 export function ViewPage() {
   const { token } = useParams();
+  const { t } = useT();
   const [data, setData] = useState<SharePayload | null>(null);
   const [err, setErr] = useState<string | null>(null);
   const [tMs, setTms] = useState(0);
@@ -30,7 +32,7 @@ export function ViewPage() {
         const r = await fetch(`/api/v1/shares/${token}`);
         if (!r.ok) {
           const j = (await r.json().catch(() => ({}))) as { message?: string };
-          if (!cancelled) setErr(j.message ?? "无法打开");
+          if (!cancelled) setErr(j.message ?? t("view.cantOpen"));
           return;
         }
         const j = (await r.json()) as SharePayload;
@@ -39,18 +41,17 @@ export function ViewPage() {
           setTms(0);
         }
       } catch {
-        if (!cancelled) setErr("网络错误");
+        if (!cancelled) setErr(t("view.networkError"));
       }
     })();
     return () => {
       cancelled = true;
     };
-  }, [token]);
+  }, [token, t]);
 
   const doc = data?.play.document;
   const duration = doc?.meta?.durationMs ?? 8000;
 
-  // requestAnimationFrame-based playback
   const startRef = useRef(0);
   useEffect(() => {
     if (!doc || !playing) return;
@@ -67,7 +68,7 @@ export function ViewPage() {
   }, [doc, playing]);
 
   if (err) return <p className="error">{err}</p>;
-  if (!data || !doc) return <p className="hint">加载中…</p>;
+  if (!data || !doc) return <p className="hint">{t("view.loading")}</p>;
 
   return (
     <div>
@@ -76,7 +77,7 @@ export function ViewPage() {
       <PlayPreview document={doc} tMs={tMs} />
       <div className="controls">
         <label className="muted" htmlFor="v">
-          时间 {Math.round(tMs)} ms / {duration} ms
+          {t("view.time")} {Math.round(tMs)} ms / {duration} ms
         </label>
         <input
           id="v"
@@ -90,7 +91,7 @@ export function ViewPage() {
           }}
         />
         <button type="button" className="btn" onClick={() => setPlaying((p) => !p)}>
-          {playing ? "暂停" : "播放"}
+          {playing ? t("view.pause") : t("view.play")}
         </button>
       </div>
     </div>

@@ -2,24 +2,24 @@ import type { TacticDocumentV1 } from "@basketball/shared";
 
 export interface Template {
   id: string;
-  name: string;
-  description: string;
+  nameKey: string;
+  descKey: string;
   document: TacticDocumentV1;
 }
 
 const BASE_TEAMS = {
-  offense: { id: "o", label: "进攻", color: "#e53935" },
-  defense: { id: "d", label: "防守", color: "#1e88e5" },
+  offense: { id: "o", label: "Offense", color: "#e53935" },
+  defense: { id: "d", label: "Defense", color: "#1e88e5" },
 };
 
 export const TEMPLATES: Template[] = [
   {
     id: "high-pnr",
-    name: "高位挡拆",
-    description: "经典高位挡拆配合，5号球员为1号设置掩护后顺下接球",
+    nameKey: "tpl.highPnr.name",
+    descKey: "tpl.highPnr.desc",
     document: {
       schemaVersion: 1,
-      meta: { name: "高位挡拆", durationMs: 6000 },
+      meta: { name: "High Pick & Roll", durationMs: 6000 },
       teams: BASE_TEAMS,
       actors: [
         { id: "o1", type: "player", team: "offense", number: 1, label: "1" },
@@ -66,11 +66,11 @@ export const TEMPLATES: Template[] = [
   },
   {
     id: "fast-break",
-    name: "快攻 3v2",
-    description: "三打二快攻推进，中路持球突破后分球两翼",
+    nameKey: "tpl.fastBreak.name",
+    descKey: "tpl.fastBreak.desc",
     document: {
       schemaVersion: 1,
-      meta: { name: "快攻 3v2", durationMs: 5000 },
+      meta: { name: "Fast Break 3v2", durationMs: 5000 },
       teams: BASE_TEAMS,
       actors: [
         { id: "o1", type: "player", team: "offense", number: 1, label: "1" },
@@ -117,11 +117,11 @@ export const TEMPLATES: Template[] = [
   },
   {
     id: "horns",
-    name: "Horns 进攻体系",
-    description: "双高位站位，控卫传球后两侧掩护创造空间",
+    nameKey: "tpl.horns.name",
+    descKey: "tpl.horns.desc",
     document: {
       schemaVersion: 1,
-      meta: { name: "Horns 进攻体系", durationMs: 8000 },
+      meta: { name: "Horns Offense", durationMs: 8000 },
       teams: BASE_TEAMS,
       actors: [
         { id: "o1", type: "player", team: "offense", number: 1, label: "1" },
@@ -178,11 +178,11 @@ export const TEMPLATES: Template[] = [
   },
   {
     id: "handoff",
-    name: "手递手",
-    description: "两人手递手配合，接球后攻击篮筐",
+    nameKey: "tpl.handoff.name",
+    descKey: "tpl.handoff.desc",
     document: {
       schemaVersion: 1,
-      meta: { name: "手递手", durationMs: 5000 },
+      meta: { name: "Handoff", durationMs: 5000 },
       teams: BASE_TEAMS,
       actors: [
         { id: "o1", type: "player", team: "offense", number: 1, label: "1" },
@@ -217,11 +217,11 @@ export const TEMPLATES: Template[] = [
   },
   {
     id: "zone-131",
-    name: "1-3-1 联防",
-    description: "1-3-1区域联防站位及轮转",
+    nameKey: "tpl.zone131.name",
+    descKey: "tpl.zone131.desc",
     document: {
       schemaVersion: 1,
-      meta: { name: "1-3-1 联防", durationMs: 6000 },
+      meta: { name: "1-3-1 Zone", durationMs: 6000 },
       teams: BASE_TEAMS,
       actors: [
         { id: "d1", type: "player", team: "defense", number: 1, label: "D1" },

@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { Link, Navigate, useNavigate, useParams } from "react-router-dom";
 import { api, ApiError } from "../api";
 import { useAuth } from "../auth";
+import { useT } from "../i18n";
 import type { TacticDocumentV1 } from "@basketball/shared";
 import { TacticEditor } from "../tactic/TacticEditor";
 import { PlayPreview } from "../tactic/PlayPreview";
@@ -23,6 +24,7 @@ export function PlayEditPage() {
   const { id } = useParams();
   const nav = useNavigate();
   const { user } = useAuth();
+  const { t } = useT();
   const [name, setName] = useState("");
   const [description, setDescription] = useState("");
   const [doc, setDoc] = useState<TacticDocumentV1 | null>(null);
@@ -45,7 +47,6 @@ export function PlayEditPage() {
     return current !== savedSnapshotRef.current;
   }, [name, description, doc]);
 
-  // beforeunload warning
   useEffect(() => {
     const handler = (e: BeforeUnloadEvent) => {
       if (isDirty()) {
@@ -72,12 +73,11 @@ export function PlayEditPage() {
       });
       markSaved();
     } catch (e) {
-      setErr(e instanceof ApiError ? e.message : "保存失败");
+      setErr(e instanceof ApiError ? e.message : t("edit.saveFailed"));
       setSaveStatus("unsaved");
     }
-  }, [id, name, description, doc, markSaved]);
+  }, [id, name, description, doc, markSaved, t]);
 
-  // Auto-save: 3s debounce after edits
   useEffect(() => {
     if (!doc || saveStatus === "saved" || saveStatus === "saving") return;
     if (autoSaveTimer.current) clearTimeout(autoSaveTimer.current);
@@ -106,15 +106,14 @@ export function PlayEditPage() {
       });
       setSaveStatus("saved");
     } catch (e) {
-      setErr(e instanceof ApiError ? e.message : "加载失败");
+      setErr(e instanceof ApiError ? e.message : t("edit.loadFailed"));
     }
-  }, [id]);
+  }, [id, t]);
 
   useEffect(() => {
     if (user) void load();
   }, [user, load]);
 
-  // playback
   const startRef = useRef(0);
   useEffect(() => {
     if (!doc || !playing) return;
@@ -132,7 +131,7 @@ export function PlayEditPage() {
   }, [doc, playing]);
 
   if (!user) return <Navigate to="/login" replace />;
-  if (!id) return <p className="error">缺少 id</p>;
+  if (!id) return <p className="error">{t("edit.missingId")}</p>;
 
   function handleDocChange(newDoc: TacticDocumentV1) {
     setDoc(newDoc);
@@ -147,18 +146,18 @@ export function PlayEditPage() {
       setDoc(d);
       setSaveStatus("unsaved");
     } catch {
-      setErr("JSON 无效");
+      setErr(t("edit.jsonInvalid"));
     }
   }
 
   async function del() {
-    if (!confirm("确定删除该战术？")) return;
+    if (!confirm(t("edit.confirmDelete"))) return;
     setErr(null);
     try {
       await api(`/api/v1/plays/${id}`, { method: "DELETE" });
       nav("/plays", { replace: true });
     } catch (e) {
-      setErr(e instanceof ApiError ? e.message : "删除失败");
+      setErr(e instanceof ApiError ? e.message : t("edit.deleteFailed"));
     }
   }
 
@@ -167,11 +166,11 @@ export function PlayEditPage() {
     try {
       const res = await api<{ id: string }>(`/api/v1/plays/${id}/duplicate`, {
         method: "POST",
-        body: JSON.stringify({ name: `${name}（副本）` }),
+        body: JSON.stringify({ name: `${name}${t("edit.copySuffix")}` }),
       });
       nav(`/plays/${res.id}`);
     } catch (e) {
-      setErr(e instanceof ApiError ? e.message : "复制失败");
+      setErr(e instanceof ApiError ? e.message : t("edit.duplicateFailed"));
     }
   }
 
@@ -185,29 +184,33 @@ export function PlayEditPage() {
       });
       setViewUrl(s.viewUrl);
     } catch (e) {
-      setErr(e instanceof ApiError ? e.message : "生成分享失败");
+      setErr(e instanceof ApiError ? e.message : t("edit.shareFailed"));
     }
   }
 
   const duration = doc?.meta?.durationMs ?? 8000;
-  const statusLabel = { saved: "已保存", saving: "保存中…", unsaved: "未保存" }[saveStatus];
+  const statusLabel = {
+    saved: t("edit.statusSaved"),
+    saving: t("edit.statusSaving"),
+    unsaved: t("edit.statusUnsaved"),
+  }[saveStatus];
 
   return (
     <div>
       <p style={{ margin: "0 0 0.5rem" }}>
         <Link to="/plays" className="muted">
-          ← 我的战术
+          {t("edit.back")}
         </Link>
       </p>
       <div style={{ display: "flex", alignItems: "center", gap: "0.75rem", marginBottom: "0.5rem" }}>
-        <h1 style={{ margin: 0 }}>编辑战术</h1>
+        <h1 style={{ margin: 0 }}>{t("edit.title")}</h1>
         <span className={`save-status save-status--${saveStatus}`}>{statusLabel}</span>
       </div>
       {err ? <p className="error">{err}</p> : null}
       {viewUrl ? (
         <div className="card" style={{ marginBottom: "1rem" }}>
           <p className="hint" style={{ marginTop: 0 }}>
-            学员打开（只读）：
+            {t("edit.viewHint")}
           </p>
           <a href={viewUrl} target="_blank" rel="noreferrer">
             {viewUrl}
@@ -216,20 +219,20 @@ export function PlayEditPage() {
       ) : null}
       <div className="row-actions" style={{ marginBottom: "1rem" }}>
         <button type="button" className="btn btn-primary" onClick={() => void doSave()}>
-          保存
+          {t("edit.save")}
         </button>
         <button type="button" className="btn" onClick={() => void duplicate()}>
-          复制
+          {t("edit.duplicate")}
         </button>
         <button type="button" className="btn" onClick={() => void share()}>
-          生成分享链接
+          {t("edit.share")}
         </button>
         <button type="button" className="btn" onClick={() => void del()}>
-          删除
+          {t("edit.delete")}
         </button>
       </div>
       <div className="field">
-        <label htmlFor="n">名称</label>
+        <label htmlFor="n">{t("edit.name")}</label>
         <input
           id="n"
           value={name}
@@ -240,7 +243,7 @@ export function PlayEditPage() {
         />
       </div>
       <div className="field">
-        <label htmlFor="d">说明</label>
+        <label htmlFor="d">{t("edit.description")}</label>
         <textarea
           id="d"
           rows={2}
@@ -252,7 +255,6 @@ export function PlayEditPage() {
         />
       </div>
 
-      {/* Visual editor */}
       {doc ? (
         <TacticEditor
           document={doc}
@@ -263,10 +265,9 @@ export function PlayEditPage() {
         />
       ) : null}
 
-      {/* Playback preview */}
       {doc ? (
         <div className="card" style={{ marginTop: "1rem" }}>
-          <h2 style={{ margin: "0 0 0.5rem", fontSize: "1.05rem" }}>动画预览</h2>
+          <h2 style={{ margin: "0 0 0.5rem", fontSize: "1.05rem" }}>{t("edit.preview")}</h2>
           <PlayPreview document={doc} tMs={tMs} courtMode={courtMode} />
           <div className="controls">
             <span
@@ -295,19 +296,18 @@ export function PlayEditPage() {
               style={{ flex: 1 }}
             />
             <button type="button" className="btn" onClick={() => setPlaying((p) => !p)}>
-              {playing ? "暂停" : "播放"}
+              {playing ? t("edit.pause") : t("edit.play")}
             </button>
           </div>
         </div>
       ) : null}
 
-      {/* Collapsible JSON fallback */}
       <details
         style={{ marginTop: "1rem" }}
         open={showJson}
         onToggle={(e) => setShowJson((e.target as HTMLDetailsElement).open)}
       >
-        <summary className="muted" style={{ cursor: "pointer" }}>JSON 编辑（高级）</summary>
+        <summary className="muted" style={{ cursor: "pointer" }}>{t("edit.jsonTitle")}</summary>
         <div className="field" style={{ marginTop: "0.5rem" }}>
           <textarea
             rows={12}
@@ -317,7 +317,7 @@ export function PlayEditPage() {
           />
           <p style={{ margin: "0.4rem 0 0" }}>
             <button type="button" className="btn btn-ghost" onClick={applyLocalJson}>
-              应用 JSON
+              {t("edit.applyJson")}
             </button>
           </p>
         </div>

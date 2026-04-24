@@ -1,5 +1,6 @@
 import type { TacticDocumentV1 } from "@basketball/shared";
 import type { CourtMode } from "./court-geometry";
+import { useT } from "../i18n";
 
 export type EditorTool = "select" | "addOffense" | "addDefense" | "pass" | "screen";
 
@@ -39,96 +40,94 @@ export function EditorBench({
   onRemoveActor,
   onOpenTemplates,
 }: Props) {
+  const { t } = useT();
+
   return (
     <div className="editor-bench">
-      {/* Court mode toggle */}
       <div className="bench-section">
-        <div className="bench-label">球场</div>
+        <div className="bench-label">{t("bench.court")}</div>
         <div className="bench-row">
           <button
             type="button"
             className={`btn btn-sm ${courtMode === "half" ? "btn-active" : ""}`}
             onClick={() => onCourtModeChange("half")}
           >
-            半场
+            {t("bench.half")}
           </button>
           <button
             type="button"
             className={`btn btn-sm ${courtMode === "full" ? "btn-active" : ""}`}
             onClick={() => onCourtModeChange("full")}
           >
-            全场
+            {t("bench.full")}
           </button>
         </div>
       </div>
 
-      {/* Player bench tokens */}
       <div className="bench-section">
-        <div className="bench-label">球员</div>
+        <div className="bench-label">{t("bench.players")}</div>
         <div className="bench-row">
           <button
             type="button"
             className={`bench-token bench-token--offense ${tool === "addOffense" ? "bench-token--active" : ""}`}
             onClick={() => onToolChange(tool === "addOffense" ? "select" : "addOffense")}
-            title="点击后在球场上放置进攻球员"
+            title={t("bench.addOffenseTitle")}
           >
             +
           </button>
-          <span className="bench-hint">进攻</span>
+          <span className="bench-hint">{t("bench.offense")}</span>
           <button
             type="button"
             className={`bench-token bench-token--defense ${tool === "addDefense" ? "bench-token--active" : ""}`}
             onClick={() => onToolChange(tool === "addDefense" ? "select" : "addDefense")}
-            title="点击后在球场上放置防守球员"
+            title={t("bench.addDefenseTitle")}
           >
             +
           </button>
-          <span className="bench-hint">防守</span>
+          <span className="bench-hint">{t("bench.defense")}</span>
         </div>
       </div>
 
-      {/* Action tools */}
       <div className="bench-section">
-        <div className="bench-label">工具</div>
+        <div className="bench-label">{t("bench.tools")}</div>
         <div className="bench-row">
           <button
             type="button"
             className={`btn btn-sm ${tool === "select" ? "btn-active" : ""}`}
             onClick={() => onToolChange("select")}
           >
-            选择
+            {t("bench.select")}
           </button>
           <button
             type="button"
             className={`btn btn-sm ${tool === "pass" ? "btn-active" : ""}`}
             onClick={() => onToolChange("pass")}
           >
-            传球
+            {t("bench.pass")}
           </button>
           <button
             type="button"
             className={`btn btn-sm ${tool === "screen" ? "btn-active" : ""}`}
             onClick={() => onToolChange("screen")}
           >
-            挡拆
+            {t("bench.screen")}
           </button>
           <button type="button" className="btn btn-sm" onClick={onOpenTemplates}>
-            模板
+            {t("bench.template")}
           </button>
         </div>
-        {tool === "addOffense" && <p className="bench-tip">点击球场放置进攻球员</p>}
-        {tool === "addDefense" && <p className="bench-tip">点击球场放置防守球员</p>}
-        {tool === "pass" && !passSource && <p className="bench-tip">点击传球发起者</p>}
-        {tool === "pass" && passSource && <p className="bench-tip">点击接球球员</p>}
-        {tool === "screen" && <p className="bench-tip">点击设置挡拆的球员</p>}
+        {tool === "addOffense" && <p className="bench-tip">{t("bench.tipAddOffense")}</p>}
+        {tool === "addDefense" && <p className="bench-tip">{t("bench.tipAddDefense")}</p>}
+        {tool === "pass" && !passSource && <p className="bench-tip">{t("bench.tipPassFrom")}</p>}
+        {tool === "pass" && passSource && <p className="bench-tip">{t("bench.tipPassTo")}</p>}
+        {tool === "screen" && <p className="bench-tip">{t("bench.tipScreen")}</p>}
       </div>
 
-      {/* Selected player editor */}
       {selectedActor && (
         <div className="bench-section">
-          <div className="bench-label">球员属性</div>
+          <div className="bench-label">{t("bench.playerProps")}</div>
           <div className="bench-field">
-            <label>姓名</label>
+            <label>{t("bench.playerName")}</label>
             <input
               value={selectedActor.label}
               onChange={(e) => onActorUpdate(selectedActor.id, { label: e.target.value })}
@@ -136,7 +135,7 @@ export function EditorBench({
             />
           </div>
           <div className="bench-field">
-            <label>号码</label>
+            <label>{t("bench.playerNumber")}</label>
             <input
               type="number"
               min={0}
@@ -152,10 +151,10 @@ export function EditorBench({
               className={`btn btn-sm ${ballHolderId === selectedActor.id ? "btn-active" : ""}`}
               onClick={() => onToggleBall(selectedActor.id)}
             >
-              🏀 持球
+              {t("bench.holdBall")}
             </button>
             <button type="button" className="btn btn-sm" onClick={onRemoveActor}>
-              移除
+              {t("bench.remove")}
             </button>
           </div>
         </div>

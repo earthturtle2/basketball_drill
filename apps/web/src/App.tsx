@@ -1,6 +1,7 @@
 import type { ReactNode } from "react";
 import { Link, Navigate, Route, Routes, useLocation, useNavigate } from "react-router-dom";
 import { useAuth } from "./auth";
+import { useT, LangToggle } from "./i18n";
 import { LoginPage } from "./pages/LoginPage";
 import { RegisterPage } from "./pages/RegisterPage";
 import { PlaysPage } from "./pages/PlaysPage";
@@ -12,6 +13,7 @@ function Layout({ children }: { children: ReactNode }) {
   const loc = useLocation();
   const nav = useNavigate();
   const { user, loading, logout } = useAuth();
+  const { t } = useT();
 
   if (loc.pathname.startsWith("/view/")) {
     return <div className="app-shell">{children}</div>;
@@ -21,16 +23,16 @@ function Layout({ children }: { children: ReactNode }) {
     <div className="app-shell">
       <header className="top">
         <Link to={user ? "/plays" : "/"} className="brand">
-          篮球战术训练
+          {t("app.brand")}
         </Link>
         <nav className="row-actions">
           {loading ? null : user ? (
             <>
               <Link to="/plays" className="btn btn-ghost">
-                我的战术
+                {t("app.myPlays")}
               </Link>
               <Link to="/teams" className="btn btn-ghost">
-                球队
+                {t("app.teams")}
               </Link>
               <button
                 className="btn btn-ghost"
@@ -39,24 +41,30 @@ function Layout({ children }: { children: ReactNode }) {
                   nav("/login");
                 }}
               >
-                退出
+                {t("app.logout")}
               </button>
             </>
           ) : (
             <>
               <Link to="/login" className="btn btn-ghost">
-                登录
+                {t("app.login")}
               </Link>
               <Link to="/register" className="btn btn-primary">
-                注册
+                {t("app.register")}
               </Link>
             </>
           )}
+          <LangToggle />
         </nav>
       </header>
       {children}
     </div>
   );
+}
+
+function NotFound() {
+  const { t } = useT();
+  return <p className="hint">{t("app.notFound")}</p>;
 }
 
 export function App() {
@@ -70,7 +78,7 @@ export function App() {
         <Route path="/plays/:id" element={<PlayEditPage />} />
         <Route path="/teams" element={<TeamsPage />} />
         <Route path="/view/:token" element={<ViewPage />} />
-        <Route path="*" element={<p className="hint">未找到页面</p>} />
+        <Route path="*" element={<NotFound />} />
       </Routes>
     </Layout>
   );

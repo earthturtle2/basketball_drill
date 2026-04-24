@@ -2,10 +2,12 @@ import { useState } from "react";
 import { Link, Navigate, useNavigate } from "react-router-dom";
 import { useAuth } from "../auth";
 import { ApiError } from "../api";
+import { useT } from "../i18n";
 
 export function RegisterPage() {
   const nav = useNavigate();
   const { user, register } = useAuth();
+  const { t } = useT();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [err, setErr] = useState<string | null>(null);
@@ -19,18 +21,18 @@ export function RegisterPage() {
       await register(email, password);
       nav("/plays", { replace: true });
     } catch (e2) {
-      setErr(e2 instanceof ApiError ? e2.message : "注册失败");
+      setErr(e2 instanceof ApiError ? e2.message : t("register.failed"));
     }
   }
 
   return (
     <div className="card" style={{ maxWidth: 420, margin: "0 auto" }}>
-      <h1 style={{ margin: "0 0 0.5rem" }}>注册教练账号</h1>
-      <p className="hint">密码至少 8 位。注册后可创建战术、生成分享链接给学员观看。</p>
+      <h1 style={{ margin: "0 0 0.5rem" }}>{t("register.title")}</h1>
+      <p className="hint">{t("register.hint")}</p>
       {err ? <p className="error">{err}</p> : null}
       <form onSubmit={onSubmit}>
         <div className="field">
-          <label htmlFor="e">邮箱</label>
+          <label htmlFor="e">{t("register.email")}</label>
           <input
             id="e"
             type="email"
@@ -41,7 +43,7 @@ export function RegisterPage() {
           />
         </div>
         <div className="field">
-          <label htmlFor="p">密码</label>
+          <label htmlFor="p">{t("register.password")}</label>
           <input
             id="p"
             type="password"
@@ -54,10 +56,10 @@ export function RegisterPage() {
         </div>
         <div className="form-actions">
           <button className="btn btn-primary" type="submit">
-            注册并登录
+            {t("register.submit")}
           </button>
           <Link to="/login" className="btn btn-ghost">
-            已有账号
+            {t("register.goLogin")}
           </Link>
         </div>
       </form>

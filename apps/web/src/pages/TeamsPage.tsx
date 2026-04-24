@@ -2,11 +2,13 @@ import { useCallback, useEffect, useState } from "react";
 import { Navigate } from "react-router-dom";
 import { api, ApiError } from "../api";
 import { useAuth } from "../auth";
+import { useT } from "../i18n";
 
 type Team = { id: string; name: string; color: string; createdAt: string };
 
 export function TeamsPage() {
   const { user } = useAuth();
+  const { t } = useT();
   const [teams, setTeams] = useState<Team[]>([]);
   const [err, setErr] = useState<string | null>(null);
   const [name, setName] = useState("");
@@ -21,9 +23,9 @@ export function TeamsPage() {
       const res = await api<Team[]>("/api/v1/teams");
       setTeams(res);
     } catch {
-      setErr("加载失败");
+      setErr(t("teams.loadFailed"));
     }
-  }, []);
+  }, [t]);
 
   useEffect(() => {
     if (user) void load();
@@ -43,7 +45,7 @@ export function TeamsPage() {
       setColor("#2e7d32");
       await load();
     } catch (e) {
-      setErr(e instanceof ApiError ? e.message : "创建失败");
+      setErr(e instanceof ApiError ? e.message : t("teams.createFailed"));
     }
   }
 
@@ -57,47 +59,47 @@ export function TeamsPage() {
       setEditId(null);
       await load();
     } catch (e) {
-      setErr(e instanceof ApiError ? e.message : "更新失败");
+      setErr(e instanceof ApiError ? e.message : t("teams.updateFailed"));
     }
   }
 
   async function remove(id: string) {
-    if (!confirm("删除该球队？关联的战术不会被删除。")) return;
+    if (!confirm(t("teams.confirmDelete"))) return;
     setErr(null);
     try {
       await api(`/api/v1/teams/${id}`, { method: "DELETE" });
       await load();
     } catch (e) {
-      setErr(e instanceof ApiError ? e.message : "删除失败");
+      setErr(e instanceof ApiError ? e.message : t("teams.deleteFailed"));
     }
   }
 
   return (
     <div>
-      <h1 style={{ margin: "0 0 0.5rem" }}>球队管理</h1>
-      <p className="hint">创建球队后可在战术列表中按球队筛选。</p>
+      <h1 style={{ margin: "0 0 0.5rem" }}>{t("teams.title")}</h1>
+      <p className="hint">{t("teams.hint")}</p>
       {err ? <p className="error">{err}</p> : null}
 
       <div className="card" style={{ marginBottom: "1.25rem" }}>
         <div style={{ display: "flex", gap: "0.5rem", flexWrap: "wrap", alignItems: "end" }}>
           <div className="field" style={{ flex: 1, minWidth: 120, margin: 0 }}>
-            <label>球队名称</label>
-            <input value={name} onChange={(e) => setName(e.target.value)} placeholder="输入名称" />
+            <label>{t("teams.name")}</label>
+            <input value={name} onChange={(e) => setName(e.target.value)} placeholder={t("teams.namePlaceholder")} />
           </div>
           <div className="field" style={{ margin: 0, width: 60 }}>
-            <label>颜色</label>
+            <label>{t("teams.color")}</label>
             <input type="color" value={color} onChange={(e) => setColor(e.target.value)} style={{ padding: "2px", height: 36 }} />
           </div>
           <button type="button" className="btn btn-primary" onClick={() => void create()}>
-            添加
+            {t("teams.add")}
           </button>
         </div>
       </div>
 
       <div className="list">
-        {teams.map((t) => (
-          <div key={t.id} className="list-item">
-            {editId === t.id ? (
+        {teams.map((tm) => (
+          <div key={tm.id} className="list-item">
+            {editId === tm.id ? (
               <div style={{ display: "flex", gap: "0.5rem", flexWrap: "wrap", alignItems: "center", flex: 1 }}>
                 <input
                   value={editName}
@@ -110,11 +112,11 @@ export function TeamsPage() {
                   onChange={(e) => setEditColor(e.target.value)}
                   style={{ width: 40, padding: "2px", height: 32 }}
                 />
-                <button type="button" className="btn btn-sm" onClick={() => void update(t.id)}>
-                  保存
+                <button type="button" className="btn btn-sm" onClick={() => void update(tm.id)}>
+                  {t("teams.save")}
                 </button>
                 <button type="button" className="btn btn-sm btn-ghost" onClick={() => setEditId(null)}>
-                  取消
+                  {t("teams.cancel")}
                 </button>
               </div>
             ) : (
@@ -126,26 +128,26 @@ export function TeamsPage() {
                       width: 16,
                       height: 16,
                       borderRadius: "50%",
-                      background: t.color,
+                      background: tm.color,
                       flexShrink: 0,
                     }}
                   />
-                  <h3>{t.name}</h3>
+                  <h3>{tm.name}</h3>
                 </div>
                 <div className="row-actions">
                   <button
                     type="button"
                     className="btn btn-sm btn-ghost"
                     onClick={() => {
-                      setEditId(t.id);
-                      setEditName(t.name);
-                      setEditColor(t.color);
+                      setEditId(tm.id);
+                      setEditName(tm.name);
+                      setEditColor(tm.color);
                     }}
                   >
-                    编辑
+                    {t("teams.edit")}
                   </button>
-                  <button type="button" className="btn btn-sm btn-ghost" onClick={() => void remove(t.id)}>
-                    删除
+                  <button type="button" className="btn btn-sm btn-ghost" onClick={() => void remove(tm.id)}>
+                    {t("teams.delete")}
                   </button>
                 </div>
               </>
@@ -153,7 +155,7 @@ export function TeamsPage() {
           </div>
         ))}
         {teams.length === 0 && !err ? (
-          <p className="muted">暂无球队。</p>
+          <p className="muted">{t("teams.empty")}</p>
         ) : null}
       </div>
     </div>

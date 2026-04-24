@@ -1,4 +1,5 @@
 import { useCallback, useRef } from "react";
+import { useT } from "../i18n";
 
 interface Keyframe {
   t: number;
@@ -28,6 +29,7 @@ export function KeyframeTimeline({
   onMove,
   onDurationChange,
 }: Props) {
+  const { t } = useT();
   const trackRef = useRef<HTMLDivElement>(null);
   const draggingIdx = useRef<number | null>(null);
 
@@ -83,7 +85,7 @@ export function KeyframeTimeline({
     draggingIdx.current = null;
   }, []);
 
-  const pct = (t: number) => `${(t / Math.max(durationMs, 1)) * 100}%`;
+  const pct = (tv: number) => `${(tv / Math.max(durationMs, 1)) * 100}%`;
 
   return (
     <div className="kf-timeline">
@@ -97,7 +99,7 @@ export function KeyframeTimeline({
               type="button"
               className={`kf-timeline__marker ${i === activeIndex ? "kf-timeline__marker--active" : ""}`}
               style={{ left: pct(kf.t), touchAction: "none" }}
-              title={`${kf.t}ms — 拖动调整时间`}
+              title={`${kf.t}ms — ${t("kf.dragHint")}`}
               onPointerDown={(e) => handleMarkerPointerDown(i, e)}
               onPointerMove={handleMarkerPointerMove}
               onPointerUp={handleMarkerPointerUp}
@@ -107,20 +109,20 @@ export function KeyframeTimeline({
       </div>
 
       <div className="kf-timeline__controls">
-        <button type="button" className="btn btn-sm" onClick={handleAdd} title="添加关键帧（等分间隔）">
-          + 帧
+        <button type="button" className="btn btn-sm" onClick={handleAdd} title={t("kf.addTitle")}>
+          {t("kf.addFrame")}
         </button>
         <button
           type="button"
           className="btn btn-sm"
           disabled={keyframes.length <= 1}
           onClick={() => onRemove(activeIndex)}
-          title="删除当前关键帧"
+          title={t("kf.removeTitle")}
         >
-          - 帧
+          {t("kf.removeFrame")}
         </button>
         <label className="kf-timeline__duration">
-          时长
+          {t("kf.duration")}
           <input
             type="number"
             min={1000}
@@ -132,7 +134,7 @@ export function KeyframeTimeline({
           ms
         </label>
         <span className="muted" style={{ fontVariantNumeric: "tabular-nums" }}>
-          帧 {activeIndex + 1}/{keyframes.length} @ {currentT}ms
+          {t("kf.frame")} {activeIndex + 1}/{keyframes.length} @ {currentT}ms
         </span>
       </div>
     </div>
