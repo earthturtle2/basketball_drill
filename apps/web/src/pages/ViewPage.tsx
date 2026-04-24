@@ -71,9 +71,24 @@ export function ViewPage() {
     if (stops.length === 0) return;
     const E = 0.5;
     const from = tMsRef.current;
-    const nextT = stops.find((tm) => tm > from + E) ?? stops[0]!;
-    if (Math.abs(nextT - from) < 0.25) return;
-    setFrameStepTarget({ from, to: nextT });
+    const nextT = stops.find((tm) => tm > from + E);
+    if (nextT !== undefined) {
+      if (Math.abs(nextT - from) < 0.25) return;
+      setFrameStepTarget({ from, to: nextT });
+      return;
+    }
+    if (stops.length < 2) {
+      setTms(stops[0]!);
+      return;
+    }
+    const t0 = stops[0]!;
+    const t1 = stops[1]!;
+    if (Math.abs(t1 - t0) < 0.25) {
+      setTms(t0);
+      return;
+    }
+    setTms(t0);
+    setFrameStepTarget({ from: t0, to: t1 });
   }, [doc]);
 
   const startRef = useRef(0);
