@@ -62,29 +62,43 @@ export function samplePoses(
   return out;
 }
 
-/**
- * Preview-only: ball flies for this long after a pass event before the receiver
- * holds it. The editor uses resolveBallHolderAt(..., false) so passes take effect
- * at the keyframe instantly while playback still shows this animation.
- */
-export const PASS_FLY_MS = 400;
+/** Fallback flight duration when no next keyframe exists (e.g. single-keyframe doc). */
+const PASS_FLY_FALLBACK_MS = 400;
 
-/** Timeline end (ms): duration, last keyframe, and room for pass flights — keeps last-frame passes completable in preview. */
+/**
+ * Flight duration for a pass starting at `passT`.
+ * Equals the gap to the next keyframe so the ball always arrives within the
+ * current frame segment. For passes on the last keyframe, falls back to the
+ * previous segment length (or PASS_FLY_FALLBACK_MS).
+ */
+export function passFlyMs(doc: TacticDocumentV1, passT: number): number {
+  const times = doc.keyframes.map((k) => k.t).sort((a, b) => a - b);
+  const nextT = times.find((t) => t > passT);
+  if (nextT !== undefined) return nextT - passT;
+  if (times.length >= 2) return times[times.length - 1]! - times[times.length - 2]!;
+  return PASS_FLY_FALLBACK_MS;
+}
+
+/**
+ * Timeline end (ms). For passes on the last keyframe (no next keyframe to land
+ * on), the end is extended so the flight can complete; all other passes land at
+ * the next keyframe and need no extension.
+ */
 export function playbackEndMs(doc: TacticDocumentV1): number {
   const dur = doc.meta?.durationMs ?? 0;
   const kfMax = doc.keyframes.length ? Math.max(...doc.keyframes.map((k) => k.t)) : 0;
   let t = Math.max(dur, kfMax);
   for (const e of doc.events ?? []) {
     if (e.kind === "pass" && e.from && e.to) {
-      t = Math.max(t, e.t + PASS_FLY_MS);
+      t = Math.max(t, e.t + passFlyMs(doc, e.t));
     }
   }
   return t;
 }
 
-/** When ball is considered with receiver for playback (after flight or instant if timeline ends sooner). */
+/** When ball is considered with receiver for playback (pass.t + flight duration). */
 export function passOwnershipApplyMs(doc: TacticDocumentV1, passT: number): number {
-  return Math.min(passT + PASS_FLY_MS, playbackEndMs(doc));
+  return passT + passFlyMs(doc, passT);
 }
 
 /** The pass currently in the air (ball not held) at tMs, if any. */
@@ -117,8 +131,8 @@ export function findInFlightPass(
  * Who holds the ball at t.
  *
  * @param accountForFlight  When true (playback), pass ownership applies after
- *   PASS_FLY_MS. When false (editor), ownership changes at pass.t so the active
- *   keyframe shows the receiver with the ball.
+ *   the flight duration (next-keyframe gap). When false (editor), ownership
+ *   changes at pass.t so the active keyframe shows the receiver with the ball.
  */
 export function resolveBallHolderAt(
   doc: TacticDocumentV1,
