@@ -32,6 +32,24 @@ export const refreshTokens = sqliteTable(
   (t) => [index("idx_refresh_user").on(t.userId)],
 );
 
+export const teams = sqliteTable(
+  "teams",
+  {
+    id: text("id")
+      .primaryKey()
+      .$defaultFn(() => crypto.randomUUID()),
+    userId: text("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    name: text("name").notNull(),
+    color: text("color").notNull().default("#e53935"),
+    createdAt: integer("created_at", { mode: "timestamp_ms" })
+      .notNull()
+      .$defaultFn(() => new Date()),
+  },
+  (t) => [index("idx_teams_user").on(t.userId)],
+);
+
 export const plays = sqliteTable(
   "plays",
   {
@@ -41,6 +59,7 @@ export const plays = sqliteTable(
     userId: text("user_id")
       .notNull()
       .references(() => users.id, { onDelete: "cascade" }),
+    teamId: text("team_id").references(() => teams.id, { onDelete: "set null" }),
     name: text("name").notNull(),
     description: text("description"),
     tags: text("tags", { mode: "json" })
@@ -78,5 +97,6 @@ export const playShares = sqliteTable(
 );
 
 export type UserRow = typeof users.$inferSelect;
+export type TeamRow = typeof teams.$inferSelect;
 export type PlayRow = typeof plays.$inferSelect;
 export type PlayShareRow = typeof playShares.$inferSelect;

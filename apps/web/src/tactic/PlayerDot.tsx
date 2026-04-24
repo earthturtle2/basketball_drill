@@ -1,0 +1,97 @@
+import { useCallback, useRef } from "react";
+
+interface Props {
+  actorId: string;
+  cx: number;
+  cy: number;
+  color: string;
+  label: string;
+  selected: boolean;
+  onDrag: (actorId: string, svgX: number, svgY: number) => void;
+  onSelect: (actorId: string) => void;
+}
+
+export function PlayerDot({
+  actorId,
+  cx,
+  cy,
+  color,
+  label,
+  selected,
+  onDrag,
+  onSelect,
+}: Props) {
+  const dragging = useRef(false);
+
+  const toSvgCoords = useCallback(
+    (e: PointerEvent, svg: SVGSVGElement) => {
+      const ctm = svg.getScreenCTM();
+      if (!ctm) return null;
+      return {
+        x: (e.clientX - ctm.e) / ctm.a,
+        y: (e.clientY - ctm.f) / ctm.d,
+      };
+    },
+    [],
+  );
+
+  const onPointerDown = useCallback(
+    (e: React.PointerEvent<SVGGElement>) => {
+      e.stopPropagation();
+      onSelect(actorId);
+      dragging.current = true;
+      const g = e.currentTarget;
+      g.setPointerCapture(e.pointerId);
+    },
+    [actorId, onSelect],
+  );
+
+  const onPointerMove = useCallback(
+    (e: React.PointerEvent<SVGGElement>) => {
+      if (!dragging.current) return;
+      const svg = (e.currentTarget as SVGElement).ownerSVGElement;
+      if (!svg) return;
+      const pt = toSvgCoords(e.nativeEvent, svg);
+      if (pt) onDrag(actorId, pt.x, pt.y);
+    },
+    [actorId, onDrag, toSvgCoords],
+  );
+
+  const onPointerUp = useCallback(() => {
+    dragging.current = false;
+  }, []);
+
+  return (
+    <g
+      style={{ cursor: "grab" }}
+      onPointerDown={onPointerDown}
+      onPointerMove={onPointerMove}
+      onPointerUp={onPointerUp}
+    >
+      {selected && (
+        <circle
+          cx={cx}
+          cy={cy}
+          r={6}
+          fill="none"
+          stroke="#fff"
+          strokeWidth="0.6"
+          strokeDasharray="1.5 1"
+        />
+      )}
+      <circle cx={cx} cy={cy} r={4} fill={color} stroke="#000" strokeWidth="0.4" />
+      <text
+        x={cx}
+        y={cy}
+        textAnchor="middle"
+        dominantBaseline="central"
+        fill="#fff"
+        fontSize={3.2}
+        fontWeight="bold"
+        style={{ pointerEvents: "none" }}
+      >
+        {label}
+      </text>
+    </g>
+  );
+}

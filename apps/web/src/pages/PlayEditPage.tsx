@@ -3,7 +3,9 @@ import { Link, Navigate, useNavigate, useParams } from "react-router-dom";
 import { api, ApiError } from "../api";
 import { useAuth } from "../auth";
 import type { TacticDocumentV1 } from "@basketball/shared";
+import { TacticEditor } from "../tactic/TacticEditor";
 import { PlayPreview } from "../tactic/PlayPreview";
+import { TemplateLibrary } from "../tactic/TemplateLibrary";
 
 type Play = {
   id: string;
@@ -14,18 +16,76 @@ type Play = {
   updatedAt: string;
 };
 
+type SaveStatus = "saved" | "saving" | "unsaved";
+
 export function PlayEditPage() {
   const { id } = useParams();
   const nav = useNavigate();
   const { user } = useAuth();
   const [name, setName] = useState("");
   const [description, setDescription] = useState("");
+  const [doc, setDoc] = useState<TacticDocumentV1 | null>(null);
   const [jsonText, setJsonText] = useState("");
+  const [showJson, setShowJson] = useState(false);
+  const [showTemplates, setShowTemplates] = useState(false);
   const [tMs, setTms] = useState(0);
   const [playing, setPlaying] = useState(false);
   const [err, setErr] = useState<string | null>(null);
-  const [doc, setDoc] = useState<TacticDocumentV1 | null>(null);
   const [viewUrl, setViewUrl] = useState<string | null>(null);
+  const [saveStatus, setSaveStatus] = useState<SaveStatus>("saved");
+
+  const savedSnapshotRef = useRef<string>("");
+  const autoSaveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const isDirty = useCallback(() => {
+    if (!doc) return false;
+    const current = JSON.stringify({ name, description, doc });
+    return current !== savedSnapshotRef.current;
+  }, [name, description, doc]);
+
+  // beforeunload warning
+  useEffect(() => {
+    const handler = (e: BeforeUnloadEvent) => {
+      if (isDirty()) {
+        e.preventDefault();
+      }
+    };
+    window.addEventListener("beforeunload", handler);
+    return () => window.removeEventListener("beforeunload", handler);
+  }, [isDirty]);
+
+  const markSaved = useCallback(() => {
+    setSaveStatus("saved");
+    savedSnapshotRef.current = JSON.stringify({ name, description, doc });
+  }, [name, description, doc]);
+
+  const doSave = useCallback(async () => {
+    if (!id || !doc) return;
+    setSaveStatus("saving");
+    setErr(null);
+    try {
+      await api<Play>(`/api/v1/plays/${id}`, {
+        method: "PATCH",
+        body: JSON.stringify({ name, description, document: doc }),
+      });
+      markSaved();
+    } catch (e) {
+      setErr(e instanceof ApiError ? e.message : "保存失败");
+      setSaveStatus("unsaved");
+    }
+  }, [id, name, description, doc, markSaved]);
+
+  // Auto-save: 3s debounce after edits
+  useEffect(() => {
+    if (!doc || saveStatus === "saved" || saveStatus === "saving") return;
+    if (autoSaveTimer.current) clearTimeout(autoSaveTimer.current);
+    autoSaveTimer.current = setTimeout(() => {
+      void doSave();
+    }, 3000);
+    return () => {
+      if (autoSaveTimer.current) clearTimeout(autoSaveTimer.current);
+    };
+  }, [doc, name, description, saveStatus, doSave]);
 
   const load = useCallback(async () => {
     if (!id) return;
@@ -34,9 +94,15 @@ export function PlayEditPage() {
       const p = await api<Play>(`/api/v1/plays/${id}`);
       setName(p.name);
       setDescription(p.description ?? "");
-      setJsonText(JSON.stringify(p.document, null, 2));
       setDoc(p.document);
+      setJsonText(JSON.stringify(p.document, null, 2));
       setTms(0);
+      savedSnapshotRef.current = JSON.stringify({
+        name: p.name,
+        description: p.description ?? "",
+        doc: p.document,
+      });
+      setSaveStatus("saved");
     } catch (e) {
       setErr(e instanceof ApiError ? e.message : "加载失败");
     }
@@ -46,7 +112,7 @@ export function PlayEditPage() {
     if (user) void load();
   }, [user, load]);
 
-  // requestAnimationFrame-based playback
+  // playback
   const startRef = useRef(0);
   useEffect(() => {
     if (!doc || !playing) return;
@@ -66,33 +132,20 @@ export function PlayEditPage() {
   if (!user) return <Navigate to="/login" replace />;
   if (!id) return <p className="error">缺少 id</p>;
 
+  function handleDocChange(newDoc: TacticDocumentV1) {
+    setDoc(newDoc);
+    setJsonText(JSON.stringify(newDoc, null, 2));
+    setSaveStatus("unsaved");
+  }
+
   function applyLocalJson() {
     setErr(null);
     try {
       const d = JSON.parse(jsonText) as TacticDocumentV1;
       setDoc(d);
+      setSaveStatus("unsaved");
     } catch {
       setErr("JSON 无效");
-    }
-  }
-
-  async function save() {
-    setErr(null);
-    let parsed: TacticDocumentV1;
-    try {
-      parsed = JSON.parse(jsonText) as TacticDocumentV1;
-    } catch {
-      setErr("JSON 无效，无法保存");
-      return;
-    }
-    try {
-      await api<Play>(`/api/v1/plays/${id}`, {
-        method: "PATCH",
-        body: JSON.stringify({ name, description, document: parsed }),
-      });
-      await load();
-    } catch (e) {
-      setErr(e instanceof ApiError ? e.message : "保存失败");
     }
   }
 
@@ -135,6 +188,7 @@ export function PlayEditPage() {
   }
 
   const duration = doc?.meta?.durationMs ?? 8000;
+  const statusLabel = { saved: "已保存", saving: "保存中…", unsaved: "未保存" }[saveStatus];
 
   return (
     <div>
@@ -143,7 +197,10 @@ export function PlayEditPage() {
           ← 我的战术
         </Link>
       </p>
-      <h1 style={{ margin: "0 0 0.5rem" }}>编辑战术</h1>
+      <div style={{ display: "flex", alignItems: "center", gap: "0.75rem", marginBottom: "0.5rem" }}>
+        <h1 style={{ margin: 0 }}>编辑战术</h1>
+        <span className={`save-status save-status--${saveStatus}`}>{statusLabel}</span>
+      </div>
       {err ? <p className="error">{err}</p> : null}
       {viewUrl ? (
         <div className="card" style={{ marginBottom: "1rem" }}>
@@ -156,7 +213,7 @@ export function PlayEditPage() {
         </div>
       ) : null}
       <div className="row-actions" style={{ marginBottom: "1rem" }}>
-        <button type="button" className="btn btn-primary" onClick={() => void save()}>
+        <button type="button" className="btn btn-primary" onClick={() => void doSave()}>
           保存
         </button>
         <button type="button" className="btn" onClick={() => void duplicate()}>
@@ -171,39 +228,45 @@ export function PlayEditPage() {
       </div>
       <div className="field">
         <label htmlFor="n">名称</label>
-        <input id="n" value={name} onChange={(e) => setName(e.target.value)} />
+        <input
+          id="n"
+          value={name}
+          onChange={(e) => {
+            setName(e.target.value);
+            setSaveStatus("unsaved");
+          }}
+        />
       </div>
       <div className="field">
         <label htmlFor="d">说明</label>
         <textarea
           id="d"
-          rows={3}
+          rows={2}
           value={description}
-          onChange={(e) => setDescription(e.target.value)}
+          onChange={(e) => {
+            setDescription(e.target.value);
+            setSaveStatus("unsaved");
+          }}
         />
       </div>
-      <div className="field">
-        <label htmlFor="j">战术 JSON</label>
-        <textarea
-          id="j"
-          rows={14}
-          value={jsonText}
-          onChange={(e) => setJsonText(e.target.value)}
-          spellCheck={false}
-        />
-        <p style={{ margin: "0.4rem 0 0" }}>
-          <button type="button" className="btn btn-ghost" onClick={applyLocalJson}>
-            应用 JSON 到预览
-          </button>
-        </p>
-      </div>
+
+      {/* Visual editor */}
       {doc ? (
-        <div className="card" style={{ marginTop: "1.25rem" }}>
-          <h2 style={{ margin: "0 0 0.5rem", fontSize: "1.05rem" }}>半场预览</h2>
+        <TacticEditor
+          document={doc}
+          onChange={handleDocChange}
+          onOpenTemplates={() => setShowTemplates(true)}
+        />
+      ) : null}
+
+      {/* Playback preview */}
+      {doc ? (
+        <div className="card" style={{ marginTop: "1rem" }}>
+          <h2 style={{ margin: "0 0 0.5rem", fontSize: "1.05rem" }}>动画预览</h2>
           <PlayPreview document={doc} tMs={tMs} />
           <div className="controls">
             <label className="muted" htmlFor="range">
-              时间 {Math.round(tMs)} ms / {duration} ms
+              {Math.round(tMs)} ms / {duration} ms
             </label>
             <input
               id="range"
@@ -221,6 +284,38 @@ export function PlayEditPage() {
             </button>
           </div>
         </div>
+      ) : null}
+
+      {/* Collapsible JSON fallback */}
+      <details
+        style={{ marginTop: "1rem" }}
+        open={showJson}
+        onToggle={(e) => setShowJson((e.target as HTMLDetailsElement).open)}
+      >
+        <summary className="muted" style={{ cursor: "pointer" }}>JSON 编辑（高级）</summary>
+        <div className="field" style={{ marginTop: "0.5rem" }}>
+          <textarea
+            rows={12}
+            value={jsonText}
+            onChange={(e) => setJsonText(e.target.value)}
+            spellCheck={false}
+          />
+          <p style={{ margin: "0.4rem 0 0" }}>
+            <button type="button" className="btn btn-ghost" onClick={applyLocalJson}>
+              应用 JSON
+            </button>
+          </p>
+        </div>
+      </details>
+
+      {showTemplates && doc ? (
+        <TemplateLibrary
+          onSelect={(tmpl) => {
+            handleDocChange(tmpl);
+            setShowTemplates(false);
+          }}
+          onClose={() => setShowTemplates(false)}
+        />
       ) : null}
     </div>
   );

@@ -4,6 +4,7 @@ import { authenticate, requireAuth } from "./middleware.js";
 import { authRoutes } from "./auth.js";
 import { publicShareRoutes, protectedShareRoutes } from "./shares.js";
 import { playRoutes } from "./plays.js";
+import { teamRoutes } from "./teams.js";
 import { db } from "../../db/index.js";
 import { users } from "../../db/schema.js";
 
@@ -29,6 +30,7 @@ export async function registerV1(fastify: FastifyInstance) {
     });
 
     await f.register(playRoutes);
+    await f.register(teamRoutes);
     await f.register(protectedShareRoutes);
   });
 }

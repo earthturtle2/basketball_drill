@@ -5,6 +5,7 @@ import { LoginPage } from "./pages/LoginPage";
 import { RegisterPage } from "./pages/RegisterPage";
 import { PlaysPage } from "./pages/PlaysPage";
 import { PlayEditPage } from "./pages/PlayEditPage";
+import { TeamsPage } from "./pages/TeamsPage";
 import { ViewPage } from "./pages/ViewPage";
 
 function Layout({ children }: { children: ReactNode }) {
@@ -27,6 +28,9 @@ function Layout({ children }: { children: ReactNode }) {
             <>
               <Link to="/plays" className="btn btn-ghost">
                 我的战术
+              </Link>
+              <Link to="/teams" className="btn btn-ghost">
+                球队
               </Link>
               <button
                 className="btn btn-ghost"
@@ -64,6 +68,7 @@ export function App() {
         <Route path="/register" element={<RegisterPage />} />
         <Route path="/plays" element={<PlaysPage />} />
         <Route path="/plays/:id" element={<PlayEditPage />} />
+        <Route path="/teams" element={<TeamsPage />} />
         <Route path="/view/:token" element={<ViewPage />} />
         <Route path="*" element={<p className="hint">未找到页面</p>} />
       </Routes>

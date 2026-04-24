@@ -16,6 +16,7 @@ const playCreateBody = z.object({
   description: z.string().max(2000).optional(),
   tags: z.array(z.string().max(64)).max(32).optional(),
   document: z.unknown().optional(),
+  teamId: z.string().optional(),
 });
 
 const playPatchBody = z.object({
@@ -23,6 +24,7 @@ const playPatchBody = z.object({
   description: z.string().max(2000).nullable().optional(),
   tags: z.array(z.string().max(64)).max(32).optional(),
   document: z.unknown().optional(),
+  teamId: z.string().nullable().optional(),
 });
 
 const listQuery = z.object({
@@ -30,6 +32,7 @@ const listQuery = z.object({
   pageSize: z.coerce.number().int().min(1).max(100).default(20),
   q: z.string().max(200).optional(),
   tag: z.string().max(64).optional(),
+  teamId: z.string().optional(),
 });
 
 const duplicateBody = z.object({
@@ -54,6 +57,9 @@ export async function playRoutes(fastify: FastifyInstance) {
         sql`exists (select 1 from json_each(${plays.tags}) as j where j.value = ${q.tag})`,
       );
     }
+    if (q.teamId) {
+      conditions.push(eq(plays.teamId, q.teamId));
+    }
     const where = and(...conditions);
     const totalRow = await db.select({ n: count() }).from(plays).where(where);
     const total = totalRow[0]?.n ?? 0;
@@ -64,6 +70,7 @@ export async function playRoutes(fastify: FastifyInstance) {
         name: plays.name,
         description: plays.description,
         tags: plays.tags,
+        teamId: plays.teamId,
         updatedAt: plays.updatedAt,
       })
       .from(plays)
@@ -96,6 +103,7 @@ export async function playRoutes(fastify: FastifyInstance) {
       .insert(plays)
       .values({
         userId: request.user!.id,
+        teamId: b.teamId ?? null,
         name: b.name,
         description: b.description ?? null,
         tags: b.tags ?? [],
@@ -151,6 +159,7 @@ export async function playRoutes(fastify: FastifyInstance) {
         name: b.name !== undefined ? b.name : row.name,
         description: b.description === undefined ? row.description : b.description,
         tags: b.tags !== undefined ? b.tags : row.tags,
+        teamId: b.teamId === undefined ? row.teamId : b.teamId,
         document,
         updatedAt: new Date(),
       })

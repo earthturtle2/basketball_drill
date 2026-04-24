@@ -1,6 +1,8 @@
 import { useMemo } from "react";
 import type { TacticDocumentV1 } from "@basketball/shared";
 import { samplePoses } from "./viewer-math";
+import { CourtSVG } from "./CourtSVG";
+import { tacticToSvg } from "./court-geometry";
 
 export function PlayPreview({
   document,
@@ -17,39 +19,46 @@ export function PlayPreview({
   };
 
   return (
-    <div className="viewer">
-      <div className="court">
-        {document.actors.map((a) => {
-          if (a.type === "ball") {
-            const holder = a.heldBy ? poses[a.heldBy] : null;
-            const p = holder ?? poses[a.id] ?? { x: 0.5, y: 0.5 };
-            return (
-              <div
-                key={a.id}
-                className="dot ball"
-                style={{ left: `${p.x * 100}%`, top: `${(1 - p.y) * 100}%` }}
-                title="球"
-              />
-            );
-          }
-          const p = poses[a.id];
-          if (!p) return null;
+    <CourtSVG>
+      {document.actors.map((a) => {
+        if (a.type === "ball") {
+          const holder = a.heldBy ? poses[a.heldBy] : null;
+          const p = holder ?? poses[a.id] ?? { x: 0.5, y: 0.5 };
+          const [sx, sy] = tacticToSvg(p.x, p.y);
           return (
-            <div
+            <circle
               key={a.id}
-              className="dot"
-              style={{
-                left: `${p.x * 100}%`,
-                top: `${(1 - p.y) * 100}%`,
-                background: teamColors[a.team] ?? teamColors.offense,
-              }}
-              title={a.label}
+              cx={sx}
+              cy={sy}
+              r={2.8}
+              fill="#ffab40"
+              stroke="#3d2200"
+              strokeWidth="0.5"
+            />
+          );
+        }
+        const p = poses[a.id];
+        if (!p) return null;
+        const [sx, sy] = tacticToSvg(p.x, p.y);
+        const color = teamColors[a.team] ?? teamColors.offense;
+        return (
+          <g key={a.id}>
+            <circle cx={sx} cy={sy} r={4} fill={color} stroke="#000" strokeWidth="0.4" />
+            <text
+              x={sx}
+              y={sy}
+              textAnchor="middle"
+              dominantBaseline="central"
+              fill="#fff"
+              fontSize={3.2}
+              fontWeight="bold"
+              style={{ pointerEvents: "none" }}
             >
               {a.label}
-            </div>
-          );
-        })}
-      </div>
-    </div>
+            </text>
+          </g>
+        );
+      })}
+    </CourtSVG>
   );
 }
