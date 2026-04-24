@@ -5,7 +5,7 @@ import {
   resolveBallState,
   resolveBallHolderAt,
   resolveScreenOverlaysAtT,
-  passOwnershipApplyMs,
+  passFlyMs,
 } from "./viewer-math";
 import { CourtSVG } from "./CourtSVG";
 import { tacticToSvg, type CourtMode } from "./court-geometry";
@@ -87,26 +87,26 @@ export function PlayPreview({
 
   const screenMap = useMemo(() => resolveScreenOverlaysAtT(doc, tMs), [doc, tMs]);
 
-  // Completed pass trail lines (dashed, fade after pass)
+  // Pass trail lines — flight happens BEFORE ev.t (ball arrives at ev.t)
   const passTrails = useMemo(() => {
     const passes = (doc.events ?? []).filter((e) => e.kind === "pass" && e.from && e.to);
     const trails: React.ReactNode[] = [];
     for (let i = 0; i < passes.length; i++) {
       const ev = passes[i];
-      if (ev.t > tMs) continue;
-      const endT = passOwnershipApplyMs(doc, ev.t);
-      const flyDur = endT - ev.t;
-      const passPoses = samplePoses(doc, ev.t);
-      const fromP = passPoses[ev.from!];
-      const endPoses = samplePoses(doc, endT);
+      const flyMs = passFlyMs(doc, ev.t);
+      const flightStart = Math.max(0, ev.t - flyMs);
+      if (flightStart > tMs) continue;
+      const startPoses = samplePoses(doc, flightStart);
+      const fromP = startPoses[ev.from!];
+      const endPoses = samplePoses(doc, ev.t);
       const toP = endPoses[ev.to!];
       if (!fromP || !toP) continue;
       const [x1, y1] = tacticToSvg(fromP.x, fromP.y, courtMode);
       const [x2, y2] = tacticToSvg(toP.x, toP.y, courtMode);
 
-      if (flyDur > 0 && tMs < endT) {
-        // Pass in flight — partial dashed trail
-        const progress = (tMs - ev.t) / flyDur;
+      if (tMs < ev.t) {
+        const flyDur = ev.t - flightStart;
+        const progress = flyDur > 0 ? (tMs - flightStart) / flyDur : 1;
         const bx = lerp(x1, x2, progress);
         const by = lerp(y1, y2, progress);
         trails.push(
@@ -119,8 +119,7 @@ export function PlayPreview({
           />,
         );
       } else {
-        // Completed pass — full dashed trail, fading
-        const fadeAge = tMs - endT;
+        const fadeAge = tMs - ev.t;
         const opacity = Math.max(0, 0.5 - fadeAge / 3000);
         if (opacity > 0.02) {
           trails.push(
@@ -161,7 +160,7 @@ export function PlayPreview({
         const [x1, y1] = tacticToSvg(currPose.x, currPose.y, courtMode);
         if (Math.abs(x1 - x0) < 0.5 && Math.abs(y1 - y0) < 0.5) continue;
 
-        const holder = resolveBallHolderAt(doc, kfs[i].t, true);
+        const holder = resolveBallHolderAt(doc, kfs[i].t);
         const isDribble = holder === actor.id;
         const hasCp = currPose.cpx !== undefined && currPose.cpy !== undefined;
         const cp: [number, number] | null = hasCp

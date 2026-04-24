@@ -94,7 +94,7 @@ export function MovementTrails({ document: doc, teamColors, courtMode = "half", 
           const [x1, y1] = tacticToSvg(currPose.x, currPose.y, courtMode);
           if (Math.abs(x1 - x0) < 0.5 && Math.abs(y1 - y0) < 0.5) continue;
 
-          const holder = resolveBallHolderAt(doc, kfs[i].t, true);
+          const holder = resolveBallHolderAt(doc, kfs[i].t);
           const isDribble = holder === actor.id;
 
           const hasCp = currPose.cpx !== undefined && currPose.cpy !== undefined;

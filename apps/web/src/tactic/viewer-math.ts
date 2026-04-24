@@ -62,81 +62,62 @@ export function samplePoses(
   return out;
 }
 
-/** Target flight duration — capped to the current frame so the pass always completes before the next keyframe. */
+/** Maximum visual flight duration (ms). */
 const PASS_FLY_MS = 400;
 
 /**
- * Flight duration for a pass starting at `passT`.
- * Uses PASS_FLY_MS but never exceeds the gap to the next keyframe, so the ball
- * always arrives within the current frame segment.
+ * Flight duration for a pass that **arrives** at `passT`.
+ * Capped to the previous-keyframe gap so the flight fits within the segment
+ * leading up to the pass keyframe.
  */
 export function passFlyMs(doc: TacticDocumentV1, passT: number): number {
   const times = doc.keyframes.map((k) => k.t).sort((a, b) => a - b);
+  const prevTimes = times.filter((t) => t < passT);
+  if (prevTimes.length > 0) return Math.min(PASS_FLY_MS, passT - prevTimes[prevTimes.length - 1]!);
   const nextT = times.find((t) => t > passT);
   if (nextT !== undefined) return Math.min(PASS_FLY_MS, nextT - passT);
-  if (times.length >= 2) return Math.min(PASS_FLY_MS, times[times.length - 1]! - times[times.length - 2]!);
   return PASS_FLY_MS;
 }
 
-/**
- * Timeline end (ms). For passes on the last keyframe (no next keyframe to land
- * on), the end is extended so the flight can complete; all other passes land at
- * the next keyframe and need no extension.
- */
+/** Timeline end (ms): max of declared duration and last keyframe. */
 export function playbackEndMs(doc: TacticDocumentV1): number {
   const dur = doc.meta?.durationMs ?? 0;
   const kfMax = doc.keyframes.length ? Math.max(...doc.keyframes.map((k) => k.t)) : 0;
-  let t = Math.max(dur, kfMax);
-  for (const e of doc.events ?? []) {
-    if (e.kind === "pass" && e.from && e.to) {
-      t = Math.max(t, e.t + passFlyMs(doc, e.t));
-    }
-  }
-  return t;
+  return Math.max(dur, kfMax);
 }
 
-/** When ball is considered with receiver for playback (pass.t + flight duration). */
-export function passOwnershipApplyMs(doc: TacticDocumentV1, passT: number): number {
-  return passT + passFlyMs(doc, passT);
-}
-
-/** The pass currently in the air (ball not held) at tMs, if any. */
+/**
+ * The pass currently in the air at tMs, if any.
+ * Flight occupies [passT − flyMs, passT). The ball arrives at passT.
+ */
 export function findInFlightPass(
   doc: TacticDocumentV1,
   tMs: number,
-): { t: number; from: string; to: string; applyAt: number } | null {
+): { t: number; from: string; to: string; flightStart: number } | null {
   const passes = (doc.events ?? [])
     .filter((e) => e.kind === "pass" && e.from && e.to)
     .sort((a, b) => a.t - b.t);
   let best: (typeof passes)[0] | null = null;
+  let bestStart = 0;
   for (const p of passes) {
-    if (p.t > tMs) break;
-    const applyAt = passOwnershipApplyMs(doc, p.t);
-    if (applyAt <= p.t) continue;
-    if (tMs < applyAt) {
-      if (!best || p.t > best.t) best = p;
+    const flyMs = passFlyMs(doc, p.t);
+    const start = Math.max(0, p.t - flyMs);
+    if (start > tMs) continue;
+    if (tMs < p.t) {
+      if (!best || p.t > best.t) { best = p; bestStart = start; }
     }
   }
   if (!best) return null;
-  return {
-    t: best.t,
-    from: best.from!,
-    to: best.to!,
-    applyAt: passOwnershipApplyMs(doc, best.t),
-  };
+  return { t: best.t, from: best.from!, to: best.to!, flightStart: bestStart };
 }
 
 /**
  * Who holds the ball at t.
- *
- * @param accountForFlight  When true (playback), pass ownership applies after
- *   the flight duration (next-keyframe gap). When false (editor), ownership
- *   changes at pass.t so the active keyframe shows the receiver with the ball.
+ * Pass ownership changes at pass.t (the ball has arrived by then).
  */
 export function resolveBallHolderAt(
   doc: TacticDocumentV1,
   tMs: number,
-  accountForFlight = false,
 ): string | undefined {
   const ball = doc.actors.find((a) => a.type === "ball");
   let holder = ball?.type === "ball" ? ball.heldBy : undefined;
@@ -149,12 +130,7 @@ export function resolveBallHolderAt(
         (e.kind === "possess" && e.to) ||
         e.kind === "possess_end",
     )
-    .filter(({ e }) => {
-      if (accountForFlight && e.kind === "pass") {
-        return passOwnershipApplyMs(doc, e.t) <= tMs;
-      }
-      return e.t <= tMs;
-    })
+    .filter(({ e }) => e.t <= tMs)
     .sort((a, b) => a.e.t - b.e.t || a.i - b.i);
   for (const { e } of chain) {
     if (e.kind === "pass") holder = e.to;
@@ -233,8 +209,8 @@ export function resolveBallState(
 ): { holder: string | undefined; flight?: BallFlightInfo } {
   const inflight = findInFlightPass(doc, tMs);
   if (inflight) {
-    const flyDur = inflight.applyAt - inflight.t;
-    const progress = flyDur > 0 ? (tMs - inflight.t) / flyDur : 1;
+    const flyDur = inflight.t - inflight.flightStart;
+    const progress = flyDur > 0 ? (tMs - inflight.flightStart) / flyDur : 1;
     const fp = poses[inflight.from];
     const tp = poses[inflight.to];
     if (fp && tp) {
@@ -250,5 +226,5 @@ export function resolveBallState(
       };
     }
   }
-  return { holder: resolveBallHolderAt(doc, tMs, true) };
+  return { holder: resolveBallHolderAt(doc, tMs) };
 }
