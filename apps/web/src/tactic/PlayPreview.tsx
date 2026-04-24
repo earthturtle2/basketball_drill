@@ -4,6 +4,7 @@ import {
   samplePoses,
   resolveBallState,
   resolveBallHolderAt,
+  resolveScreenOverlaysAtT,
   PASS_FLY_MS,
 } from "./viewer-math";
 import { CourtSVG } from "./CourtSVG";
@@ -84,13 +85,7 @@ export function PlayPreview({
     defense: doc.teams.defense.color ?? "#1e88e5",
   };
 
-  const screenMap = useMemo(() => {
-    const map = new Map<string, number>();
-    for (const ev of doc.events ?? []) {
-      if (ev.kind === "screen" && ev.from && ev.t <= tMs) map.set(ev.from, ev.angle ?? 0);
-    }
-    return map;
-  }, [doc, tMs]);
+  const screenMap = useMemo(() => resolveScreenOverlaysAtT(doc, tMs), [doc, tMs]);
 
   // Completed pass trail lines (dashed, fade after pass)
   const passTrails = useMemo(() => {

@@ -1,7 +1,8 @@
-import { useState, useCallback, useRef } from "react";
+import { useState, useCallback, useRef, useMemo } from "react";
 import type { TacticDocumentV1 } from "@basketball/shared";
 import { CourtSVG } from "./CourtSVG";
 import { PlayerDot } from "./PlayerDot";
+import { getActiveScreenEventIndex, resolveBallHolderAt, resolveScreenOverlaysAtT } from "./viewer-math";
 import { MovementTrails } from "./MovementTrails";
 import { PassLines } from "./PassLines";
 import { EditorBench, type EditorTool } from "./EditorBench";
@@ -46,8 +47,7 @@ export function TacticEditor({ document: doc, onChange, onOpenTemplates, courtMo
   const kf = doc.keyframes[activeKfIdx];
   const currentT = kf?.t ?? 0;
 
-  const ballActor = doc.actors.find((a) => a.type === "ball");
-  const ballHolderId = ballActor?.type === "ball" ? ballActor.heldBy : undefined;
+  const ballHolderId = useMemo(() => resolveBallHolderAt(doc, currentT), [doc, currentT]);
 
   const selectedPlayer = selectedActorId
     ? doc.actors.find((a) => a.id === selectedActorId && a.type === "player")
@@ -80,12 +80,12 @@ export function TacticEditor({ document: doc, onChange, onOpenTemplates, courtMo
         } else if (passSource !== actorId) {
           const newEvent = { t: currentT, kind: "pass" as const, from: passSource, to: actorId };
           const events = [...(doc.events ?? []), newEvent];
-          let newActors = doc.actors.map((a) => {
-            if (a.type === "ball") return { ...a, heldBy: actorId };
-            return a;
-          });
+          let newActors = doc.actors;
           if (!newActors.some((a) => a.type === "ball")) {
-            newActors = [...newActors, { id: "ball", type: "ball" as const, heldBy: actorId }];
+            newActors = [
+              ...newActors,
+              { id: "ball", type: "ball" as const, heldBy: passSource },
+            ];
           }
           onChange({ ...doc, actors: newActors, events });
           setPassSource(null);
@@ -174,16 +174,20 @@ export function TacticEditor({ document: doc, onChange, onOpenTemplates, courtMo
 
   const handleToggleBall = useCallback(
     (actorId: string) => {
-      let newActors = doc.actors.map((a) => {
-        if (a.type !== "ball") return a;
-        return { ...a, heldBy: a.heldBy === actorId ? undefined : actorId };
-      });
-      if (!newActors.some((a) => a.type === "ball")) {
-        newActors = [...newActors, { id: "ball", type: "ball" as const, heldBy: actorId }];
+      const h = resolveBallHolderAt(doc, currentT);
+      const events = [...(doc.events ?? [])];
+      if (h === actorId) {
+        events.push({ t: currentT, kind: "possess_end" as const });
+      } else {
+        events.push({ t: currentT, kind: "possess" as const, to: actorId });
       }
-      onChange({ ...doc, actors: newActors });
+      let newActors = doc.actors;
+      if (!newActors.some((a) => a.type === "ball")) {
+        newActors = [...newActors, { id: "ball", type: "ball" as const }];
+      }
+      onChange({ ...doc, actors: newActors, events });
     },
-    [doc, onChange],
+    [doc, onChange, currentT],
   );
 
   const handleAddKeyframe = useCallback(() => {
@@ -234,22 +238,25 @@ export function TacticEditor({ document: doc, onChange, onOpenTemplates, courtMo
   const handleScreenAngleChange = useCallback(
     (angle: number) => {
       if (!selectedActorId) return;
-      const events = (doc.events ?? []).map((e) => {
-        if (e.kind === "screen" && e.from === selectedActorId) return { ...e, angle };
-        return e;
-      });
+      const evs = doc.events ?? [];
+      const idx = getActiveScreenEventIndex(evs, selectedActorId, currentT);
+      if (idx === null) return;
+      const events = evs.map((e, i) => (i === idx ? { ...e, angle } : e));
       onChange({ ...doc, events });
     },
-    [selectedActorId, doc, onChange],
+    [selectedActorId, doc, onChange, currentT],
   );
 
   const handleRemoveScreen = useCallback(() => {
     if (!selectedActorId) return;
-    const events = (doc.events ?? []).filter(
-      (e) => !(e.kind === "screen" && e.from === selectedActorId),
-    );
+    const evs = doc.events ?? [];
+    if (getActiveScreenEventIndex(evs, selectedActorId, currentT) === null) return;
+    const events = [
+      ...evs,
+      { t: currentT, kind: "screen_end" as const, from: selectedActorId },
+    ];
     onChange({ ...doc, events });
-  }, [selectedActorId, doc, onChange]);
+  }, [selectedActorId, doc, onChange, currentT]);
 
   const handleDurationChange = useCallback(
     (ms: number) => {
@@ -294,17 +301,7 @@ export function TacticEditor({ document: doc, onChange, onOpenTemplates, courtMo
     setDraggingCp(null);
   }, []);
 
-  // Screen events at or before current keyframe time; if several, use latest by t
-  const screenMap = new Map<string, number>();
-  const screenBestT = new Map<string, number>();
-  for (const e of doc.events ?? []) {
-    if (e.kind !== "screen" || !e.from || e.t > currentT) continue;
-    const prevT = screenBestT.get(e.from) ?? -1;
-    if (e.t >= prevT) {
-      screenBestT.set(e.from, e.t);
-      screenMap.set(e.from, e.angle ?? 0);
-    }
-  }
+  const screenMap = resolveScreenOverlaysAtT(doc, currentT);
 
   const courtCursor =
     tool === "addOffense" || tool === "addDefense"
