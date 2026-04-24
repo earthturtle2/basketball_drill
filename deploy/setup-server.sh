@@ -46,7 +46,7 @@ echo "=== 6/7 配置 Nginx ==="
 if ! command -v nginx &>/dev/null; then
   apt-get install -y nginx
 fi
-cat > "/etc/nginx/sites-available/$DOMAIN" << NGINX
+cat > "/etc/nginx/conf.d/${DOMAIN}.conf" << NGINX
 server {
     listen 80;
     server_name $DOMAIN;
@@ -72,8 +72,6 @@ server {
     }
 }
 NGINX
-ln -sf "/etc/nginx/sites-available/$DOMAIN" "/etc/nginx/sites-enabled/$DOMAIN"
-rm -f /etc/nginx/sites-enabled/default 2>/dev/null || true
 nginx -t && systemctl reload nginx
 
 echo "=== 7/7 生成 .env ==="

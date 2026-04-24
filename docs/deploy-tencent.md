@@ -27,7 +27,7 @@ scp deploy/setup-server.sh root@YOUR_SERVER:/tmp/
 ssh root@YOUR_SERVER 'bash /tmp/setup-server.sh'
 ```
 
-脚本自动完成：安装 Node 20 + PM2 + Nginx → 创建 bare git 仓库 → 配置 post-receive 钩子 → 生成 Nginx 站点配置 → 生成 `.env`。
+脚本自动完成：安装 Node 20 + PM2 + Nginx → 创建 bare git 仓库 → 配置 post-receive 钩子 → 写入 Nginx 配置到 `/etc/nginx/conf.d/` → 生成 `.env`。
 
 ## 二、本地配置 git remote
 

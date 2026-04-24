@@ -1,4 +1,4 @@
-# 复制到 /etc/nginx/sites-available/ 并 include 到启用的站点。
+# 复制到 /etc/nginx/conf.d/basketball.itorange.online.conf
 # 证书路径请按本机 certbot / 腾讯云证书实际位置修改。
 
 server {
