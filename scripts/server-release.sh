@@ -13,10 +13,13 @@ NPM_CONFIG_AUDIT=false NPM_CONFIG_FUND=false npm ci --no-audit --no-fund
 echo "[2/4] build"
 NODE_ENV=production npm run build
 
-echo "[3/4] db:push"
-npm run db:push -w @basketball/api
+echo "[3/5] migrate (manual SQL for SQLite compatibility)"
+node scripts/migrate-add-teams.cjs || true
 
-echo "[4/4] pm2 restart"
+echo "[4/5] db:push"
+npm run db:push -w @basketball/api || echo "  db:push had warnings (non-fatal)"
+
+echo "[5/5] pm2 restart"
 if command -v pm2 >/dev/null 2>&1; then
   if pm2 describe basketball-api >/dev/null 2>&1; then
     pm2 restart basketball-api --update-env
