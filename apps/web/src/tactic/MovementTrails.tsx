@@ -6,6 +6,8 @@ interface Props {
   document: TacticDocumentV1;
   teamColors: { offense: string; defense: string };
   courtMode?: CourtMode;
+  /** In the editor, only draw segments from keyframe 0 up to this keyframe index (inclusive). Omitted = show full timeline. */
+  upToKeyframeIndex?: number;
 }
 
 function sampleQuadBezier(
@@ -68,10 +70,13 @@ function wavyPathD(points: [number, number][], amp: number = 1.8, waveLen: numbe
   return d;
 }
 
-export function MovementTrails({ document: doc, teamColors, courtMode = "half" }: Props) {
+export function MovementTrails({ document: doc, teamColors, courtMode = "half", upToKeyframeIndex }: Props) {
   const players = doc.actors.filter((a) => a.type === "player");
   const kfs = doc.keyframes;
   if (kfs.length < 2) return null;
+
+  const endSeg = upToKeyframeIndex === undefined ? kfs.length - 1 : Math.min(Math.max(0, upToKeyframeIndex), kfs.length - 1);
+  if (endSeg < 1) return null;
 
   return (
     <g className="movement-trails">
@@ -80,7 +85,7 @@ export function MovementTrails({ document: doc, teamColors, courtMode = "half" }
         const color = teamColors[actor.team] ?? teamColors.offense;
         const segments: React.ReactNode[] = [];
 
-        for (let i = 1; i < kfs.length; i++) {
+        for (let i = 1; i <= endSeg; i++) {
           const prevPose = kfs[i - 1].poses[actor.id];
           const currPose = kfs[i].poses[actor.id];
           if (!prevPose || !currPose) continue;

@@ -294,10 +294,16 @@ export function TacticEditor({ document: doc, onChange, onOpenTemplates, courtMo
     setDraggingCp(null);
   }, []);
 
-  // Screen events: map actorId → angle
+  // Screen events at or before current keyframe time; if several, use latest by t
   const screenMap = new Map<string, number>();
+  const screenBestT = new Map<string, number>();
   for (const e of doc.events ?? []) {
-    if (e.kind === "screen" && e.from) screenMap.set(e.from, e.angle ?? 0);
+    if (e.kind !== "screen" || !e.from || e.t > currentT) continue;
+    const prevT = screenBestT.get(e.from) ?? -1;
+    if (e.t >= prevT) {
+      screenBestT.set(e.from, e.t);
+      screenMap.set(e.from, e.angle ?? 0);
+    }
   }
 
   const courtCursor =
@@ -310,7 +316,8 @@ export function TacticEditor({ document: doc, onChange, onOpenTemplates, courtMo
   // Build control point handles for selected actor
   const cpHandles: React.ReactNode[] = [];
   if (selectedActorId) {
-    for (let i = 1; i < doc.keyframes.length; i++) {
+    const maxI = Math.min(activeKfIdx, doc.keyframes.length - 1);
+    for (let i = 1; i <= maxI; i++) {
       const prevPose = doc.keyframes[i - 1].poses[selectedActorId];
       const currPose = doc.keyframes[i].poses[selectedActorId];
       if (!prevPose || !currPose) continue;
@@ -377,8 +384,13 @@ export function TacticEditor({ document: doc, onChange, onOpenTemplates, courtMo
           className={`court-svg court-svg--editor${courtCursor ? ` court-svg--${courtCursor}` : ""}`}
           onClick={handleCourtClick}
         >
-          <MovementTrails document={doc} teamColors={teamColors} courtMode={courtMode} />
-          <PassLines document={doc} courtMode={courtMode} />
+          <MovementTrails
+            document={doc}
+            teamColors={teamColors}
+            courtMode={courtMode}
+            upToKeyframeIndex={activeKfIdx}
+          />
+          <PassLines document={doc} courtMode={courtMode} upToTMs={currentT} />
 
           {/* Control point handles */}
           {cpHandles}

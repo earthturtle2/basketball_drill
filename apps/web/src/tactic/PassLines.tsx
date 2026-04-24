@@ -5,17 +5,21 @@ import { tacticToSvg, type CourtMode } from "./court-geometry";
 interface Props {
   document: TacticDocumentV1;
   courtMode?: CourtMode;
+  /** Only show pass events with event time t <= this (ms). Omitted = show all. */
+  upToTMs?: number;
 }
 
-export function PassLines({ document, courtMode = "half" }: Props) {
+export function PassLines({ document, courtMode = "half", upToTMs }: Props) {
   const passes = (document.events ?? []).filter(
     (e) => e.kind === "pass" && e.from && e.to,
   );
-  if (passes.length === 0) return null;
+  const filtered =
+    upToTMs === undefined ? passes : passes.filter((e) => e.t <= upToTMs);
+  if (filtered.length === 0) return null;
 
   return (
     <g className="pass-lines">
-      {passes.map((ev, i) => {
+      {filtered.map((ev, i) => {
         const poses = samplePoses(document, ev.t);
         const fromP = poses[ev.from!];
         const toP = poses[ev.to!];
