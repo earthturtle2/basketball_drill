@@ -62,21 +62,20 @@ export function samplePoses(
   return out;
 }
 
-/** Fallback flight duration when no next keyframe exists (e.g. single-keyframe doc). */
-const PASS_FLY_FALLBACK_MS = 400;
+/** Target flight duration — capped to the current frame so the pass always completes before the next keyframe. */
+const PASS_FLY_MS = 400;
 
 /**
  * Flight duration for a pass starting at `passT`.
- * Equals the gap to the next keyframe so the ball always arrives within the
- * current frame segment. For passes on the last keyframe, falls back to the
- * previous segment length (or PASS_FLY_FALLBACK_MS).
+ * Uses PASS_FLY_MS but never exceeds the gap to the next keyframe, so the ball
+ * always arrives within the current frame segment.
  */
 export function passFlyMs(doc: TacticDocumentV1, passT: number): number {
   const times = doc.keyframes.map((k) => k.t).sort((a, b) => a - b);
   const nextT = times.find((t) => t > passT);
-  if (nextT !== undefined) return nextT - passT;
-  if (times.length >= 2) return times[times.length - 1]! - times[times.length - 2]!;
-  return PASS_FLY_FALLBACK_MS;
+  if (nextT !== undefined) return Math.min(PASS_FLY_MS, nextT - passT);
+  if (times.length >= 2) return Math.min(PASS_FLY_MS, times[times.length - 1]! - times[times.length - 2]!);
+  return PASS_FLY_MS;
 }
 
 /**
