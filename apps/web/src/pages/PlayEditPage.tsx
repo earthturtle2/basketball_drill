@@ -7,7 +7,7 @@ import type { TacticDocumentV1 } from "@basketball/shared";
 import { TacticEditor } from "../tactic/TacticEditor";
 import { PlayPreview } from "../tactic/PlayPreview";
 import { TemplateLibrary } from "../tactic/TemplateLibrary";
-import { PASS_FLY_MS } from "../tactic/viewer-math";
+import { playbackEndMs } from "../tactic/viewer-math";
 import type { CourtMode } from "../tactic/court-geometry";
 
 type Play = {
@@ -162,11 +162,7 @@ export function PlayEditPage() {
 
   useEffect(() => {
     if (!doc || !playing || frameByFrame) return;
-    const dur = doc.meta?.durationMs ?? 8000;
-    let endT = dur;
-    for (const e of doc.events ?? []) {
-      if (e.kind === "pass" && e.t + PASS_FLY_MS > endT) endT = e.t + PASS_FLY_MS;
-    }
+    const endT = playbackEndMs(doc);
     const speed = playbackSpeed;
     startRef.current = performance.now() - tMsRef.current / speed;
     let raf: number;
@@ -259,17 +255,7 @@ export function PlayEditPage() {
   }
 
   const duration = doc?.meta?.durationMs ?? 8000;
-  // Extend effective end to include in-flight passes that start near the end
-  const effectiveEnd = (() => {
-    if (!doc?.events?.length) return duration;
-    let maxEnd = duration;
-    for (const e of doc.events) {
-      if (e.kind === "pass" && e.t + PASS_FLY_MS > maxEnd) {
-        maxEnd = e.t + PASS_FLY_MS;
-      }
-    }
-    return maxEnd;
-  })();
+  const effectiveEnd = doc ? playbackEndMs(doc) : duration;
   const statusLabel = {
     saved: t("edit.statusSaved"),
     saving: t("edit.statusSaving"),

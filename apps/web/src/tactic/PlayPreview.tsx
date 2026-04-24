@@ -5,7 +5,7 @@ import {
   resolveBallState,
   resolveBallHolderAt,
   resolveScreenOverlaysAtT,
-  PASS_FLY_MS,
+  passOwnershipApplyMs,
 } from "./viewer-math";
 import { CourtSVG } from "./CourtSVG";
 import { tacticToSvg, type CourtMode } from "./court-geometry";
@@ -94,7 +94,8 @@ export function PlayPreview({
     for (let i = 0; i < passes.length; i++) {
       const ev = passes[i];
       if (ev.t > tMs) continue;
-      const endT = ev.t + PASS_FLY_MS;
+      const endT = passOwnershipApplyMs(doc, ev.t);
+      const flyDur = endT - ev.t;
       const passPoses = samplePoses(doc, ev.t);
       const fromP = passPoses[ev.from!];
       const endPoses = samplePoses(doc, endT);
@@ -103,9 +104,9 @@ export function PlayPreview({
       const [x1, y1] = tacticToSvg(fromP.x, fromP.y, courtMode);
       const [x2, y2] = tacticToSvg(toP.x, toP.y, courtMode);
 
-      if (PASS_FLY_MS > 0 && tMs < endT) {
+      if (flyDur > 0 && tMs < endT) {
         // Pass in flight — partial dashed trail
-        const progress = (tMs - ev.t) / PASS_FLY_MS;
+        const progress = (tMs - ev.t) / flyDur;
         const bx = lerp(x1, x2, progress);
         const by = lerp(y1, y2, progress);
         trails.push(
@@ -160,7 +161,7 @@ export function PlayPreview({
         const [x1, y1] = tacticToSvg(currPose.x, currPose.y, courtMode);
         if (Math.abs(x1 - x0) < 0.5 && Math.abs(y1 - y0) < 0.5) continue;
 
-        const holder = resolveBallHolderAt(doc, kfs[i - 1].t, true);
+        const holder = resolveBallHolderAt(doc, kfs[i].t, true);
         const isDribble = holder === actor.id;
         const hasCp = currPose.cpx !== undefined && currPose.cpy !== undefined;
         const cp: [number, number] | null = hasCp

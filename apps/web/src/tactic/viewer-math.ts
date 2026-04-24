@@ -69,24 +69,48 @@ export function samplePoses(
  */
 export const PASS_FLY_MS = 400;
 
+/** Timeline end (ms): duration, last keyframe, and room for pass flights — keeps last-frame passes completable in preview. */
+export function playbackEndMs(doc: TacticDocumentV1): number {
+  const dur = doc.meta?.durationMs ?? 0;
+  const kfMax = doc.keyframes.length ? Math.max(...doc.keyframes.map((k) => k.t)) : 0;
+  let t = Math.max(dur, kfMax);
+  for (const e of doc.events ?? []) {
+    if (e.kind === "pass" && e.from && e.to) {
+      t = Math.max(t, e.t + PASS_FLY_MS);
+    }
+  }
+  return t;
+}
+
+/** When ball is considered with receiver for playback (after flight or instant if timeline ends sooner). */
+export function passOwnershipApplyMs(doc: TacticDocumentV1, passT: number): number {
+  return Math.min(passT + PASS_FLY_MS, playbackEndMs(doc));
+}
+
 /** The pass currently in the air (ball not held) at tMs, if any. */
 export function findInFlightPass(
   doc: TacticDocumentV1,
   tMs: number,
-): { t: number; from: string; to: string } | null {
+): { t: number; from: string; to: string; applyAt: number } | null {
   const passes = (doc.events ?? [])
     .filter((e) => e.kind === "pass" && e.from && e.to)
     .sort((a, b) => a.t - b.t);
   let best: (typeof passes)[0] | null = null;
   for (const p of passes) {
     if (p.t > tMs) break;
-    const endT = p.t + PASS_FLY_MS;
-    if (tMs < endT) {
+    const applyAt = passOwnershipApplyMs(doc, p.t);
+    if (applyAt <= p.t) continue;
+    if (tMs < applyAt) {
       if (!best || p.t > best.t) best = p;
     }
   }
   if (!best) return null;
-  return { t: best.t, from: best.from!, to: best.to! };
+  return {
+    t: best.t,
+    from: best.from!,
+    to: best.to!,
+    applyAt: passOwnershipApplyMs(doc, best.t),
+  };
 }
 
 /**
@@ -114,7 +138,7 @@ export function resolveBallHolderAt(
     )
     .filter(({ e }) => {
       if (accountForFlight && e.kind === "pass") {
-        return e.t + PASS_FLY_MS <= tMs;
+        return passOwnershipApplyMs(doc, e.t) <= tMs;
       }
       return e.t <= tMs;
     })
@@ -196,7 +220,8 @@ export function resolveBallState(
 ): { holder: string | undefined; flight?: BallFlightInfo } {
   const inflight = findInFlightPass(doc, tMs);
   if (inflight) {
-    const progress = (tMs - inflight.t) / PASS_FLY_MS;
+    const flyDur = inflight.applyAt - inflight.t;
+    const progress = flyDur > 0 ? (tMs - inflight.t) / flyDur : 1;
     const fp = poses[inflight.from];
     const tp = poses[inflight.to];
     if (fp && tp) {

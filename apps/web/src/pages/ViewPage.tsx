@@ -2,7 +2,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { useParams } from "react-router-dom";
 import type { TacticDocumentV1 } from "@basketball/shared";
 import { PlayPreview } from "../tactic/PlayPreview";
-import { PASS_FLY_MS } from "../tactic/viewer-math";
+import { playbackEndMs } from "../tactic/viewer-math";
 import { useT } from "../i18n";
 
 type SharePayload = {
@@ -61,14 +61,7 @@ export function ViewPage() {
 
   const doc = data?.play.document;
   const duration = doc?.meta?.durationMs ?? 8000;
-  const effectiveEnd = (() => {
-    if (!doc?.events?.length) return duration;
-    let maxEnd = duration;
-    for (const e of doc.events) {
-      if (e.kind === "pass" && e.t + PASS_FLY_MS > maxEnd) maxEnd = e.t + PASS_FLY_MS;
-    }
-    return maxEnd;
-  })();
+  const effectiveEnd = doc ? playbackEndMs(doc) : duration;
 
   const startFrameStep = useCallback(() => {
     if (!doc || frameStepTargetRef.current) return;
