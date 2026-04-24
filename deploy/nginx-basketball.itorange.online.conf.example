@@ -16,7 +16,7 @@ server {
     # ssl_certificate     /etc/letsencrypt/live/itorange.online/fullchain.pem;
     # ssl_certificate_key /etc/letsencrypt/live/itorange.online/privkey.pem;
 
-    root /data/node_apps/basketball_drill/apps/web/dist;
+    root /data/node-apps/basketball_drill/apps/web/dist;
     index index.html;
 
     # 前端 SPA：由 Vite 构建的 history 路由

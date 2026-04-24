@@ -6,7 +6,7 @@
 # ============================================================
 set -euo pipefail
 
-APP_DIR="/data/node_apps/basketball_drill"
+APP_DIR="/data/node-apps/basketball_drill"
 GIT_DIR="/data/git/basketball_drill.git"
 DOMAIN="basketball.itorange.online"
 
@@ -32,7 +32,7 @@ echo "=== 5/7 写入 post-receive 钩子 ==="
 cat > "$GIT_DIR/hooks/post-receive" << 'HOOK'
 #!/bin/bash
 set -euo pipefail
-APP="/data/node_apps/basketball_drill"
+APP="/data/node-apps/basketball_drill"
 echo ">>> checkout"
 git --work-tree="$APP" --git-dir="$(cd "$(dirname "$0")/.."; pwd)" checkout -f main
 cd "$APP"

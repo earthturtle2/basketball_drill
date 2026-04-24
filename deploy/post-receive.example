@@ -2,7 +2,7 @@
 # post-receive hook — 由 setup-server.sh 自动安装到 bare repo
 # 手动安装: cp deploy/post-receive.example /data/git/basketball_drill.git/hooks/post-receive && chmod +x ...
 set -euo pipefail
-APP="/data/node_apps/basketball_drill"
+APP="/data/node-apps/basketball_drill"
 echo ">>> checkout"
 git --work-tree="$APP" --git-dir="$(cd "$(dirname "$0")/.."; pwd)" checkout -f main
 cd "$APP"

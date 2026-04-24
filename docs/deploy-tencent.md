@@ -9,7 +9,7 @@
 服务器 bare repo (/data/git/basketball_drill.git)
         │  post-receive hook
         ▼
-工作目录 (/data/node_apps/basketball_drill)
+工作目录 (/data/node-apps/basketball_drill)
   npm ci → build → db:push → pm2 restart
         │
         ▼
@@ -67,14 +67,14 @@ pm2 status
 pm2 restart basketball-api
 
 # 手动构建（不通过 git push）
-cd /data/node_apps/basketball_drill
+cd /data/node-apps/basketball_drill
 git pull origin main
 bash scripts/server-release.sh
 ```
 
 ## 六、环境变量
 
-服务器上 `/data/node_apps/basketball_drill/.env`：
+服务器上 `/data/node-apps/basketball_drill/.env`：
 
 ```ini
 DATABASE_URL=file:./data/basketball.db
@@ -91,9 +91,9 @@ HOST=127.0.0.1
 | 路径 | 用途 |
 |------|------|
 | `/data/git/basketball_drill.git` | bare git 仓库（接收 push） |
-| `/data/node_apps/basketball_drill` | 工作目录（代码 + 构建产物） |
-| `/data/node_apps/basketball_drill/data/basketball.db` | SQLite 数据库 |
-| `/data/node_apps/basketball_drill/.env` | 环境变量（不进 git） |
+| `/data/node-apps/basketball_drill` | 工作目录（代码 + 构建产物） |
+| `/data/node-apps/basketball_drill/data/basketball.db` | SQLite 数据库 |
+| `/data/node-apps/basketball_drill/.env` | 环境变量（不进 git） |
 
 ## 八、故障排查
 
