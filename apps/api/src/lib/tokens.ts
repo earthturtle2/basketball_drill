@@ -5,12 +5,25 @@ import { env } from "./env.js";
 const ACCESS_TTL_S = 15 * 60;
 const REFRESH_TTL_DAYS = 7;
 
-export function signAccessToken(userId: string) {
-  return jwt.sign({ sub: userId, typ: "a" }, env.jwtAccessSecret, { expiresIn: ACCESS_TTL_S });
+interface AccessPayload {
+  sub: string;
+  email: string;
+  role: string;
+  typ: "a";
+  exp: number;
+  iat: number;
 }
 
-export function verifyAccessToken(token: string) {
-  return jwt.verify(token, env.jwtAccessSecret) as { sub: string; typ: string; exp: number; iat: number };
+export function signAccessToken(user: { id: string; email: string; role: string }) {
+  return jwt.sign(
+    { sub: user.id, email: user.email, role: user.role, typ: "a" },
+    env.jwtAccessSecret,
+    { expiresIn: ACCESS_TTL_S },
+  );
+}
+
+export function verifyAccessToken(token: string): AccessPayload {
+  return jwt.verify(token, env.jwtAccessSecret) as AccessPayload;
 }
 
 export function createRefreshTokenRaw() {

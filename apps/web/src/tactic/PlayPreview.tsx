@@ -2,13 +2,19 @@ import { useMemo } from "react";
 import type { TacticDocumentV1 } from "@basketball/shared";
 import { samplePoses } from "./viewer-math";
 
-const teams = {
-  offense: "#e53935",
-  defense: "#1e88e5",
-} as const;
-
-export function PlayPreview({ document, tMs }: { document: TacticDocumentV1; tMs: number }) {
+export function PlayPreview({
+  document,
+  tMs,
+}: {
+  document: TacticDocumentV1;
+  tMs: number;
+}) {
   const poses = useMemo(() => samplePoses(document, tMs), [document, tMs]);
+
+  const teamColors = {
+    offense: document.teams.offense.color ?? "#e53935",
+    defense: document.teams.defense.color ?? "#1e88e5",
+  };
 
   return (
     <div className="viewer">
@@ -28,7 +34,6 @@ export function PlayPreview({ document, tMs }: { document: TacticDocumentV1; tMs
           }
           const p = poses[a.id];
           if (!p) return null;
-          const col = teams[a.team] ?? teams.offense;
           return (
             <div
               key={a.id}
@@ -36,7 +41,7 @@ export function PlayPreview({ document, tMs }: { document: TacticDocumentV1; tMs
               style={{
                 left: `${p.x * 100}%`,
                 top: `${(1 - p.y) * 100}%`,
-                background: col,
+                background: teamColors[a.team] ?? teamColors.offense,
               }}
               title={a.label}
             >

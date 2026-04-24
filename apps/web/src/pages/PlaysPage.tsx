@@ -1,13 +1,14 @@
 import { useCallback, useEffect, useState } from "react";
 import { Link, Navigate, useNavigate } from "react-router-dom";
-import { api, clearTokens, getAccessToken, ApiError } from "../api";
-import { DEFAULT_TACTIC_DOC } from "../default-tactic";
+import { api, ApiError } from "../api";
+import { useAuth } from "../auth";
+import { DEFAULT_TACTIC_DOCUMENT } from "@basketball/shared";
 
 type PlayListItem = { id: string; name: string; updatedAt: string };
 
 export function PlaysPage() {
   const nav = useNavigate();
-  const authed = !!getAccessToken();
+  const { user } = useAuth();
   const [items, setItems] = useState<PlayListItem[]>([]);
   const [err, setErr] = useState<string | null>(null);
 
@@ -16,24 +17,16 @@ export function PlaysPage() {
     try {
       const res = await api<{ items: PlayListItem[] }>("/api/v1/plays");
       setItems(res.items);
-    } catch (e) {
-      if (e instanceof ApiError && e.status === 401) {
-        clearTokens();
-        nav("/login", { replace: true });
-        return;
-      }
+    } catch {
       setErr("加载失败");
     }
-  }, [nav]);
+  }, []);
 
   useEffect(() => {
-    if (!authed) return;
-    void load();
-  }, [authed, load]);
+    if (user) void load();
+  }, [user, load]);
 
-  if (!authed) {
-    return <Navigate to="/login" replace />;
-  }
+  if (!user) return <Navigate to="/login" replace />;
 
   async function create() {
     setErr(null);
@@ -42,7 +35,7 @@ export function PlaysPage() {
         name: "新战术",
         description: "",
         tags: [] as string[],
-        document: DEFAULT_TACTIC_DOC,
+        document: DEFAULT_TACTIC_DOCUMENT,
       };
       const res = await api<{ id: string }>("/api/v1/plays", {
         method: "POST",
@@ -50,18 +43,16 @@ export function PlaysPage() {
       });
       nav(`/plays/${res.id}`);
     } catch (e) {
-      if (e instanceof ApiError) {
-        setErr(e.message);
-      } else {
-        setErr("创建失败");
-      }
+      setErr(e instanceof ApiError ? e.message : "创建失败");
     }
   }
 
   return (
     <div>
       <h1 style={{ margin: "0 0 0.5rem" }}>我的战术</h1>
-      <p className="hint">打开一条战术可编辑说明与 JSON 战术稿，并在下方用简易半场预览动效。后续可接战术板编辑器。</p>
+      <p className="hint">
+        打开一条战术可编辑说明与 JSON 战术稿，并在下方用简易半场预览动效。后续可接战术板编辑器。
+      </p>
       {err ? <p className="error">{err}</p> : null}
       <p style={{ margin: "0 0 1rem" }}>
         <button type="button" className="btn btn-primary" onClick={() => void create()}>
@@ -82,7 +73,9 @@ export function PlaysPage() {
             </Link>
           </div>
         ))}
-        {items.length === 0 && !err ? <p className="muted">暂无战术，点「新建战术」开始。</p> : null}
+        {items.length === 0 && !err ? (
+          <p className="muted">暂无战术，点「新建战术」开始。</p>
+        ) : null}
       </div>
     </div>
   );

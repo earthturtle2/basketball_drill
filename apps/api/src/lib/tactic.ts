@@ -1,29 +1,6 @@
-import { parseTacticDocumentV1, type TacticDocumentV1 } from "@basketball/shared";
+import { parseTacticDocumentV1, DEFAULT_TACTIC_DOCUMENT, type TacticDocumentV1 } from "@basketball/shared";
 
-export const DEFAULT_TACTIC_DOCUMENT: TacticDocumentV1 = {
-  schemaVersion: 1,
-  meta: {
-    name: "新战术",
-    description: "",
-    tags: [],
-    court: { preset: "half", orientation: "home_attacks_right", sizeMeters: { length: 14, width: 15 } },
-    durationMs: 2000,
-  },
-  teams: {
-    offense: { id: "off", label: "进攻", color: "#e53935" },
-    defense: { id: "def", label: "防守", color: "#1e88e5" },
-  },
-  actors: [
-    { id: "p1", type: "player", team: "offense", number: 1, label: "1" },
-    { id: "ball", type: "ball", heldBy: "p1" },
-  ],
-  keyframes: [
-    { t: 0, poses: { p1: { x: 0.2, y: 0.5, facingDeg: 90 } } },
-    { t: 2000, poses: { p1: { x: 0.6, y: 0.5, facingDeg: 90 } } },
-  ],
-  interpolation: { position: "linear", facing: "shortestAngle" },
-  rules: { coordinateSystem: "normalized", bounds: { x: [0, 1], y: [0, 1] } },
-};
+export { DEFAULT_TACTIC_DOCUMENT };
 
 function mergeMeta(
   name: string,
@@ -68,10 +45,5 @@ export function buildDocumentOnUpdate(
       ? (base.meta?.description as string | undefined) ?? null
       : patch.description;
   const tags = (patch.tags ?? (base.meta?.tags as string[] | undefined) ?? []) as string[];
-  return mergeMeta(
-    name,
-    description,
-    Array.isArray(tags) ? tags : [],
-    base,
-  );
+  return mergeMeta(name, description, Array.isArray(tags) ? tags : [], base);
 }

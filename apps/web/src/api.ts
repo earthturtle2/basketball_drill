@@ -32,6 +32,16 @@ export function clearTokens() {
   localStorage.removeItem(REFRESH);
 }
 
+let _onAuthFailure: (() => void) | null = null;
+
+/** Register a callback for when token refresh fails. Returns a cleanup function. */
+export function onAuthFailure(handler: () => void): () => void {
+  _onAuthFailure = handler;
+  return () => {
+    _onAuthFailure = null;
+  };
+}
+
 async function tryRefresh() {
   const r = getRefreshToken();
   if (!r) return null;
@@ -42,9 +52,13 @@ async function tryRefresh() {
   });
   if (!res.ok) {
     clearTokens();
+    _onAuthFailure?.();
     return null;
   }
-  const data = (await res.json()) as { accessToken: string; refreshToken: string };
+  const data = (await res.json()) as {
+    accessToken: string;
+    refreshToken: string;
+  };
   setTokens(data.accessToken, data.refreshToken);
   return data.accessToken;
 }
@@ -71,7 +85,10 @@ export async function api<T>(
     }
   }
   if (!res.ok) {
-    const j = (await res.json().catch(() => ({}))) as { code?: string; message?: string };
+    const j = (await res.json().catch(() => ({}))) as {
+      code?: string;
+      message?: string;
+    };
     throw new ApiError(res.status, j.code ?? "HTTP", j.message ?? res.statusText);
   }
   if (res.status === 204) {

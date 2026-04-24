@@ -1,29 +1,25 @@
 import { useState } from "react";
-import { Link, useNavigate } from "react-router-dom";
-import { api, setTokens, ApiError } from "../api";
+import { Link, Navigate, useNavigate } from "react-router-dom";
+import { useAuth } from "../auth";
+import { ApiError } from "../api";
 
 export function RegisterPage() {
   const nav = useNavigate();
+  const { user, register } = useAuth();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [err, setErr] = useState<string | null>(null);
+
+  if (user) return <Navigate to="/plays" replace />;
 
   async function onSubmit(e: React.FormEvent) {
     e.preventDefault();
     setErr(null);
     try {
-      const data = await api<{ accessToken: string; refreshToken: string; expiresIn: number }>(
-        "/api/v1/auth/register",
-        { method: "POST", body: JSON.stringify({ email, password }) },
-      );
-      setTokens(data.accessToken, data.refreshToken);
+      await register(email, password);
       nav("/plays", { replace: true });
     } catch (e2) {
-      if (e2 instanceof ApiError) {
-        setErr(e2.message);
-      } else {
-        setErr("注册失败");
-      }
+      setErr(e2 instanceof ApiError ? e2.message : "注册失败");
     }
   }
 

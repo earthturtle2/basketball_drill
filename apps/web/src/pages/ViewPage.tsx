@@ -1,10 +1,16 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useParams } from "react-router-dom";
 import type { TacticDocumentV1 } from "@basketball/shared";
 import { PlayPreview } from "../tactic/PlayPreview";
 
 type SharePayload = {
-  play: { name: string; description: string | null; tags: string[]; document: TacticDocumentV1; updatedAt: string };
+  play: {
+    name: string;
+    description: string | null;
+    tags: string[];
+    document: TacticDocumentV1;
+    updatedAt: string;
+  };
   share: { id: string; expiresAt: string | null };
 };
 
@@ -17,51 +23,51 @@ export function ViewPage() {
 
   useEffect(() => {
     if (!token) return;
-    let c = true;
+    let cancelled = false;
     setErr(null);
     void (async () => {
       try {
         const r = await fetch(`/api/v1/shares/${token}`);
         if (!r.ok) {
           const j = (await r.json().catch(() => ({}))) as { message?: string };
-          if (!c) return;
-          setErr(j.message ?? "无法打开");
+          if (!cancelled) setErr(j.message ?? "无法打开");
           return;
         }
         const j = (await r.json()) as SharePayload;
-        if (c) {
+        if (!cancelled) {
           setData(j);
           setTms(0);
         }
       } catch {
-        if (c) {
-          setErr("网络错误");
-        }
+        if (!cancelled) setErr("网络错误");
       }
     })();
     return () => {
-      c = false;
+      cancelled = true;
     };
   }, [token]);
 
   const doc = data?.play.document;
   const duration = doc?.meta?.durationMs ?? 8000;
 
+  // requestAnimationFrame-based playback
+  const startRef = useRef(0);
   useEffect(() => {
     if (!doc || !playing) return;
-    const d = duration || 1;
-    const id = setInterval(() => {
-      setTms((m) => (m + 50) % d);
-    }, 50);
-    return () => clearInterval(id);
-  }, [doc, playing, duration]);
+    startRef.current = performance.now() - tMs;
+    let raf: number;
+    const tick = (now: number) => {
+      const elapsed = (now - startRef.current) % (duration || 1);
+      setTms(elapsed);
+      raf = requestAnimationFrame(tick);
+    };
+    raf = requestAnimationFrame(tick);
+    return () => cancelAnimationFrame(raf);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [doc, playing]);
 
-  if (err) {
-    return <p className="error">{err}</p>;
-  }
-  if (!data || !doc) {
-    return <p className="hint">加载中…</p>;
-  }
+  if (err) return <p className="error">{err}</p>;
+  if (!data || !doc) return <p className="hint">加载中…</p>;
 
   return (
     <div>

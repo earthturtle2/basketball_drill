@@ -1,6 +1,6 @@
 import type { ReactNode } from "react";
-import { Link, Navigate, Route, Routes, useLocation } from "react-router-dom";
-import { getAccessToken } from "./api";
+import { Link, Navigate, Route, Routes, useLocation, useNavigate } from "react-router-dom";
+import { useAuth } from "./auth";
 import { LoginPage } from "./pages/LoginPage";
 import { RegisterPage } from "./pages/RegisterPage";
 import { PlaysPage } from "./pages/PlaysPage";
@@ -9,22 +9,34 @@ import { ViewPage } from "./pages/ViewPage";
 
 function Layout({ children }: { children: ReactNode }) {
   const loc = useLocation();
-  const authed = !!getAccessToken();
+  const nav = useNavigate();
+  const { user, loading, logout } = useAuth();
+
   if (loc.pathname.startsWith("/view/")) {
     return <div className="app-shell">{children}</div>;
   }
+
   return (
     <div className="app-shell">
       <header className="top">
-        <Link to={authed ? "/plays" : "/"} className="brand">
+        <Link to={user ? "/plays" : "/"} className="brand">
           篮球战术训练
         </Link>
         <nav className="row-actions">
-          {authed ? (
+          {loading ? null : user ? (
             <>
               <Link to="/plays" className="btn btn-ghost">
                 我的战术
               </Link>
+              <button
+                className="btn btn-ghost"
+                onClick={() => {
+                  logout();
+                  nav("/login");
+                }}
+              >
+                退出
+              </button>
             </>
           ) : (
             <>

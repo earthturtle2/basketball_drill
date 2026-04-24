@@ -1,6 +1,7 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { Link, Navigate, useNavigate, useParams } from "react-router-dom";
-import { api, getAccessToken, ApiError, clearTokens } from "../api";
+import { api, ApiError } from "../api";
+import { useAuth } from "../auth";
 import type { TacticDocumentV1 } from "@basketball/shared";
 import { PlayPreview } from "../tactic/PlayPreview";
 
@@ -16,7 +17,7 @@ type Play = {
 export function PlayEditPage() {
   const { id } = useParams();
   const nav = useNavigate();
-  const authed = !!getAccessToken();
+  const { user } = useAuth();
   const [name, setName] = useState("");
   const [description, setDescription] = useState("");
   const [jsonText, setJsonText] = useState("");
@@ -37,39 +38,33 @@ export function PlayEditPage() {
       setDoc(p.document);
       setTms(0);
     } catch (e) {
-      if (e instanceof ApiError && e.status === 401) {
-        clearTokens();
-        nav("/login", { replace: true });
-        return;
-      }
-      if (e instanceof ApiError) {
-        setErr(e.message);
-      } else {
-        setErr("加载失败");
-      }
+      setErr(e instanceof ApiError ? e.message : "加载失败");
     }
-  }, [id, nav]);
+  }, [id]);
 
   useEffect(() => {
-    if (!authed) return;
-    void load();
-  }, [authed, load]);
+    if (user) void load();
+  }, [user, load]);
 
+  // requestAnimationFrame-based playback
+  const startRef = useRef(0);
   useEffect(() => {
     if (!doc || !playing) return;
     const duration = doc.meta?.durationMs ?? 8000;
-    const id = setInterval(() => {
-      setTms((m) => (m + 50) % (duration || 1));
-    }, 50);
-    return () => clearInterval(id);
+    startRef.current = performance.now() - tMs;
+    let raf: number;
+    const tick = (now: number) => {
+      const elapsed = (now - startRef.current) % (duration || 1);
+      setTms(elapsed);
+      raf = requestAnimationFrame(tick);
+    };
+    raf = requestAnimationFrame(tick);
+    return () => cancelAnimationFrame(raf);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [doc, playing]);
 
-  if (!authed) {
-    return <Navigate to="/login" replace />;
-  }
-  if (!id) {
-    return <p className="error">缺少 id</p>;
-  }
+  if (!user) return <Navigate to="/login" replace />;
+  if (!id) return <p className="error">缺少 id</p>;
 
   function applyLocalJson() {
     setErr(null);
@@ -97,11 +92,7 @@ export function PlayEditPage() {
       });
       await load();
     } catch (e) {
-      if (e instanceof ApiError) {
-        setErr(e.message);
-      } else {
-        setErr("保存失败");
-      }
+      setErr(e instanceof ApiError ? e.message : "保存失败");
     }
   }
 
@@ -112,11 +103,7 @@ export function PlayEditPage() {
       await api(`/api/v1/plays/${id}`, { method: "DELETE" });
       nav("/plays", { replace: true });
     } catch (e) {
-      if (e instanceof ApiError) {
-        setErr(e.message);
-      } else {
-        setErr("删除失败");
-      }
+      setErr(e instanceof ApiError ? e.message : "删除失败");
     }
   }
 
@@ -129,11 +116,7 @@ export function PlayEditPage() {
       });
       nav(`/plays/${res.id}`);
     } catch (e) {
-      if (e instanceof ApiError) {
-        setErr(e.message);
-      } else {
-        setErr("复制失败");
-      }
+      setErr(e instanceof ApiError ? e.message : "复制失败");
     }
   }
 
@@ -141,14 +124,13 @@ export function PlayEditPage() {
     setErr(null);
     setViewUrl(null);
     try {
-      const s = await api<{ viewUrl: string }>(`/api/v1/plays/${id}/shares`, { method: "POST", body: "{}" });
+      const s = await api<{ viewUrl: string }>(`/api/v1/plays/${id}/shares`, {
+        method: "POST",
+        body: "{}",
+      });
       setViewUrl(s.viewUrl);
     } catch (e) {
-      if (e instanceof ApiError) {
-        setErr(e.message);
-      } else {
-        setErr("生成分享失败");
-      }
+      setErr(e instanceof ApiError ? e.message : "生成分享失败");
     }
   }
 
@@ -221,7 +203,7 @@ export function PlayEditPage() {
           <PlayPreview document={doc} tMs={tMs} />
           <div className="controls">
             <label className="muted" htmlFor="range">
-              时间 {tMs} ms / {duration} ms
+              时间 {Math.round(tMs)} ms / {duration} ms
             </label>
             <input
               id="range"

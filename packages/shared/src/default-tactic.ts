@@ -1,12 +1,16 @@
-import type { TacticDocumentV1 } from "@basketball/shared";
+import type { TacticDocumentV1 } from "./tactic-v1.zod.js";
 
-export const DEFAULT_TACTIC_DOC: TacticDocumentV1 = {
+export const DEFAULT_TACTIC_DOCUMENT: TacticDocumentV1 = {
   schemaVersion: 1,
   meta: {
     name: "新战术",
     description: "",
     tags: [],
-    court: { preset: "half", orientation: "home_attacks_right", sizeMeters: { length: 14, width: 15 } },
+    court: {
+      preset: "half",
+      orientation: "home_attacks_right",
+      sizeMeters: { length: 14, width: 15 },
+    },
     durationMs: 2000,
   },
   teams: {

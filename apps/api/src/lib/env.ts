@@ -18,7 +18,6 @@ function req(name: string, fallback?: string) {
 export const env = {
   databaseUrl: req("DATABASE_URL"),
   jwtAccessSecret: req("JWT_ACCESS_SECRET"),
-  jwtRefreshSecret: req("JWT_REFRESH_SECRET"),
   publicAppUrl: process.env.PUBLIC_APP_URL ?? "http://localhost:5173",
   port: Number(process.env.PORT ?? 3002),
   host: process.env.HOST ?? "0.0.0.0",
