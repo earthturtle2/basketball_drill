@@ -37,6 +37,7 @@ export function PlayEditPage() {
   const [viewUrl, setViewUrl] = useState<string | null>(null);
   const [saveStatus, setSaveStatus] = useState<SaveStatus>("saved");
   const [courtMode, setCourtMode] = useState<CourtMode>("half");
+  const [frameByFrame, setFrameByFrame] = useState(true);
   const [loop, setLoop] = useState(false);
   const [playbackSpeed, setPlaybackSpeed] = useState<0.5 | 1 | 2>(0.5);
 
@@ -120,7 +121,11 @@ export function PlayEditPage() {
 
   const startRef = useRef(0);
   useEffect(() => {
-    if (!doc || !playing) return;
+    if (frameByFrame) setPlaying(false);
+  }, [frameByFrame]);
+
+  useEffect(() => {
+    if (!doc || !playing || frameByFrame) return;
     const dur = doc.meta?.durationMs ?? 8000;
     const speed = playbackSpeed;
     startRef.current = performance.now() - tMsRef.current / speed;
@@ -142,10 +147,22 @@ export function PlayEditPage() {
     raf = requestAnimationFrame(tick);
     return () => cancelAnimationFrame(raf);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [doc, playing, loop, playbackSpeed]);
+  }, [doc, playing, loop, playbackSpeed, frameByFrame]);
 
   if (!user) return <Navigate to="/login" replace />;
   if (!id) return <p className="error">{t("edit.missingId")}</p>;
+
+  const stepNextKeyframe = useCallback(() => {
+    if (!doc) return;
+    const times = [...new Set(doc.keyframes.map((k) => k.t))].sort((a, b) => a - b);
+    if (times.length === 0) return;
+    const E = 0.5;
+    setTms((prev) => {
+      const nextT = times.find((tm) => tm > prev + E);
+      if (nextT !== undefined) return nextT;
+      return times[0]!;
+    });
+  }, [doc]);
 
   function handleDocChange(newDoc: TacticDocumentV1) {
     setDoc(newDoc);
@@ -313,6 +330,10 @@ export function PlayEditPage() {
               type="button"
               className="btn"
               onClick={() => {
+                if (frameByFrame) {
+                  stepNextKeyframe();
+                  return;
+                }
                 if (playing) {
                   setPlaying(false);
                 } else {
@@ -321,7 +342,7 @@ export function PlayEditPage() {
                 }
               }}
             >
-              {playing ? t("edit.pause") : t("edit.play")}
+              {frameByFrame ? t("edit.play") : playing ? t("edit.pause") : t("edit.play")}
             </button>
             <label
               className="controls__loop"
@@ -337,7 +358,35 @@ export function PlayEditPage() {
                 lineHeight: 1.2,
               }}
             >
-              <input type="checkbox" checked={loop} onChange={(e) => setLoop(e.target.checked)} />
+              <input
+                type="checkbox"
+                checked={frameByFrame}
+                onChange={(e) => {
+                  setFrameByFrame(e.target.checked);
+                }}
+              />
+              <span>{t("edit.frameByFrame")}</span>
+            </label>
+            <label
+              className="controls__loop"
+              style={{
+                display: "inline-flex",
+                alignItems: "center",
+                gap: "0.35rem",
+                fontSize: "0.85rem",
+                color: "var(--muted)",
+                cursor: "pointer",
+                flexShrink: 0,
+                whiteSpace: "nowrap",
+                lineHeight: 1.2,
+              }}
+            >
+              <input
+                type="checkbox"
+                checked={loop}
+                onChange={(e) => setLoop(e.target.checked)}
+                disabled={frameByFrame}
+              />
               <span>{t("edit.loop")}</span>
             </label>
             <span
@@ -358,6 +407,7 @@ export function PlayEditPage() {
                   type="button"
                   className={`btn btn-sm ${playbackSpeed === s ? "btn-active" : ""}`}
                   onClick={() => setPlaybackSpeed(s)}
+                  disabled={frameByFrame}
                   style={{ minWidth: 44, padding: "0.25rem 0.45rem" }}
                 >
                   {s}×

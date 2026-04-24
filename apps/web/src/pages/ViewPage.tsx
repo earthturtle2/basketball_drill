@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useParams } from "react-router-dom";
 import type { TacticDocumentV1 } from "@basketball/shared";
 import { PlayPreview } from "../tactic/PlayPreview";
@@ -22,6 +22,7 @@ export function ViewPage() {
   const [err, setErr] = useState<string | null>(null);
   const [tMs, setTms] = useState(0);
   const [playing, setPlaying] = useState(false);
+  const [frameByFrame, setFrameByFrame] = useState(true);
   const [playbackSpeed, setPlaybackSpeed] = useState<0.5 | 1 | 2>(0.5);
   const tMsRef = useRef(0);
   tMsRef.current = tMs;
@@ -55,9 +56,25 @@ export function ViewPage() {
   const doc = data?.play.document;
   const duration = doc?.meta?.durationMs ?? 8000;
 
+  const stepNextKeyframe = useCallback(() => {
+    if (!doc) return;
+    const times = [...new Set(doc.keyframes.map((k) => k.t))].sort((a, b) => a - b);
+    if (times.length === 0) return;
+    const E = 0.5;
+    setTms((prev) => {
+      const nextT = times.find((tm) => tm > prev + E);
+      if (nextT !== undefined) return nextT;
+      return times[0]!;
+    });
+  }, [doc]);
+
   const startRef = useRef(0);
   useEffect(() => {
-    if (!doc || !playing) return;
+    if (frameByFrame) setPlaying(false);
+  }, [frameByFrame]);
+
+  useEffect(() => {
+    if (!doc || !playing || frameByFrame) return;
     const speed = playbackSpeed;
     startRef.current = performance.now() - tMsRef.current / speed;
     let raf: number;
@@ -69,7 +86,7 @@ export function ViewPage() {
     raf = requestAnimationFrame(tick);
     return () => cancelAnimationFrame(raf);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [doc, playing, duration, playbackSpeed]);
+  }, [doc, playing, duration, playbackSpeed, frameByFrame]);
 
   if (err) return <p className="error">{err}</p>;
   if (!data || !doc) return <p className="hint">{t("view.loading")}</p>;
@@ -94,9 +111,37 @@ export function ViewPage() {
             setTms(Number(e.target.value));
           }}
         />
-        <button type="button" className="btn" onClick={() => setPlaying((p) => !p)}>
-          {playing ? t("view.pause") : t("view.play")}
+        <button
+          type="button"
+          className="btn"
+          onClick={() => {
+            if (frameByFrame) {
+              stepNextKeyframe();
+              return;
+            }
+            setPlaying((p) => !p);
+          }}
+        >
+          {frameByFrame ? t("view.play") : playing ? t("view.pause") : t("view.play")}
         </button>
+        <label
+          className="muted"
+          style={{
+            fontSize: "0.82rem",
+            display: "inline-flex",
+            alignItems: "center",
+            gap: "0.35rem",
+            cursor: "pointer",
+            whiteSpace: "nowrap",
+          }}
+        >
+          <input
+            type="checkbox"
+            checked={frameByFrame}
+            onChange={(e) => setFrameByFrame(e.target.checked)}
+          />
+          <span>{t("view.frameByFrame")}</span>
+        </label>
         <span
           className="muted"
           style={{
@@ -114,6 +159,7 @@ export function ViewPage() {
               type="button"
               className={`btn btn-sm ${playbackSpeed === s ? "btn-active" : ""}`}
               onClick={() => setPlaybackSpeed(s)}
+              disabled={frameByFrame}
               style={{ minWidth: 44, padding: "0.25rem 0.45rem" }}
             >
               {s}×

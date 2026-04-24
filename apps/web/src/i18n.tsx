@@ -76,6 +76,7 @@ const zh: Record<string, string> = {
   "edit.confirmDelete": "确定删除该战术？",
   "edit.jsonInvalid": "JSON 无效",
   "edit.missingId": "缺少 id",
+  "edit.frameByFrame": "逐帧",
   "edit.loop": "循环",
   "edit.speed": "倍速",
   "edit.copySuffix": "（副本）",
@@ -109,6 +110,7 @@ const zh: Record<string, string> = {
   "view.pause": "暂停",
   "view.play": "播放",
   "view.speed": "倍速",
+  "view.frameByFrame": "逐帧",
 
   // Editor bench
   "bench.court": "球场",
@@ -235,6 +237,7 @@ const en: Record<string, string> = {
   "edit.confirmDelete": "Are you sure you want to delete this play?",
   "edit.jsonInvalid": "Invalid JSON",
   "edit.missingId": "Missing id",
+  "edit.frameByFrame": "Frame step",
   "edit.loop": "Loop",
   "edit.speed": "Speed",
   "edit.copySuffix": " (Copy)",
@@ -268,6 +271,7 @@ const en: Record<string, string> = {
   "view.pause": "Pause",
   "view.play": "Play",
   "view.speed": "Speed",
+  "view.frameByFrame": "Frame step",
 
   // Editor bench
   "bench.court": "Court",
