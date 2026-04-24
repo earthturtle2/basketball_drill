@@ -12,6 +12,8 @@ interface Props {
   document: TacticDocumentV1;
   onChange: (doc: TacticDocumentV1) => void;
   onOpenTemplates: () => void;
+  courtMode: CourtMode;
+  onCourtModeChange: (m: CourtMode) => void;
 }
 
 let _nextId = 1;
@@ -19,11 +21,10 @@ function genId() {
   return `p${Date.now().toString(36)}${_nextId++}`;
 }
 
-export function TacticEditor({ document: doc, onChange, onOpenTemplates }: Props) {
+export function TacticEditor({ document: doc, onChange, onOpenTemplates, courtMode, onCourtModeChange }: Props) {
   const [activeKfIdx, setActiveKfIdx] = useState(0);
   const [selectedActorId, setSelectedActorId] = useState<string | null>(null);
   const [tool, setTool] = useState<EditorTool>("select");
-  const [courtMode, setCourtMode] = useState<CourtMode>("half");
   const [passSource, setPassSource] = useState<string | null>(null);
   const svgRef = useRef<SVGSVGElement>(null);
 
@@ -209,7 +210,7 @@ export function TacticEditor({ document: doc, onChange, onOpenTemplates }: Props
         tool={tool}
         onToolChange={handleToolChange}
         courtMode={courtMode}
-        onCourtModeChange={setCourtMode}
+        onCourtModeChange={onCourtModeChange}
         doc={doc}
         selectedActor={selectedPlayerData}
         ballHolderId={ballHolderId}

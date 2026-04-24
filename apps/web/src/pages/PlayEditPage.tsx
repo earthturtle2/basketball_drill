@@ -6,6 +6,7 @@ import type { TacticDocumentV1 } from "@basketball/shared";
 import { TacticEditor } from "../tactic/TacticEditor";
 import { PlayPreview } from "../tactic/PlayPreview";
 import { TemplateLibrary } from "../tactic/TemplateLibrary";
+import type { CourtMode } from "../tactic/court-geometry";
 
 type Play = {
   id: string;
@@ -33,6 +34,7 @@ export function PlayEditPage() {
   const [err, setErr] = useState<string | null>(null);
   const [viewUrl, setViewUrl] = useState<string | null>(null);
   const [saveStatus, setSaveStatus] = useState<SaveStatus>("saved");
+  const [courtMode, setCourtMode] = useState<CourtMode>("half");
 
   const savedSnapshotRef = useRef<string>("");
   const autoSaveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -256,6 +258,8 @@ export function PlayEditPage() {
           document={doc}
           onChange={handleDocChange}
           onOpenTemplates={() => setShowTemplates(true)}
+          courtMode={courtMode}
+          onCourtModeChange={setCourtMode}
         />
       ) : null}
 
@@ -263,7 +267,7 @@ export function PlayEditPage() {
       {doc ? (
         <div className="card" style={{ marginTop: "1rem" }}>
           <h2 style={{ margin: "0 0 0.5rem", fontSize: "1.05rem" }}>动画预览</h2>
-          <PlayPreview document={doc} tMs={tMs} />
+          <PlayPreview document={doc} tMs={tMs} courtMode={courtMode} />
           <div className="controls">
             <label className="muted" htmlFor="range">
               {Math.round(tMs)} ms / {duration} ms
