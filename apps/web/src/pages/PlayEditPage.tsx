@@ -37,6 +37,7 @@ export function PlayEditPage() {
   const [viewUrl, setViewUrl] = useState<string | null>(null);
   const [saveStatus, setSaveStatus] = useState<SaveStatus>("saved");
   const [courtMode, setCourtMode] = useState<CourtMode>("half");
+  const [loop, setLoop] = useState(false);
 
   const savedSnapshotRef = useRef<string>("");
   const autoSaveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -117,18 +118,27 @@ export function PlayEditPage() {
   const startRef = useRef(0);
   useEffect(() => {
     if (!doc || !playing) return;
-    const duration = doc.meta?.durationMs ?? 8000;
+    const dur = doc.meta?.durationMs ?? 8000;
     startRef.current = performance.now() - tMs;
     let raf: number;
     const tick = (now: number) => {
-      const elapsed = (now - startRef.current) % (duration || 1);
-      setTms(elapsed);
+      const raw = now - startRef.current;
+      if (loop) {
+        setTms(raw % (dur || 1));
+      } else {
+        if (raw >= dur) {
+          setTms(dur);
+          setPlaying(false);
+          return;
+        }
+        setTms(raw);
+      }
       raf = requestAnimationFrame(tick);
     };
     raf = requestAnimationFrame(tick);
     return () => cancelAnimationFrame(raf);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [doc, playing]);
+  }, [doc, playing, loop]);
 
   if (!user) return <Navigate to="/login" replace />;
   if (!id) return <p className="error">{t("edit.missingId")}</p>;
@@ -298,6 +308,10 @@ export function PlayEditPage() {
             <button type="button" className="btn" onClick={() => setPlaying((p) => !p)}>
               {playing ? t("edit.pause") : t("edit.play")}
             </button>
+            <label style={{ display: "inline-flex", alignItems: "center", gap: "0.3rem", fontSize: "0.85rem", color: "var(--muted)", cursor: "pointer", flexShrink: 0 }}>
+              <input type="checkbox" checked={loop} onChange={(e) => setLoop(e.target.checked)} />
+              {t("edit.loop")}
+            </label>
           </div>
         </div>
       ) : null}

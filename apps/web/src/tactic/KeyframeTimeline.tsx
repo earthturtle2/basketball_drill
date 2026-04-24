@@ -35,20 +35,22 @@ export function KeyframeTimeline({
 
   const handleAdd = useCallback(() => {
     const times = keyframes.map((k) => k.t).sort((a, b) => a - b);
-    const boundaries = [0, ...times, durationMs];
-    let bestGap = 0;
-    let bestMid = Math.round(durationMs / 2);
-    for (let i = 1; i < boundaries.length; i++) {
-      const gap = boundaries[i] - boundaries[i - 1];
-      if (gap > bestGap) {
-        bestGap = gap;
-        bestMid = Math.round((boundaries[i - 1] + boundaries[i]) / 2);
-      }
-    }
+    const lastT = times[times.length - 1] ?? 0;
     const ts = new Set(times);
-    while (ts.has(bestMid)) bestMid += 50;
-    onAdd(Math.min(bestMid, durationMs));
-  }, [durationMs, keyframes, onAdd]);
+
+    if (lastT < durationMs) {
+      // Place at midpoint between last frame and duration end
+      let newT = Math.round((lastT + durationMs) / 2 / 50) * 50;
+      while (ts.has(newT)) newT += 50;
+      onAdd(Math.min(newT, durationMs));
+    } else {
+      // Last frame is at duration — extend duration and add at end
+      const avgGap = times.length > 1 ? Math.round((lastT / (times.length - 1)) / 50) * 50 : 1000;
+      const gap = Math.max(avgGap, 500);
+      onDurationChange(durationMs + gap);
+      onAdd(durationMs + gap);
+    }
+  }, [durationMs, keyframes, onAdd, onDurationChange]);
 
   const pctFromEvent = useCallback(
     (clientX: number): number => {

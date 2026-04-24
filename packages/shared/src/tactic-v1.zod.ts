@@ -20,6 +20,7 @@ const event = z
     from: z.string().optional(),
     to: z.string().optional(),
     note: z.string().optional(),
+    angle: z.number().optional(),
   })
   .passthrough();
 

@@ -76,6 +76,7 @@ const zh: Record<string, string> = {
   "edit.confirmDelete": "确定删除该战术？",
   "edit.jsonInvalid": "JSON 无效",
   "edit.missingId": "缺少 id",
+  "edit.loop": "循环",
   "edit.copySuffix": "（副本）",
   "edit.statusSaved": "已保存",
   "edit.statusSaving": "保存中…",
@@ -131,6 +132,8 @@ const zh: Record<string, string> = {
   "bench.playerNumber": "号码",
   "bench.holdBall": "🏀 持球",
   "bench.remove": "移除",
+  "bench.screenAngle": "挡拆朝向",
+  "bench.removeScreen": "移除挡拆",
 
   // Keyframe timeline
   "kf.dragHint": "拖动调整时间",
@@ -230,6 +233,7 @@ const en: Record<string, string> = {
   "edit.confirmDelete": "Are you sure you want to delete this play?",
   "edit.jsonInvalid": "Invalid JSON",
   "edit.missingId": "Missing id",
+  "edit.loop": "Loop",
   "edit.copySuffix": " (Copy)",
   "edit.statusSaved": "Saved",
   "edit.statusSaving": "Saving…",
@@ -285,6 +289,8 @@ const en: Record<string, string> = {
   "bench.playerNumber": "Number",
   "bench.holdBall": "🏀 Ball",
   "bench.remove": "Remove",
+  "bench.screenAngle": "Screen Direction",
+  "bench.removeScreen": "Remove Screen",
 
   // Keyframe timeline
   "kf.dragHint": "Drag to adjust time",

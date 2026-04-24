@@ -21,10 +21,13 @@ interface Props {
   selectedActor: PlayerActor | null;
   ballHolderId: string | undefined;
   passSource: string | null;
+  screenAngle: number | undefined;
   onActorUpdate: (id: string, updates: { label?: string; number?: number }) => void;
   onToggleBall: (actorId: string) => void;
   onRemoveActor: () => void;
   onOpenTemplates: () => void;
+  onScreenAngleChange: (angle: number) => void;
+  onRemoveScreen: () => void;
 }
 
 export function EditorBench({
@@ -35,10 +38,13 @@ export function EditorBench({
   selectedActor,
   ballHolderId,
   passSource,
+  screenAngle,
   onActorUpdate,
   onToggleBall,
   onRemoveActor,
   onOpenTemplates,
+  onScreenAngleChange,
+  onRemoveScreen,
 }: Props) {
   const { t } = useT();
 
@@ -157,6 +163,44 @@ export function EditorBench({
               {t("bench.remove")}
             </button>
           </div>
+
+          {/* Screen rotation — only shown when selected player has a screen */}
+          {screenAngle !== undefined && (
+            <div style={{ marginTop: "0.4rem" }}>
+              <div className="bench-label">{t("bench.screenAngle")}</div>
+              <div className="bench-row" style={{ gap: "0.25rem" }}>
+                {[
+                  { label: "↑", a: 0 },
+                  { label: "↗", a: 45 },
+                  { label: "→", a: 90 },
+                  { label: "↘", a: 135 },
+                  { label: "↓", a: 180 },
+                  { label: "↙", a: 225 },
+                  { label: "←", a: 270 },
+                  { label: "↖", a: 315 },
+                ].map((d) => (
+                  <button
+                    key={d.a}
+                    type="button"
+                    className={`btn btn-sm ${screenAngle === d.a ? "btn-active" : ""}`}
+                    style={{ minWidth: 32, padding: "0.25rem" }}
+                    onClick={() => onScreenAngleChange(d.a)}
+                    title={`${d.a}°`}
+                  >
+                    {d.label}
+                  </button>
+                ))}
+              </div>
+              <button
+                type="button"
+                className="btn btn-sm"
+                style={{ marginTop: "0.3rem" }}
+                onClick={onRemoveScreen}
+              >
+                {t("bench.removeScreen")}
+              </button>
+            </div>
+          )}
         </div>
       )}
     </div>

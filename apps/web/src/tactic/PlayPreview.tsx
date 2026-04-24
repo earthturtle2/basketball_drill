@@ -84,12 +84,12 @@ export function PlayPreview({
     defense: doc.teams.defense.color ?? "#1e88e5",
   };
 
-  const screenActorIds = useMemo(() => {
-    const ids = new Set<string>();
+  const screenMap = useMemo(() => {
+    const map = new Map<string, number>();
     for (const ev of doc.events ?? []) {
-      if (ev.kind === "screen" && ev.from && ev.t <= tMs) ids.add(ev.from);
+      if (ev.kind === "screen" && ev.from && ev.t <= tMs) map.set(ev.from, ev.angle ?? 0);
     }
-    return ids;
+    return map;
   }, [doc, tMs]);
 
   // Completed pass trail lines (dashed, fade after pass)
@@ -284,7 +284,7 @@ export function PlayPreview({
         const [sx, sy] = tacticToSvg(p.x, p.y, courtMode);
         const color = teamColors[a.team] ?? teamColors.offense;
         const holdsBall = a.id === ballState.holder;
-        const hasScreen = screenActorIds.has(a.id);
+        const scrAngle = screenMap.get(a.id);
         return (
           <g key={a.id}>
             {holdsBall && (
@@ -299,11 +299,10 @@ export function PlayPreview({
             >
               {a.label}
             </text>
-            {/* Screen T-icon */}
-            {hasScreen && (
-              <g transform={`translate(${sx}, ${sy - 7})`}>
-                <line x1={-3.5} y1={0} x2={3.5} y2={0} stroke="#ffeb3b" strokeWidth="1.2" strokeLinecap="round" />
-                <line x1={0} y1={0} x2={0} y2={4} stroke="#ffeb3b" strokeWidth="1.2" strokeLinecap="round" />
+            {scrAngle !== undefined && (
+              <g transform={`translate(${sx}, ${sy}) rotate(${scrAngle})`}>
+                <line x1={-3.5} y1={-9} x2={3.5} y2={-9} stroke="#ffeb3b" strokeWidth="1.2" strokeLinecap="round" />
+                <line x1={0} y1={-9} x2={0} y2={-5} stroke="#ffeb3b" strokeWidth="1.2" strokeLinecap="round" />
               </g>
             )}
           </g>

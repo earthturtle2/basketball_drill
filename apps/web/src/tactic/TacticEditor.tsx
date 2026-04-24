@@ -83,7 +83,7 @@ export function TacticEditor({ document: doc, onChange, onOpenTemplates, courtMo
           setTool("select");
         }
       } else if (tool === "screen") {
-        const newEvent = { t: currentT, kind: "screen" as const, from: actorId };
+        const newEvent = { t: currentT, kind: "screen" as const, from: actorId, angle: 0 };
         const events = [...(doc.events ?? []), newEvent];
         onChange({ ...doc, events });
         setTool("select");
@@ -215,6 +215,26 @@ export function TacticEditor({ document: doc, onChange, onOpenTemplates, courtMo
     [doc, onChange],
   );
 
+  const handleScreenAngleChange = useCallback(
+    (angle: number) => {
+      if (!selectedActorId) return;
+      const events = (doc.events ?? []).map((e) => {
+        if (e.kind === "screen" && e.from === selectedActorId) return { ...e, angle };
+        return e;
+      });
+      onChange({ ...doc, events });
+    },
+    [selectedActorId, doc, onChange],
+  );
+
+  const handleRemoveScreen = useCallback(() => {
+    if (!selectedActorId) return;
+    const events = (doc.events ?? []).filter(
+      (e) => !(e.kind === "screen" && e.from === selectedActorId),
+    );
+    onChange({ ...doc, events });
+  }, [selectedActorId, doc, onChange]);
+
   const handleDurationChange = useCallback(
     (ms: number) => {
       onChange({ ...doc, meta: { ...doc.meta, durationMs: ms } });
@@ -258,11 +278,11 @@ export function TacticEditor({ document: doc, onChange, onOpenTemplates, courtMo
     setDraggingCp(null);
   }, []);
 
-  // Screen events for current time
-  const screenEvents = (doc.events ?? []).filter(
-    (e) => e.kind === "screen" && e.from,
-  );
-  const screenActorIds = new Set(screenEvents.map((e) => e.from!));
+  // Screen events: map actorId → angle
+  const screenMap = new Map<string, number>();
+  for (const e of doc.events ?? []) {
+    if (e.kind === "screen" && e.from) screenMap.set(e.from, e.angle ?? 0);
+  }
 
   const courtCursor =
     tool === "addOffense" || tool === "addDefense"
@@ -325,10 +345,13 @@ export function TacticEditor({ document: doc, onChange, onOpenTemplates, courtMo
         selectedActor={selectedPlayerData}
         ballHolderId={ballHolderId}
         passSource={passSource}
+        screenAngle={selectedActorId ? screenMap.get(selectedActorId) : undefined}
         onActorUpdate={handleActorUpdate}
         onToggleBall={handleToggleBall}
         onRemoveActor={handleRemoveSelected}
         onOpenTemplates={onOpenTemplates}
+        onScreenAngleChange={handleScreenAngleChange}
+        onRemoveScreen={handleRemoveScreen}
       />
 
       <div className="editor-court">
@@ -366,7 +389,7 @@ export function TacticEditor({ document: doc, onChange, onOpenTemplates, courtMo
             const [sx, sy] = tacticToSvg(p.x, p.y, courtMode);
             const color = teamColors[a.team] ?? teamColors.offense;
             const isPassSrc = passSource === a.id;
-            const hasScreen = screenActorIds.has(a.id);
+            const screenAngle = screenMap.get(a.id);
             return (
               <g key={a.id}>
                 <PlayerDot
@@ -380,11 +403,10 @@ export function TacticEditor({ document: doc, onChange, onOpenTemplates, courtMo
                   onDrag={handleDrag}
                   onSelect={handleActorClick}
                 />
-                {/* Screen T-icon */}
-                {hasScreen && (
-                  <g transform={`translate(${sx}, ${sy - 7})`} style={{ pointerEvents: "none" }}>
-                    <line x1={-3.5} y1={0} x2={3.5} y2={0} stroke="#ffeb3b" strokeWidth="1.2" strokeLinecap="round" />
-                    <line x1={0} y1={0} x2={0} y2={4} stroke="#ffeb3b" strokeWidth="1.2" strokeLinecap="round" />
+                {screenAngle !== undefined && (
+                  <g transform={`translate(${sx}, ${sy}) rotate(${screenAngle})`} style={{ pointerEvents: "none" }}>
+                    <line x1={-3.5} y1={-9} x2={3.5} y2={-9} stroke="#ffeb3b" strokeWidth="1.2" strokeLinecap="round" />
+                    <line x1={0} y1={-9} x2={0} y2={-5} stroke="#ffeb3b" strokeWidth="1.2" strokeLinecap="round" />
                   </g>
                 )}
               </g>
