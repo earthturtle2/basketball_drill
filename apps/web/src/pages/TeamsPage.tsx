@@ -10,7 +10,7 @@ export function TeamsPage() {
   const [teams, setTeams] = useState<Team[]>([]);
   const [err, setErr] = useState<string | null>(null);
   const [name, setName] = useState("");
-  const [color, setColor] = useState("#e53935");
+  const [color, setColor] = useState("#2e7d32");
   const [editId, setEditId] = useState<string | null>(null);
   const [editName, setEditName] = useState("");
   const [editColor, setEditColor] = useState("");
@@ -40,7 +40,7 @@ export function TeamsPage() {
         body: JSON.stringify({ name: name.trim(), color }),
       });
       setName("");
-      setColor("#e53935");
+      setColor("#2e7d32");
       await load();
     } catch (e) {
       setErr(e instanceof ApiError ? e.message : "创建失败");

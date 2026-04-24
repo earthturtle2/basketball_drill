@@ -40,14 +40,14 @@ export const CourtSVG = forwardRef<SVGSVGElement, Props>(
             <path d="M0,0.5 L4,2 L0,3.5" fill="rgba(255,180,50,0.7)" />
           </marker>
           <linearGradient id="courtGrad" x1="0" y1="0" x2="1" y2="0">
-            <stop offset="0%" stopColor="#0f3d1f" stopOpacity="0.5" />
+            <stop offset="0%" stopColor="#0d4a20" stopOpacity="0.5" />
             <stop offset="50%" stopColor="transparent" stopOpacity="0" />
-            <stop offset="100%" stopColor="#0f3d1f" stopOpacity="0.5" />
+            <stop offset="100%" stopColor="#0d4a20" stopOpacity="0.5" />
           </linearGradient>
         </defs>
 
         {/* background */}
-        <rect width={w} height={COURT_H} fill="#1a5c32" rx="1" />
+        <rect width={w} height={COURT_H} fill="#1b6b35" rx="1" />
         <rect width={w} height={COURT_H} fill="url(#courtGrad)" rx="1" />
 
         {/* boundary + center */}
