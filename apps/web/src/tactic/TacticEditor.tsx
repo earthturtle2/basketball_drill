@@ -439,7 +439,7 @@ export function TacticEditor({ document: doc, onChange, onOpenTemplates, courtMo
             courtMode={courtMode}
             upToKeyframeIndex={activeKfIdx}
           />
-          <PassLines document={doc} courtMode={courtMode} cumulativeUptoKeyframeIndex={activeKfIdx} />
+          <PassLines document={doc} courtMode={courtMode} visibleUpToTimeMs={currentT} />
 
           {/* Control point handles */}
           {cpHandles}
