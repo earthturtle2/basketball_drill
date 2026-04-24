@@ -62,15 +62,18 @@ export function samplePoses(
   return out;
 }
 
-/** Kept for API compatibility; passes complete at event time (no aerial delay). */
-export const PASS_FLY_MS = 0;
+/**
+ * Preview-only: ball flies for this long after a pass event before the receiver
+ * holds it. The editor uses resolveBallHolderAt(..., false) so passes take effect
+ * at the keyframe instantly while playback still shows this animation.
+ */
+export const PASS_FLY_MS = 400;
 
 /** The pass currently in the air (ball not held) at tMs, if any. */
 export function findInFlightPass(
   doc: TacticDocumentV1,
   tMs: number,
 ): { t: number; from: string; to: string } | null {
-  if (PASS_FLY_MS <= 0) return null;
   const passes = (doc.events ?? [])
     .filter((e) => e.kind === "pass" && e.from && e.to)
     .sort((a, b) => a.t - b.t);
@@ -89,13 +92,14 @@ export function findInFlightPass(
 /**
  * Who holds the ball at t.
  *
- * Pass events apply at their timestamp (ball with receiver for tMs >= pass.t).
- * `accountForFlight` is kept for callers but matches editor semantics when PASS_FLY_MS is 0.
+ * @param accountForFlight  When true (playback), pass ownership applies after
+ *   PASS_FLY_MS. When false (editor), ownership changes at pass.t so the active
+ *   keyframe shows the receiver with the ball.
  */
 export function resolveBallHolderAt(
   doc: TacticDocumentV1,
   tMs: number,
-  _accountForFlight = false,
+  accountForFlight = false,
 ): string | undefined {
   const ball = doc.actors.find((a) => a.type === "ball");
   let holder = ball?.type === "ball" ? ball.heldBy : undefined;
@@ -109,7 +113,7 @@ export function resolveBallHolderAt(
         e.kind === "possess_end",
     )
     .filter(({ e }) => {
-      if (_accountForFlight && e.kind === "pass" && PASS_FLY_MS > 0) {
+      if (accountForFlight && e.kind === "pass") {
         return e.t + PASS_FLY_MS <= tMs;
       }
       return e.t <= tMs;
@@ -191,7 +195,7 @@ export function resolveBallState(
   poses: Record<string, Vec>,
 ): { holder: string | undefined; flight?: BallFlightInfo } {
   const inflight = findInFlightPass(doc, tMs);
-  if (inflight && PASS_FLY_MS > 0) {
+  if (inflight) {
     const progress = (tMs - inflight.t) / PASS_FLY_MS;
     const fp = poses[inflight.from];
     const tp = poses[inflight.to];
