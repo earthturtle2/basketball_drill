@@ -269,9 +269,19 @@ export function PlayEditPage() {
           <h2 style={{ margin: "0 0 0.5rem", fontSize: "1.05rem" }}>动画预览</h2>
           <PlayPreview document={doc} tMs={tMs} courtMode={courtMode} />
           <div className="controls">
-            <label className="muted" htmlFor="range">
-              {Math.round(tMs)} ms / {duration} ms
-            </label>
+            <span
+              className="muted"
+              style={{
+                minWidth: "10ch",
+                textAlign: "right",
+                fontVariantNumeric: "tabular-nums",
+                fontFamily: "monospace, sans-serif",
+                fontSize: "0.85rem",
+                flexShrink: 0,
+              }}
+            >
+              {Math.round(tMs)} / {duration} ms
+            </span>
             <input
               id="range"
               type="range"
@@ -282,6 +292,7 @@ export function PlayEditPage() {
                 setPlaying(false);
                 setTms(Number(e.target.value));
               }}
+              style={{ flex: 1 }}
             />
             <button type="button" className="btn" onClick={() => setPlaying((p) => !p)}>
               {playing ? "暂停" : "播放"}

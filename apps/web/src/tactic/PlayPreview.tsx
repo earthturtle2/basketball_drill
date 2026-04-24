@@ -144,20 +144,23 @@ export function PlayPreview({
     return trails;
   }, [doc, tMs, courtMode]);
 
-  // Movement trails for preview
+  // Movement trails for preview — includes partial in-progress segment
   const movementTrails = useMemo(() => {
     const players = doc.actors.filter((a) => a.type === "player");
     const kfs = doc.keyframes;
     if (kfs.length < 2) return null;
     const trails: React.ReactNode[] = [];
+
     for (const actor of players) {
       if (actor.type !== "player") continue;
       const color = teamColors[actor.team] ?? teamColors.offense;
+
       for (let i = 1; i < kfs.length; i++) {
-        if (kfs[i].t > tMs) break;
         const prevPose = kfs[i - 1].poses[actor.id];
         const currPose = kfs[i].poses[actor.id];
         if (!prevPose || !currPose) continue;
+        if (kfs[i - 1].t > tMs) break;
+
         const [x0, y0] = tacticToSvg(prevPose.x, prevPose.y, courtMode);
         const [x1, y1] = tacticToSvg(currPose.x, currPose.y, courtMode);
         if (Math.abs(x1 - x0) < 0.5 && Math.abs(y1 - y0) < 0.5) continue;
@@ -169,10 +172,33 @@ export function PlayPreview({
           ? tacticToSvg(currPose.cpx!, currPose.cpy!, courtMode)
           : null;
 
+        const completed = kfs[i].t <= tMs;
+        // For in-progress segment, compute the endpoint at current time
+        let endX = x1, endY = y1;
+        let partialCp = cp;
+        if (!completed) {
+          const segDur = kfs[i].t - kfs[i - 1].t;
+          const s = segDur > 0 ? (tMs - kfs[i - 1].t) / segDur : 1;
+          if (cp) {
+            // Partial quadratic bezier: split at parameter s
+            // de Casteljau: intermediate point and endpoint
+            const mx1 = lerp(x0, cp[0], s);
+            const my1 = lerp(y0, cp[1], s);
+            const mx2 = lerp(cp[0], x1, s);
+            const my2 = lerp(cp[1], y1, s);
+            endX = lerp(mx1, mx2, s);
+            endY = lerp(my1, my2, s);
+            partialCp = [mx1, my1];
+          } else {
+            endX = lerp(x0, x1, s);
+            endY = lerp(y0, y1, s);
+          }
+        }
+
         if (isDribble) {
-          const pts: [number, number][] = cp
-            ? sampleBezier([x0, y0], cp, [x1, y1], 30)
-            : [[x0, y0], [x1, y1]];
+          const pts: [number, number][] = partialCp
+            ? sampleBezier([x0, y0], partialCp, [endX, endY], 30)
+            : [[x0, y0], [endX, endY]];
           trails.push(
             <path
               key={`mv-${actor.id}-${i}`}
@@ -183,11 +209,11 @@ export function PlayPreview({
               opacity="0.35"
             />,
           );
-        } else if (cp) {
+        } else if (partialCp) {
           trails.push(
             <path
               key={`mv-${actor.id}-${i}`}
-              d={`M ${x0} ${y0} Q ${cp[0]} ${cp[1]} ${x1} ${y1}`}
+              d={`M ${x0} ${y0} Q ${partialCp[0]} ${partialCp[1]} ${endX} ${endY}`}
               fill="none"
               stroke={color}
               strokeWidth="0.6"
@@ -198,7 +224,7 @@ export function PlayPreview({
           trails.push(
             <line
               key={`mv-${actor.id}-${i}`}
-              x1={x0} y1={y0} x2={x1} y2={y1}
+              x1={x0} y1={y0} x2={endX} y2={endY}
               stroke={color}
               strokeWidth="0.6"
               opacity="0.3"
