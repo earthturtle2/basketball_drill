@@ -190,11 +190,13 @@ export function PlayEditPage() {
 
   const startFrameStep = useCallback(() => {
     if (!doc || frameStepTargetRef.current) return;
-    const times = [...new Set(doc.keyframes.map((k) => k.t))].sort((a, b) => a - b);
-    if (times.length === 0) return;
+    const endT = playbackEndMs(doc);
+    const stops = [...new Set(doc.keyframes.map((k) => k.t))].sort((a, b) => a - b);
+    if (endT > (stops[stops.length - 1] ?? 0)) stops.push(endT);
+    if (stops.length === 0) return;
     const E = 0.5;
     const from = tMsRef.current;
-    const nextT = times.find((tm) => tm > from + E) ?? times[0]!;
+    const nextT = stops.find((tm) => tm > from + E) ?? stops[0]!;
     if (Math.abs(nextT - from) < 0.25) return;
     setFrameStepTarget({ from, to: nextT });
   }, [doc]);
