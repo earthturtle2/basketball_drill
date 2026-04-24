@@ -2,9 +2,12 @@ import { config } from "dotenv";
 import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
+// dev (tsx):  here = apps/api/src/lib  → 4 levels up = repo root
+// prod (tsc): here = apps/api/dist/lib → 4 levels up = repo root
 const here = dirname(fileURLToPath(import.meta.url));
-const apiRoot = resolve(here, "../..");
-const repoRoot = resolve(here, "../../..");
+const repoRoot = resolve(here, "../../../..");
+const apiRoot = resolve(repoRoot, "apps/api");
+
 config({ path: resolve(repoRoot, ".env") });
 config({ path: resolve(repoRoot, ".env.local") });
 config({ path: resolve(apiRoot, ".env") });

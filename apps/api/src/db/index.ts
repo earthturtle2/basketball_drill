@@ -11,8 +11,10 @@ if (!raw) {
   throw new Error("DATABASE_URL is not set");
 }
 
-/** 与 drizzle.config 一致：file: 相对路径相对 monorepo 根目录 */
-const repoRoot = resolve(dirname(fileURLToPath(import.meta.url)), "../../..");
+// dev (tsx):  here = apps/api/src/db  → 4 levels up = repo root
+// prod (tsc): here = apps/api/dist/db → 4 levels up = repo root
+const here = dirname(fileURLToPath(import.meta.url));
+const repoRoot = resolve(here, "../../../..");
 
 function resolveSqlitePath(v: string): string {
   if (v.startsWith("file:")) {
