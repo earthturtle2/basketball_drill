@@ -200,6 +200,21 @@ export function TacticEditor({ document: doc, onChange, onOpenTemplates, courtMo
     [doc, activeKfIdx, onChange],
   );
 
+  const handleMoveKeyframe = useCallback(
+    (idx: number, newT: number) => {
+      const dur = doc.meta.durationMs ?? 8000;
+      const snapped = Math.round(Math.max(0, Math.min(newT, dur)) / 50) * 50;
+      if (doc.keyframes.some((k, i) => i !== idx && k.t === snapped)) return;
+      const newKfs = doc.keyframes
+        .map((k, i) => (i === idx ? { ...k, t: snapped } : k))
+        .sort((a, b) => a.t - b.t);
+      const newIdx = newKfs.findIndex((k) => k.t === snapped);
+      onChange({ ...doc, keyframes: newKfs });
+      setActiveKfIdx(newIdx);
+    },
+    [doc, onChange],
+  );
+
   const handleDurationChange = useCallback(
     (ms: number) => {
       onChange({ ...doc, meta: { ...doc.meta, durationMs: ms } });
@@ -387,6 +402,7 @@ export function TacticEditor({ document: doc, onChange, onOpenTemplates, courtMo
           onSelect={setActiveKfIdx}
           onAdd={handleAddKeyframe}
           onRemove={handleRemoveKeyframe}
+          onMove={handleMoveKeyframe}
           onDurationChange={handleDurationChange}
         />
       </div>

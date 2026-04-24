@@ -330,14 +330,19 @@ pre.doc {
 .kf-timeline__marker {
   position: absolute;
   top: 50%;
-  width: 12px;
-  height: 12px;
+  width: 14px;
+  height: 14px;
   background: var(--surface);
   border: 2px solid var(--muted);
   border-radius: 2px;
   transform: translate(-50%, -50%) rotate(45deg);
-  cursor: pointer;
+  cursor: grab;
   padding: 0;
+  touch-action: none;
+  z-index: 2;
+}
+.kf-timeline__marker:active {
+  cursor: grabbing;
 }
 .kf-timeline__marker--active {
   border-color: var(--accent);
