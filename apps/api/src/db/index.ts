@@ -36,6 +36,37 @@ const sqlite = new Database(filePath);
 sqlite.pragma("foreign_keys = ON");
 sqlite.pragma("journal_mode = WAL");
 
+function hasTable(name: string) {
+  const row = sqlite
+    .prepare("select name from sqlite_master where type = 'table' and name = ?")
+    .get(name);
+  return Boolean(row);
+}
+
+function hasColumn(table: string, column: string) {
+  return sqlite
+    .prepare(`PRAGMA table_info(${table})`)
+    .all()
+    .some((c) => (c as { name: string }).name === column);
+}
+
+sqlite.exec(`
+CREATE TABLE IF NOT EXISTS teams (
+  id TEXT PRIMARY KEY NOT NULL,
+  user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  name TEXT NOT NULL,
+  color TEXT NOT NULL DEFAULT '#e53935',
+  created_at INTEGER NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_teams_user ON teams(user_id);
+`);
+
+if (hasTable("plays") && !hasColumn("plays", "team_id")) {
+  sqlite.pragma("foreign_keys = OFF");
+  sqlite.exec("ALTER TABLE plays ADD COLUMN team_id TEXT REFERENCES teams(id) ON DELETE SET NULL");
+  sqlite.pragma("foreign_keys = ON");
+}
+
 sqlite.exec(`
 CREATE TABLE IF NOT EXISTS invite_codes (
   id TEXT PRIMARY KEY NOT NULL,
