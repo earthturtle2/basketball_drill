@@ -424,9 +424,10 @@ export function TacticEditor({
     if (e.kind === "screen" && e.t === currentT) {
       onChange({ ...doc, events: evs.filter((_, i) => i !== idx) });
     } else {
+      const endT = currentT > 0 ? currentT - 1 : 0;
       onChange({
         ...doc,
-        events: [...evs, { t: currentT, kind: "screen_end" as const, from: selectedActorId }],
+        events: [...evs, { t: endT, kind: "screen_end" as const, from: selectedActorId }],
       });
     }
   }, [selectedActorId, doc, onChange, currentT]);
@@ -530,6 +531,7 @@ export function TacticEditor({
   return (
     <div className="tactic-editor">
       <EditorBench
+        side="left"
         tool={tool}
         onToolChange={handleToolChange}
         courtMode={courtMode}
@@ -623,6 +625,25 @@ export function TacticEditor({
           </g>
         </CourtSVG>
       </div>
+
+      <EditorBench
+        side="right"
+        tool={tool}
+        onToolChange={handleToolChange}
+        courtMode={courtMode}
+        onCourtModeChange={onCourtModeChange}
+        doc={doc}
+        selectedActor={selectedPlayerData}
+        ballHolderId={ballHolderId}
+        passSource={passSource}
+        screenAngle={selectedActorId ? screenMap.get(selectedActorId) : undefined}
+        onActorUpdate={handleActorUpdate}
+        onToggleBall={handleToggleBall}
+        onRemoveActor={handleRemoveSelected}
+        onOpenTemplates={onOpenTemplates}
+        onScreenAngleChange={handleScreenAngleChange}
+        onRemoveScreen={handleRemoveScreen}
+      />
 
       <div className="editor-timeline">
         <KeyframeTimeline

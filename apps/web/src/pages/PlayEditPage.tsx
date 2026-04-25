@@ -491,7 +491,9 @@ export function PlayEditPage() {
                         style={{ left: `${left}%` }}
                         onClick={() => seekPreview(tm)}
                         title={`${t("kf.frame")} ${i + 1}: ${tm}ms`}
-                      />
+                      >
+                        <span className="preview-controls__mark-label">{i + 1}</span>
+                      </button>
                     );
                   })}
                 </div>

@@ -89,12 +89,14 @@ export function KeyframeTimeline({
               type="button"
               className={`kf-timeline__marker ${i === activeIndex ? "kf-timeline__marker--active" : ""}`}
               style={{ left: pct(kf.t), touchAction: "none" }}
-              title={`${kf.t}ms — ${t("kf.dragHint")}`}
+              title={`${t("kf.frame")} ${i + 1}: ${kf.t}ms — ${t("kf.dragHint")}`}
               onPointerDown={(e) => handleMarkerPointerDown(i, e)}
               onPointerMove={handleMarkerPointerMove}
               onPointerUp={handleMarkerPointerUp}
               onPointerCancel={handleMarkerPointerUp}
-            />
+            >
+              <span className="kf-timeline__marker-label">{i + 1}</span>
+            </button>
           ))}
         </div>
       </div>
