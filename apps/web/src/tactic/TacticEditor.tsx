@@ -415,12 +415,15 @@ export function TacticEditor({
   }, [doc, activeKfIdx, onChange]);
 
   const handleRemoveKeyframe = useCallback(
-    (idx: number) => {
+    (docIdx: number) => {
       if (doc.keyframes.length <= 1) return;
+      const removed = doc.keyframes[docIdx];
+      if (!removed) return;
       const duration = timelineDurationMs(doc);
       const sortedBefore = [...doc.keyframes].sort((a, b) => a.t - b.t);
-      const removed = sortedBefore[idx];
-      const keptBefore = sortedBefore.filter((_, i) => i !== idx);
+      const sortedIdx = sortedBefore.indexOf(removed);
+      if (sortedIdx < 0) return;
+      const keptBefore = sortedBefore.filter((_, i) => i !== sortedIdx);
       const shouldRedistribute =
         !manuallyTimedKeyframes.current && keyframesAreEvenlySpaced(sortedBefore, duration);
       const newKfs = shouldRedistribute
@@ -442,11 +445,13 @@ export function TacticEditor({
         ? remapEventsAtKeyframeTimes(doc.events, keptBefore, newKfs, removedEventTimeMap)
         : remapEventsAtKeyframeTimes(doc.events, [], [], removedEventTimeMap);
       onChange({ ...doc, meta: { ...doc.meta, durationMs: duration }, keyframes: newKfs, events: newEvents });
-      let newActive = activeKfIdx;
-      if (idx < activeKfIdx) newActive = activeKfIdx - 1;
-      else if (idx > activeKfIdx) newActive = activeKfIdx;
-      else newActive = Math.min(activeKfIdx, newKfs.length - 1);
-      setActiveKfIdx(newActive);
+      const prevActiveKf = doc.keyframes[activeKfIdx];
+      if (docIdx === activeKfIdx) {
+        setActiveKfIdx(Math.min(docIdx, newKfs.length - 1));
+      } else {
+        const nextIdx = newKfs.findIndex((k) => k === prevActiveKf);
+        setActiveKfIdx(nextIdx >= 0 ? nextIdx : 0);
+      }
     },
     [doc, activeKfIdx, onChange],
   );
