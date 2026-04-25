@@ -7,7 +7,7 @@
     "dev": "tsx watch --env-file ../../.env --env-file-if-exists=../../.env.local src/index.ts",
     "build": "tsc -p tsconfig.json",
     "start": "node --env-file ../../.env dist/index.js",
-    "db:push": "drizzle-kit push --config drizzle.config.cjs",
+    "db:push": "node scripts/prepare-db-push.cjs && drizzle-kit push --config drizzle.config.cjs",
     "db:studio": "drizzle-kit studio --config drizzle.config.cjs"
   },
   "dependencies": {
