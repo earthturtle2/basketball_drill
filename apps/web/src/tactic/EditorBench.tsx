@@ -211,22 +211,16 @@ export function EditorBench({
 
       <div className="bench-section">
         <div className="bench-label">{t("bench.players")}</div>
-        <div className="bench-player-grid">
-          {availablePlayers.map((player) => (
-            <button
-              key={player.id}
-              type="button"
-              className={`bench-player-card${pendingPlayer?.id === player.id ? " bench-player-card--active" : ""}`}
-              disabled={player.disabled || !canAddOffense}
-              onClick={() => onRosterPlayerSelect(player)}
-              title={player.name ? `${player.number} ${player.name}` : `${player.number}`}
-            >
-              <span>{player.number}</span>
-              <small>{player.name || player.label}</small>
-            </button>
-          ))}
-        </div>
         <div className="bench-row">
+          <button
+            type="button"
+            className={`bench-token bench-token--offense ${tool === "addOffense" ? "bench-token--active" : ""}`}
+            disabled={!canAddOffense}
+            onClick={() => onToolChange(tool === "addOffense" ? "select" : "addOffense")}
+            title={t("bench.addOffenseTitle")}
+          >
+            +
+          </button>
           <span className="bench-hint">{t("bench.offense")}</span>
           <button
             type="button"
@@ -259,6 +253,25 @@ export function EditorBench({
         {tool === "addDefense" && <p className="bench-tip">{t("bench.tipAddDefense")}</p>}
         {!canAddOffense && <p className="bench-hint">{t("bench.maxOffense")}</p>}
         {!canAddDefense && <p className="bench-hint">{t("bench.maxDefense")}</p>}
+      </div>
+
+      <div className="bench-section">
+        <div className="bench-label">{t("bench.teamRoster")}</div>
+        <div className="bench-roster-grid">
+          {availablePlayers.map((player) => (
+            <button
+              key={player.id}
+              type="button"
+              className={`bench-roster-player${pendingPlayer?.id === player.id ? " bench-roster-player--active" : ""}`}
+              disabled={player.disabled || !canAddOffense}
+              onClick={() => onRosterPlayerSelect(player)}
+              title={player.name ? `${player.number} ${player.name}` : `${player.number}`}
+            >
+              <span className="bench-roster-dot">{player.number}</span>
+              {player.name ? <small>{player.name}</small> : null}
+            </button>
+          ))}
+        </div>
       </div>
     </div>
   );

@@ -170,16 +170,19 @@ export function TacticEditor({
   const canAddDefense = defensePlayers.length < 5;
 
   const availablePlayers = useMemo<BenchPlayerOption[]>(() => {
-    const source = teamPlayers.length
-      ? teamPlayers
-      : [1, 2, 3, 4, 5].map((number) => ({ id: `default-${number}`, name: "", number }));
     const usedNumbers = new Set(offensePlayers.map((p) => p.number));
-    return source.map((p) => ({
+    return teamPlayers.map((p) => ({
       ...p,
       label: p.name ? `${p.number} ${p.name}` : `${p.number}`,
       disabled: usedNumbers.has(p.number),
     }));
   }, [teamPlayers, offensePlayers]);
+
+  useEffect(() => {
+    if (pendingPlayer && !availablePlayers.some((p) => p.id === pendingPlayer.id)) {
+      setPendingPlayer(null);
+    }
+  }, [availablePlayers, pendingPlayer]);
 
   useEffect(() => {
     onActiveTimeChange?.(currentT);
@@ -206,7 +209,7 @@ export function TacticEditor({
   const handleToolChange = useCallback((t: EditorTool) => {
     if ((t === "addOffense" && !canAddOffense) || (t === "addDefense" && !canAddDefense)) return;
     setTool(t);
-    if (t !== "addOffense") setPendingPlayer(null);
+    setPendingPlayer(null);
     setPassSource(null);
   }, [canAddOffense, canAddDefense]);
 

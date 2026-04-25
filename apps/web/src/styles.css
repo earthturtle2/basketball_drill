@@ -541,47 +541,56 @@ pre.doc {
   display: grid;
   grid-template-columns: repeat(3, minmax(32px, 1fr));
 }
-.bench-player-grid {
+.bench-roster-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(58px, 1fr));
-  gap: 0.35rem;
+  grid-template-columns: repeat(auto-fit, minmax(44px, 1fr));
+  gap: 0.55rem;
 }
-.bench-player-card {
-  min-height: 48px;
-  padding: 0.35rem;
-  border-radius: 14px;
-  border: 1px solid rgba(255, 255, 255, 0.16);
-  background:
-    linear-gradient(180deg, rgba(255, 97, 93, 0.92), rgba(229, 57, 53, 0.9));
+.bench-roster-player {
+  min-height: 54px;
+  padding: 0;
+  border: 0;
+  background: transparent;
   color: #fff;
   cursor: pointer;
-  box-shadow: 0 10px 24px rgba(0, 0, 0, 0.2);
+  display: inline-flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.18rem;
 }
-.bench-player-card span,
-.bench-player-card small {
-  display: block;
+.bench-roster-dot {
+  width: 38px;
+  height: 38px;
+  border-radius: 50%;
+  border: 2px solid rgba(0, 0, 0, 0.32);
+  background: linear-gradient(180deg, #ff615d, #e53935);
+  color: #fff;
+  font-size: 16px;
+  font-weight: 900;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 10px 24px rgba(0, 0, 0, 0.24);
+}
+.bench-roster-player small {
+  max-width: 48px;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-}
-.bench-player-card span {
-  font-size: 1rem;
-  font-weight: 900;
-  line-height: 1.1;
-}
-.bench-player-card small {
-  margin-top: 0.1rem;
   font-size: 0.65rem;
   opacity: 0.9;
+  color: var(--text);
 }
-.bench-player-card:hover,
-.bench-player-card--active {
+.bench-roster-player:hover .bench-roster-dot,
+.bench-roster-player--active .bench-roster-dot {
   border-color: #fff;
   box-shadow: 0 0 0 5px rgba(255, 255, 255, 0.1), 0 0 22px rgba(255, 255, 255, 0.28);
 }
-.bench-player-card:disabled {
+.bench-roster-player:disabled {
   cursor: not-allowed;
   opacity: 0.42;
+}
+.bench-roster-player:disabled .bench-roster-dot {
   box-shadow: none;
 }
 .bench-hint {
