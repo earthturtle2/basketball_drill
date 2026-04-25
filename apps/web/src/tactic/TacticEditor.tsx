@@ -53,6 +53,17 @@ function midpointTime(currentT: number, nextT: number | undefined, durationMs: n
   return candidate <= currentT ? currentT + 50 : Math.min(candidate, Math.max(durationMs, candidate));
 }
 
+function clonePosesForNewKeyframe(
+  poses: TacticDocumentV1["keyframes"][number]["poses"],
+): TacticDocumentV1["keyframes"][number]["poses"] {
+  return Object.fromEntries(
+    Object.entries(poses).map(([id, pose]) => {
+      const { cpx: _cpx, cpy: _cpy, ...poseWithoutCurve } = pose;
+      return [id, poseWithoutCurve];
+    }),
+  );
+}
+
 export function TacticEditor({
   document: doc,
   onChange,
@@ -246,7 +257,7 @@ export function TacticEditor({
     const usedTimes = new Set(doc.keyframes.map((k) => k.t));
     let t = midpointTime(currentTForInsert, laterTimes[0], duration);
     while (usedTimes.has(t)) t += 50;
-    const newKf = { t, poses: current ? { ...current.poses } : {} };
+    const newKf = { t, poses: current ? clonePosesForNewKeyframe(current.poses) : {} };
     const newKfs = [...doc.keyframes, newKf].sort((a, b) => a.t - b.t);
     onChange({
       ...doc,
