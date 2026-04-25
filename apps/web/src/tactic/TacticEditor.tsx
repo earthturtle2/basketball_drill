@@ -23,6 +23,8 @@ function genId() {
   return `p${Date.now().toString(36)}${_nextId++}`;
 }
 
+const DEFAULT_NEW_FRAME_GAP_MS = 1000;
+
 function remapEventsAtTime(
   events: TacticDocumentV1["events"],
   oldT: number,
@@ -64,6 +66,14 @@ function redistributeKeyframeTimes(
   return sorted.map((k, i) => ({ ...k, t: evenlySpacedTime(i, sorted.length, durationMs) }));
 }
 
+function keyframesAreEvenlySpaced(
+  keyframes: TacticDocumentV1["keyframes"],
+  durationMs: number,
+): boolean {
+  const sorted = [...keyframes].sort((a, b) => a.t - b.t);
+  return sorted.every((k, i) => k.t === evenlySpacedTime(i, sorted.length, durationMs));
+}
+
 function remapEventsAtKeyframeTimes(
   events: TacticDocumentV1["events"],
   oldKeyframes: TacticDocumentV1["keyframes"],
@@ -81,6 +91,27 @@ function remapEventsAtKeyframeTimes(
     const newT = timeMap.get(e.t);
     return newT === undefined ? e : { ...e, t: newT };
   });
+}
+
+function manualNewKeyframeTime(
+  sortedKeyframes: TacticDocumentV1["keyframes"],
+  activeIndex: number,
+  durationMs: number,
+): { t: number; durationMs: number } | null {
+  const current = sortedKeyframes[activeIndex] ?? sortedKeyframes[sortedKeyframes.length - 1];
+  if (!current) return null;
+  const next = sortedKeyframes.find((k) => k.t > current.t);
+  if (next) {
+    if (next.t - current.t <= 1) return null;
+    return { t: Math.round((current.t + next.t) / 2), durationMs };
+  }
+
+  if (current.t < durationMs) return { t: durationMs, durationMs };
+
+  const prev = sortedKeyframes[activeIndex - 1];
+  const gap = prev && current.t > prev.t ? current.t - prev.t : DEFAULT_NEW_FRAME_GAP_MS;
+  const t = current.t + gap;
+  return { t, durationMs: t };
 }
 
 function clonePosesForNewKeyframe(
@@ -108,6 +139,7 @@ export function TacticEditor({
   const [passSource, setPassSource] = useState<string | null>(null);
   const [draggingCp, setDraggingCp] = useState<{ actorId: string; kfIdx: number } | null>(null);
   const svgRef = useRef<SVGSVGElement>(null);
+  const manuallyTimedKeyframes = useRef(false);
 
   const teamColors = {
     offense: doc.teams.offense.color ?? "#e53935",
@@ -279,18 +311,33 @@ export function TacticEditor({
   const handleAddKeyframe = useCallback(() => {
     const duration = timelineDurationMs(doc);
     const sorted = [...doc.keyframes].sort((a, b) => a.t - b.t);
-    const last = sorted[sorted.length - 1];
-    const newKf = { t: duration, poses: last ? clonePosesForNewKeyframe(last.poses) : {} };
-    const newKfs = redistributeKeyframeTimes([...sorted, newKf], duration);
-    const existingNewKfs = newKfs.slice(0, sorted.length);
+    if (!manuallyTimedKeyframes.current && keyframesAreEvenlySpaced(sorted, duration)) {
+      const last = sorted[sorted.length - 1];
+      const newKf = { t: duration, poses: last ? clonePosesForNewKeyframe(last.poses) : {} };
+      const newKfs = redistributeKeyframeTimes([...sorted, newKf], duration);
+      const existingNewKfs = newKfs.slice(0, sorted.length);
+      onChange({
+        ...doc,
+        meta: { ...doc.meta, durationMs: duration },
+        keyframes: newKfs,
+        events: remapEventsAtKeyframeTimes(doc.events, sorted, existingNewKfs),
+      });
+      setActiveKfIdx(newKfs.length - 1);
+      return;
+    }
+
+    const target = manualNewKeyframeTime(sorted, activeKfIdx, duration);
+    if (!target) return;
+    const current = sorted[activeKfIdx] ?? sorted[sorted.length - 1];
+    const newKf = { t: target.t, poses: current ? clonePosesForNewKeyframe(current.poses) : {} };
+    const newKfs = [...sorted, newKf].sort((a, b) => a.t - b.t);
     onChange({
       ...doc,
-      meta: { ...doc.meta, durationMs: duration },
+      meta: { ...doc.meta, durationMs: target.durationMs },
       keyframes: newKfs,
-      events: remapEventsAtKeyframeTimes(doc.events, sorted, existingNewKfs),
     });
-    setActiveKfIdx(newKfs.length - 1);
-  }, [doc, onChange]);
+    setActiveKfIdx(newKfs.findIndex((k) => k === newKf));
+  }, [doc, activeKfIdx, onChange]);
 
   const handleRemoveKeyframe = useCallback(
     (idx: number) => {
@@ -299,16 +346,26 @@ export function TacticEditor({
       const sortedBefore = [...doc.keyframes].sort((a, b) => a.t - b.t);
       const removed = sortedBefore[idx];
       const keptBefore = sortedBefore.filter((_, i) => i !== idx);
-      const newKfs = redistributeKeyframeTimes(keptBefore, duration);
+      const shouldRedistribute =
+        !manuallyTimedKeyframes.current && keyframesAreEvenlySpaced(sortedBefore, duration);
+      const newKfs = shouldRedistribute
+        ? redistributeKeyframeTimes(keptBefore, duration)
+        : keptBefore;
       const removedEventTimeMap = new Map<number, number>();
       if (removed) {
         const keptTimes = keptBefore.map((k) => k.t);
         const nearestKeptT = nearestTime(removed.t, keptTimes);
-        const nearestKeptIndex = keptBefore.findIndex((k) => k.t === nearestKeptT);
-        const fallbackT = newKfs[nearestKeptIndex]?.t ?? nearestKeptT;
+        const nearestKeptIndex = shouldRedistribute
+          ? keptBefore.findIndex((k) => k.t === nearestKeptT)
+          : -1;
+        const fallbackT = nearestKeptIndex >= 0
+          ? (newKfs[nearestKeptIndex]?.t ?? nearestKeptT)
+          : nearestKeptT;
         removedEventTimeMap.set(removed.t, fallbackT);
       }
-      const newEvents = remapEventsAtKeyframeTimes(doc.events, keptBefore, newKfs, removedEventTimeMap);
+      const newEvents = shouldRedistribute
+        ? remapEventsAtKeyframeTimes(doc.events, keptBefore, newKfs, removedEventTimeMap)
+        : remapEventsAtKeyframeTimes(doc.events, [], [], removedEventTimeMap);
       onChange({ ...doc, meta: { ...doc.meta, durationMs: duration }, keyframes: newKfs, events: newEvents });
       let newActive = activeKfIdx;
       if (idx < activeKfIdx) newActive = activeKfIdx - 1;
@@ -321,6 +378,7 @@ export function TacticEditor({
 
   const handleMoveKeyframe = useCallback(
     (idx: number, newT: number) => {
+      manuallyTimedKeyframes.current = true;
       const dur = doc.meta.durationMs ?? 8000;
       const snapped = Math.round(Math.max(0, Math.min(newT, dur)) / 50) * 50;
       if (doc.keyframes.some((k, i) => i !== idx && k.t === snapped)) return;
