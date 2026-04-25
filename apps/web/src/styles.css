@@ -1040,6 +1040,13 @@ pre.doc {
 }
 .view-controls__options {
   justify-content: center;
+  flex: 0 1 auto;
+  min-width: 0;
+  max-width: 100%;
+  column-gap: 0.75rem;
+}
+.view-controls__options .preview-controls__toggle {
+  flex: 0 0 auto;
 }
 .view-controls__speed {
   flex-wrap: wrap;
@@ -1072,6 +1079,64 @@ input[type="color"] {
 @media (min-width: 700px) {
   .row-actions {
     flex-wrap: nowrap;
+  }
+}
+
+/* Stacked preview transport / Frame step+Loop / Speed (matches narrow or zoomed “mobile” use) */
+@media (max-width: 900px) {
+  .view-controls__actions {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 0.62rem;
+  }
+  .view-controls__transport {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(86px, 1.12fr) minmax(0, 1fr);
+    gap: 0.52rem;
+    width: 100%;
+  }
+  .view-controls__transport .btn {
+    width: 100%;
+    min-height: 42px;
+    padding-inline: 0.52rem;
+    font-size: 0.78rem;
+  }
+  .view-controls__transport .preview-controls__play {
+    min-height: 48px;
+    font-size: 0.94rem;
+  }
+  .view-controls__options {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 0.46rem;
+    width: 100%;
+    min-width: 0;
+  }
+  .view-controls .preview-controls__toggle {
+    justify-content: center;
+    min-height: 40px;
+    padding: 0.48rem 0.58rem;
+    border: 1px solid rgba(61, 220, 85, 0.16);
+    border-radius: 999px;
+    background: rgba(237, 245, 239, 0.035);
+  }
+  .view-controls__speed {
+    display: grid;
+    grid-template-columns: auto repeat(3, 1fr);
+    align-items: center;
+    gap: 0.46rem;
+    width: 100%;
+    margin-left: 0;
+  }
+  .view-controls__speed .btn-sm {
+    min-height: 40px;
+    min-width: 0;
+    padding: 0.36rem 0.45rem;
+  }
+}
+@media (max-width: 380px) {
+  .view-controls__options {
+    grid-template-columns: 1fr;
   }
 }
 
@@ -1172,54 +1237,6 @@ input[type="color"] {
     transform: none;
     touch-action: none;
   }
-  .view-controls__actions {
-    display: grid;
-    grid-template-columns: 1fr;
-    gap: 0.62rem;
-  }
-  .view-controls__transport {
-    display: grid;
-    grid-template-columns: minmax(0, 1fr) minmax(86px, 1.12fr) minmax(0, 1fr);
-    gap: 0.52rem;
-    width: 100%;
-  }
-  .view-controls__transport .btn {
-    width: 100%;
-    min-height: 42px;
-    padding-inline: 0.52rem;
-    font-size: 0.78rem;
-  }
-  .view-controls__transport .preview-controls__play {
-    min-height: 48px;
-    font-size: 0.94rem;
-  }
-  .view-controls__options {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 0.46rem;
-    width: 100%;
-  }
-  .view-controls .preview-controls__toggle {
-    justify-content: center;
-    min-height: 40px;
-    padding: 0.48rem 0.58rem;
-    border: 1px solid rgba(61, 220, 85, 0.16);
-    border-radius: 999px;
-    background: rgba(237, 245, 239, 0.035);
-  }
-  .view-controls__speed {
-    display: grid;
-    grid-template-columns: auto repeat(3, 1fr);
-    align-items: center;
-    gap: 0.46rem;
-    width: 100%;
-  }
-  .view-controls__speed .btn-sm {
-    min-height: 40px;
-    min-width: 0;
-    padding: 0.36rem 0.45rem;
-  }
-
   /* Editor grid → single column on mobile */
   .tactic-editor {
     grid-template-columns: 1fr;
