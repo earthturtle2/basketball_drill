@@ -119,6 +119,12 @@ export function PlayEditPage() {
     restoreDoc(next);
   }, [doc, restoreDoc]);
 
+  const handleActiveTimeChange = useCallback((nextT: number) => {
+    setPlaying(false);
+    setFrameStepTarget(null);
+    setTms(nextT);
+  }, []);
+
   useEffect(() => {
     const onKeyDown = (e: KeyboardEvent) => {
       if (!(e.metaKey || e.ctrlKey)) return;
@@ -439,11 +445,7 @@ export function PlayEditPage() {
           onOpenTemplates={() => setShowTemplates(true)}
           courtMode={courtMode}
           onCourtModeChange={setCourtMode}
-          onActiveTimeChange={(nextT) => {
-            setPlaying(false);
-            setFrameStepTarget(null);
-            setTms(nextT);
-          }}
+          onActiveTimeChange={handleActiveTimeChange}
         />
       ) : null}
 
