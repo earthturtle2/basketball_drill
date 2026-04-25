@@ -306,7 +306,6 @@ export function TacticEditor({
   const handleRemoveSelected = useCallback(() => {
     if (!selectedActorId) return;
     const newActors = doc.actors.filter((a) => a.id !== selectedActorId);
-    if (newActors.length === 0) return;
     const newKfs = doc.keyframes.map((k) => {
       const { [selectedActorId]: _, ...rest } = k.poses;
       return { ...k, poses: rest };

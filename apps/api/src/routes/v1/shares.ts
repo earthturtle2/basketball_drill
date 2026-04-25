@@ -11,6 +11,17 @@ const shareCreateBody = z.object({
   expiresAt: z.string().datetime().optional(),
 });
 
+function buildShareResponse(s: typeof playShares.$inferSelect) {
+  const viewUrl = `${env.publicAppUrl.replace(/\/$/, "")}/view/${s.token}`;
+  return {
+    shareId: s.id,
+    token: s.token,
+    viewUrl,
+    expiresAt: s.expiresAt?.toISOString() ?? null,
+    createdAt: s.createdAt.toISOString(),
+  };
+}
+
 /** Public: anyone with the share token can view. */
 export async function publicShareRoutes(fastify: FastifyInstance) {
   fastify.get("/shares/:token", async (request, reply) => {
@@ -40,6 +51,21 @@ export async function publicShareRoutes(fastify: FastifyInstance) {
 
 /** Protected: owner can create / delete shares. */
 export async function protectedShareRoutes(fastify: FastifyInstance) {
+  fastify.get("/plays/:playId/shares", async (request, reply) => {
+    const { playId } = request.params as { playId: string };
+    const row = (await db.select().from(plays).where(eq(plays.id, playId)).limit(1))[0];
+    if (!row || row.deletedAt || row.userId !== request.user!.id) {
+      return sendError(reply, 404, "NOT_FOUND", "未找到");
+    }
+    const rows = await db.select().from(playShares).where(eq(playShares.playId, row.id));
+    const now = new Date();
+    return reply.send(
+      rows
+        .filter((s) => !s.expiresAt || s.expiresAt >= now)
+        .map(buildShareResponse),
+    );
+  });
+
   fastify.post("/plays/:playId/shares", async (request, reply) => {
     const { playId } = request.params as { playId: string };
     const body = shareCreateBody.parse((request as { body: unknown }).body ?? {});
@@ -54,13 +80,7 @@ export async function protectedShareRoutes(fastify: FastifyInstance) {
       .values({ playId: row.id, token, expiresAt: expiresAt ?? null })
       .returning();
     if (!s) return sendError(reply, 500, "INTERNAL", "创建分享失败");
-    const viewUrl = `${env.publicAppUrl.replace(/\/$/, "")}/view/${token}`;
-    return reply.status(201).send({
-      shareId: s.id,
-      token: s.token,
-      viewUrl,
-      expiresAt: s.expiresAt?.toISOString() ?? null,
-    });
+    return reply.status(201).send(buildShareResponse(s));
   });
 
   fastify.delete("/shares/:shareId", async (request, reply) => {

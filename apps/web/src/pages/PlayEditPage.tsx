@@ -23,6 +23,7 @@ type Play = {
 
 type TeamPlayer = { id: string; name: string; number: number };
 type Team = { id: string; name: string; color: string; players: TeamPlayer[] };
+type PlayShare = { shareId: string; token: string; viewUrl: string; expiresAt: string | null; createdAt: string };
 
 type SaveStatus = "saved" | "saving" | "unsaved";
 
@@ -187,6 +188,7 @@ export function PlayEditPage() {
     setErr(null);
     try {
       const p = await api<Play>(`/api/v1/plays/${id}`);
+      const shares = await api<PlayShare[]>(`/api/v1/plays/${id}/shares`);
       setName(p.name);
       setDescription(p.description ?? "");
       const nextAssignedTeamIds = p.teamIds?.length ? p.teamIds : p.teamId ? [p.teamId] : [];
@@ -204,6 +206,7 @@ export function PlayEditPage() {
         assignedTeamIds: nextAssignedTeamIds,
         doc: p.document,
       });
+      setViewUrl(shares[0]?.viewUrl ?? null);
       setSaveStatus("saved");
     } catch (e) {
       setErr(e instanceof ApiError ? e.message : t("edit.loadFailed"));
@@ -377,8 +380,12 @@ export function PlayEditPage() {
 
   async function share() {
     setErr(null);
-    setViewUrl(null);
     try {
+      const existing = await api<PlayShare[]>(`/api/v1/plays/${id}/shares`);
+      if (existing[0]) {
+        setViewUrl(existing[0].viewUrl);
+        return;
+      }
       const s = await api<{ viewUrl: string }>(`/api/v1/plays/${id}/shares`, {
         method: "POST",
         body: "{}",

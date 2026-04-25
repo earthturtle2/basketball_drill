@@ -73,7 +73,7 @@ export const TacticDocumentV1Schema = z
           .passthrough(),
       })
       .passthrough(),
-    actors: z.array(actor).min(1).max(32),
+    actors: z.array(actor).max(32),
     keyframes: z.array(keyframe).min(1).max(500),
     events: z.array(event).max(200).optional(),
     interpolation: z
