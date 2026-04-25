@@ -38,7 +38,7 @@ export function PlayEditPage() {
   const [viewUrl, setViewUrl] = useState<string | null>(null);
   const [saveStatus, setSaveStatus] = useState<SaveStatus>("saved");
   const [courtMode, setCourtMode] = useState<CourtMode>("half");
-  const [frameByFrame, setFrameByFrame] = useState(true);
+  const [frameByFrame, setFrameByFrame] = useState(false);
   const [frameStepTarget, setFrameStepTarget] = useState<{ from: number; to: number } | null>(null);
   const [loop, setLoop] = useState(false);
   const [playbackSpeed, setPlaybackSpeed] = useState<0.5 | 1 | 2>(0.5);
