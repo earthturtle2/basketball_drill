@@ -35,6 +35,15 @@ type InviteCode = {
   usedAt: string | null;
 };
 
+type AdminPlayRow = {
+  id: string;
+  name: string;
+  userId: string;
+  author: { name: string; email: string };
+  libraryScope: "all_coaches" | "hidden";
+  updatedAt: string;
+};
+
 function isAdmin(role: string) {
   return role === "admin" || role === "org_admin";
 }
@@ -55,6 +64,9 @@ export function AdminPage() {
   const [ok, setOk] = useState<string | null>(null);
   const [creating, setCreating] = useState(false);
   const [resettingUserId, setResettingUserId] = useState<string | null>(null);
+  const [playsLib, setPlaysLib] = useState<AdminPlayRow[]>([]);
+  const [playsLibLoading, setPlaysLibLoading] = useState(false);
+  const [updatingPlayId, setUpdatingPlayId] = useState<string | null>(null);
 
   async function load() {
     setErr(null);
@@ -72,8 +84,24 @@ export function AdminPage() {
     }
   }
 
+  async function loadPlaysLib() {
+    setPlaysLibLoading(true);
+    setErr(null);
+    try {
+      const res = await api<{ items: AdminPlayRow[] }>("/api/v1/admin/plays?pageSize=200");
+      setPlaysLib(res.items);
+    } catch (e) {
+      setErr(e instanceof ApiError ? e.message : t("admin.loadFailed"));
+    } finally {
+      setPlaysLibLoading(false);
+    }
+  }
+
   useEffect(() => {
-    if (user && isAdmin(user.role)) void load();
+    if (user && isAdmin(user.role)) {
+      void load();
+      void loadPlaysLib();
+    }
   }, [user]);
 
   if (loading) return <p className="hint">{t("view.loading")}</p>;
@@ -95,6 +123,25 @@ export function AdminPage() {
       setErr(e instanceof ApiError ? e.message : t("admin.createFailed"));
     } finally {
       setCreating(false);
+    }
+  }
+
+  async function setPlayLibraryScope(playId: string, libraryScope: "all_coaches" | "hidden") {
+    setUpdatingPlayId(playId);
+    setErr(null);
+    setOk(null);
+    try {
+      await api<{ id: string; libraryScope: string }>(`/api/v1/admin/plays/${playId}/library`, {
+        method: "PATCH",
+        body: JSON.stringify({ libraryScope }),
+      });
+      setPlaysLib((prev) =>
+        prev.map((p) => (p.id === playId ? { ...p, libraryScope, updatedAt: new Date().toISOString() } : p)),
+      );
+    } catch (e) {
+      setErr(e instanceof ApiError ? e.message : t("admin.setScopeFailed"));
+    } finally {
+      setUpdatingPlayId(null);
     }
   }
 
@@ -194,6 +241,56 @@ export function AdminPage() {
               </span>
             </div>
           ))}
+        </div>
+      </section>
+
+      <section className="card" style={{ marginBottom: "1rem" }}>
+        <div
+          className="row-actions"
+          style={{ justifyContent: "space-between", alignItems: "center", marginBottom: "0.5rem" }}
+        >
+          <div>
+            <h2 style={{ margin: 0 }}>{t("admin.playLibrary")}</h2>
+            <p className="hint" style={{ margin: "0.25rem 0 0" }}>
+              {t("admin.playLibraryHint")}
+            </p>
+          </div>
+          <button type="button" className="btn" disabled={playsLibLoading} onClick={() => void loadPlaysLib()}>
+            {playsLibLoading ? t("view.loading") : t("admin.playsListLoad")}
+          </button>
+        </div>
+        <div className="list">
+          {playsLib.map((p) => (
+            <div className="list-item" key={p.id}>
+              <div>
+                <h3 style={{ margin: 0, fontSize: "1.05rem" }}>{p.name}</h3>
+                <p className="muted">
+                  {p.author.name} · {p.author.email} · {formatTime(p.updatedAt)}
+                </p>
+              </div>
+              <div className="row-actions" style={{ alignItems: "center" }}>
+                <label className="muted" htmlFor={`lib-${p.id}`} style={{ marginRight: "0.35rem" }}>
+                  {t("admin.libraryScope")}
+                </label>
+                <select
+                  id={`lib-${p.id}`}
+                  className="btn"
+                  value={p.libraryScope}
+                  disabled={updatingPlayId === p.id}
+                  onChange={(e) => {
+                    const v = e.target.value as "all_coaches" | "hidden";
+                    if (v !== p.libraryScope) void setPlayLibraryScope(p.id, v);
+                  }}
+                >
+                  <option value="all_coaches">{t("admin.scopeAll")}</option>
+                  <option value="hidden">{t("admin.scopeHidden")}</option>
+                </select>
+              </div>
+            </div>
+          ))}
+          {playsLib.length === 0 && !playsLibLoading ? (
+            <p className="hint">{t("lib.empty")}</p>
+          ) : null}
         </div>
       </section>
 

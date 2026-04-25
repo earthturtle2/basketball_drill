@@ -1,6 +1,6 @@
 import type { FastifyInstance } from "fastify";
 import { customAlphabet } from "nanoid";
-import { count, desc, eq, isNotNull, isNull, or } from "drizzle-orm";
+import { and, count, desc, eq, isNotNull, isNull, or, sql, type SQL } from "drizzle-orm";
 import { z } from "zod";
 import bcrypt from "bcryptjs";
 import { db } from "../../db/index.js";
@@ -14,6 +14,21 @@ const inviteBody = z.object({
 const passwordResetBody = z.object({
   password: z.string().min(8).max(128),
 });
+
+const adminPlaysListQuery = z.object({
+  page: z.coerce.number().int().min(1).default(1),
+  pageSize: z.coerce.number().int().min(1).max(200).default(40),
+  q: z.string().max(200).optional(),
+  libraryScope: z.enum(["all_coaches", "hidden", "any"]).optional(),
+});
+
+const adminPlayScopeBody = z.object({
+  libraryScope: z.enum(["all_coaches", "hidden"]),
+});
+
+function escapeIlike(s: string) {
+  return s.replace(/[\\%_]/g, (c) => `\\${c}`);
+}
 
 const makeInviteCode = customAlphabet("23456789ABCDEFGHJKLMNPQRSTUVWXYZ", 12);
 
@@ -152,5 +167,74 @@ export async function adminRoutes(fastify: FastifyInstance) {
       }
     }
     return sendError(reply, 500, "INVITE_CREATE_FAILED", "生成邀请码失败");
+  });
+
+  fastify.get("/admin/plays", async (request, reply) => {
+    const q = adminPlaysListQuery.parse((request as { query: Record<string, string> }).query);
+    const conditions: [SQL, ...SQL[]] = [isNull(plays.deletedAt)];
+    if (q.q) {
+      const pattern = `%${escapeIlike(q.q)}%`;
+      conditions.push(sql`lower(${plays.name}) like lower(${pattern})`);
+    }
+    if (q.libraryScope && q.libraryScope !== "any") {
+      conditions.push(eq(plays.libraryScope, q.libraryScope));
+    }
+    const where = and(...conditions);
+    const totalRow = await db.select({ n: count() }).from(plays).where(where);
+    const total = totalRow[0]?.n ?? 0;
+    const offset = (q.page - 1) * q.pageSize;
+    const rows = await db
+      .select({
+        id: plays.id,
+        name: plays.name,
+        userId: plays.userId,
+        userEmail: users.email,
+        userName: users.name,
+        libraryScope: plays.libraryScope,
+        updatedAt: plays.updatedAt,
+      })
+      .from(plays)
+      .innerJoin(users, eq(plays.userId, users.id))
+      .where(where)
+      .orderBy(desc(plays.updatedAt))
+      .limit(q.pageSize)
+      .offset(offset);
+    return reply.send({
+      items: rows.map((r) => ({
+        id: r.id,
+        name: r.name,
+        userId: r.userId,
+        author: { name: r.userName ?? r.userEmail, email: r.userEmail },
+        libraryScope: r.libraryScope,
+        updatedAt: r.updatedAt.toISOString(),
+      })),
+      page: q.page,
+      pageSize: q.pageSize,
+      total: Number(total),
+    });
+  });
+
+  fastify.patch("/admin/plays/:playId/library", async (request, reply) => {
+    const { playId } = request.params as { playId: string };
+    const b = adminPlayScopeBody.parse((request as { body: unknown }).body ?? {});
+    const row = (await db.select().from(plays).where(eq(plays.id, playId)).limit(1))[0];
+    if (!row || row.deletedAt) {
+      return sendError(reply, 404, "NOT_FOUND", "未找到");
+    }
+    const [u] = await db
+      .update(plays)
+      .set({ libraryScope: b.libraryScope, updatedAt: new Date() })
+      .where(eq(plays.id, playId))
+      .returning();
+    if (!u) {
+      return sendError(reply, 500, "INTERNAL", "更新失败");
+    }
+    return reply.send({
+      id: u.id,
+      name: u.name,
+      userId: u.userId,
+      libraryScope: u.libraryScope,
+      updatedAt: u.updatedAt.toISOString(),
+    });
   });
 }

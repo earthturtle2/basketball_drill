@@ -6,6 +6,7 @@ import { LoginPage } from "./pages/LoginPage";
 import { RegisterPage } from "./pages/RegisterPage";
 import { PlaysPage } from "./pages/PlaysPage";
 import { PlayEditPage } from "./pages/PlayEditPage";
+import { LibraryPage } from "./pages/LibraryPage";
 import { TeamsPage } from "./pages/TeamsPage";
 import { ViewPage } from "./pages/ViewPage";
 import { AdminPage } from "./pages/AdminPage";
@@ -36,6 +37,9 @@ function Layout({ children }: { children: ReactNode }) {
             <>
               <Link to="/plays" className="btn btn-ghost">
                 {t("app.myPlays")}
+              </Link>
+              <Link to="/library" className="btn btn-ghost">
+                {t("app.library")}
               </Link>
               <Link to="/teams" className="btn btn-ghost">
                 {t("app.teams")}
@@ -89,6 +93,8 @@ export function App() {
         <Route path="/login" element={<LoginPage />} />
         <Route path="/register" element={<RegisterPage />} />
         <Route path="/plays" element={<PlaysPage />} />
+        <Route path="/library" element={<LibraryPage />} />
+        <Route path="/library/:id" element={<LibraryPage />} />
         <Route path="/plays/:id" element={<PlayEditPage />} />
         <Route path="/teams" element={<TeamsPage />} />
         <Route path="/admin" element={<AdminPage />} />

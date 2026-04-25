@@ -34,12 +34,22 @@
 
 | 方法 | 路径 | 说明 |
 |------|------|------|
-| `GET` | `/plays` | 查询列表。Query：`page`, `pageSize`, `q`（名称模糊）, `tag` |
+| `GET` | `/plays` | 查询列表。Query：`page`, `pageSize`, `q`（名称模糊）, `tag`, `teamId`；`items` 中每条含 `libraryScope`（`all_coaches` 或 `hidden`） |
 | `POST` | `/plays` | 创建。body：见下方「创建/更新 body」 |
-| `GET` | `/plays/{playId}` | 详情（含完整 `document`） |
+| `GET` | `/plays/{playId}` | 详情（含完整 `document` 与 `libraryScope`） |
 | `PATCH` | `/plays/{playId}` | 部分更新元数据或 `document`（若支持字段级，可拆 `metadata` / `document`） |
 | `DELETE` | `/plays/{playId}` | 软删或硬删（产品策略定） |
 | `POST` | `/plays/{playId}/duplicate` | 复制为新战术 |
+| `GET` | `/plays/library` | **全员模版库**（分页、搜索与 `/plays` 同 query）。只返回 `libraryScope=all_coaches` 且未删除的战术；条目含 `author` |
+| `GET` | `/plays/library/{playId}` | 从模版库取详情（自己战术始终可读；他人战术需未隐藏）。响应含 `isOwner`, `author`, 以及与普通详情相同的 `document` 等 |
+| `POST` | `/plays/library/{playId}/duplicate` | 复制为当前用户的新战术。他人战术须仍在模版库中；自己战术等效于从「我的」复制 |
+
+新建战术的 **`libraryScope` 默认 `all_coaches`**：进入全员「战术模版库」；`hidden` 表示不在库中列出（**仅**管理员可改为 `hidden`，非作者不可见于共享库）。
+
+| 方法 | 路径 | 说明 |
+|------|------|------|
+| `GET` | `/admin/plays` | 管理员：列出未删战术、作者与当前 `libraryScope`（`page`, `pageSize`, `q`, `libraryScope=all_coaches\|hidden\|any`） |
+| `PATCH` | `/admin/plays/{playId}/library` | body: `{ "libraryScope": "all_coaches" \| "hidden" }` |
 
 **创建/更新 body（建议）**：
 

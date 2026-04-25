@@ -2,7 +2,7 @@ import type { FastifyInstance } from "fastify";
 import { z } from "zod";
 import { and, count, desc, eq, isNull, sql, type SQL } from "drizzle-orm";
 import { db } from "../../db/index.js";
-import { plays } from "../../db/schema.js";
+import { plays, users } from "../../db/schema.js";
 import {
   buildDocumentFromInput,
   buildDocumentOnUpdate,
@@ -41,6 +41,9 @@ const duplicateBody = z.object({
   name: z.string().min(1).max(200).optional(),
 });
 
+const libraryScopes = z.enum(["all_coaches", "hidden"]);
+type LibraryScope = z.infer<typeof libraryScopes>;
+
 function escapeIlike(s: string) {
   return s.replace(/[\\%_]/g, (c) => `\\${c}`);
 }
@@ -58,12 +61,135 @@ function serializePlay(row: typeof plays.$inferSelect) {
     teamId: row.teamId,
     teamIds: uniqueTeamIds(row.teamIds, row.teamId),
     document: row.document,
+    libraryScope: row.libraryScope as LibraryScope,
     createdAt: row.createdAt.toISOString(),
     updatedAt: row.updatedAt.toISOString(),
   };
 }
 
 export async function playRoutes(fastify: FastifyInstance) {
+  /** 共享模版库：全部「未删且对全员开放」的战术。路由必须在 `/plays/:playId` 之前。 */
+  fastify.get("/plays/library", async (request, reply) => {
+    const q = listQuery.parse((request as { query: Record<string, string> }).query);
+    const conditions: [SQL, ...SQL[]] = [
+      isNull(plays.deletedAt),
+      eq(plays.libraryScope, "all_coaches" satisfies LibraryScope),
+    ];
+    if (q.q) {
+      const pattern = `%${escapeIlike(q.q)}%`;
+      conditions.push(sql`lower(${plays.name}) like lower(${pattern})`);
+    }
+    if (q.tag) {
+      conditions.push(
+        sql`exists (select 1 from json_each(${plays.tags}) as j where j.value = ${q.tag})`,
+      );
+    }
+    if (q.teamId) {
+      conditions.push(
+        sql`(${plays.teamId} = ${q.teamId} or json_array_length(${plays.teamIds}) = 0 or exists (select 1 from json_each(${plays.teamIds}) as j where j.value = ${q.teamId}))`,
+      );
+    }
+    const where = and(...conditions);
+    const totalRow = await db.select({ n: count() }).from(plays).where(where);
+    const total = totalRow[0]?.n ?? 0;
+    const offset = (q.page - 1) * q.pageSize;
+    const rows = await db
+      .select({
+        id: plays.id,
+        name: plays.name,
+        description: plays.description,
+        tags: plays.tags,
+        userId: plays.userId,
+        teamId: plays.teamId,
+        teamIds: plays.teamIds,
+        authorName: users.name,
+        authorEmail: users.email,
+        updatedAt: plays.updatedAt,
+      })
+      .from(plays)
+      .innerJoin(users, eq(plays.userId, users.id))
+      .where(where)
+      .orderBy(desc(plays.updatedAt))
+      .limit(q.pageSize)
+      .offset(offset);
+    return reply.send({
+      items: rows.map((r) => ({
+        id: r.id,
+        name: r.name,
+        description: r.description,
+        tags: r.tags,
+        userId: r.userId,
+        teamId: r.teamId,
+        teamIds: uniqueTeamIds(r.teamIds, r.teamId),
+        author: {
+          name: r.authorName ?? r.authorEmail,
+        },
+        updatedAt: r.updatedAt.toISOString(),
+      })),
+      page: q.page,
+      pageSize: q.pageSize,
+      total: Number(total),
+    });
+  });
+
+  fastify.get("/plays/library/:playId", async (request, reply) => {
+    const { playId } = request.params as { playId: string };
+    const uid = request.user!.id;
+    const row = (await db.select().from(plays).where(eq(plays.id, playId)).limit(1))[0];
+    if (!row || row.deletedAt) {
+      return sendError(reply, 404, "NOT_FOUND", "未找到");
+    }
+    const isOwner = row.userId === uid;
+    if (!isOwner && row.libraryScope !== "all_coaches") {
+      return sendError(reply, 404, "NOT_FOUND", "未找到");
+    }
+    const urow = (
+      await db
+        .select({ name: users.name, email: users.email, id: users.id })
+        .from(users)
+        .where(eq(users.id, row.userId))
+        .limit(1)
+    )[0];
+    if (!urow) {
+      return sendError(reply, 404, "NOT_FOUND", "未找到");
+    }
+    return reply.send({
+      ...serializePlay(row),
+      isOwner,
+      author: { id: urow.id, name: urow.name, email: urow.email },
+    });
+  });
+
+  fastify.post("/plays/library/:playId/duplicate", async (request, reply) => {
+    const { playId } = request.params as { playId: string };
+    const b = duplicateBody.parse(request.body ?? {});
+    const row = (await db.select().from(plays).where(eq(plays.id, playId)).limit(1))[0];
+    if (!row || row.deletedAt) {
+      return sendError(reply, 404, "NOT_FOUND", "未找到");
+    }
+    if (row.userId !== request.user!.id) {
+      if (row.libraryScope !== "all_coaches") {
+        return sendError(reply, 404, "NOT_FOUND", "未找到");
+      }
+    }
+    const newName = b.name?.trim() || `${row.name}（副本）`;
+    const [created] = await db
+      .insert(plays)
+      .values({
+        userId: request.user!.id,
+        name: newName,
+        description: row.description,
+        tags: row.tags,
+        teamId: row.teamId,
+        teamIds: row.teamIds,
+        document: buildDocumentOnUpdate(row.document, row.name, { name: newName }),
+        libraryScope: "all_coaches" satisfies LibraryScope,
+      })
+      .returning();
+    if (!created) return sendError(reply, 500, "INTERNAL", "复制失败");
+    return reply.status(201).send(serializePlay(created));
+  });
+
   fastify.get("/plays", async (request, reply) => {
     const q = listQuery.parse((request as { query: Record<string, string> }).query);
     const uid = request.user!.id;
@@ -94,6 +220,7 @@ export async function playRoutes(fastify: FastifyInstance) {
         tags: plays.tags,
         teamId: plays.teamId,
         teamIds: plays.teamIds,
+        libraryScope: plays.libraryScope,
         updatedAt: plays.updatedAt,
       })
       .from(plays)
@@ -105,6 +232,7 @@ export async function playRoutes(fastify: FastifyInstance) {
       items: rows.map((r) => ({
         ...r,
         teamIds: uniqueTeamIds(r.teamIds, r.teamId),
+        libraryScope: r.libraryScope as LibraryScope,
         updatedAt: r.updatedAt.toISOString(),
       })),
       page: q.page,
@@ -210,6 +338,7 @@ export async function playRoutes(fastify: FastifyInstance) {
         teamId: row.teamId,
         teamIds: row.teamIds,
         document: buildDocumentOnUpdate(row.document, row.name, { name: newName }),
+        libraryScope: "all_coaches" satisfies LibraryScope,
       })
       .returning();
     if (!created) return sendError(reply, 500, "INTERNAL", "复制失败");

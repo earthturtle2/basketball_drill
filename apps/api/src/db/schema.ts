@@ -108,6 +108,8 @@ export const plays = sqliteTable(
       .notNull()
       .$defaultFn(() => new Date()),
     deletedAt: integer("deleted_at", { mode: "timestamp_ms" }),
+    /** 模版库对教练的可见性：`all_coaches` 全部教练可见；`hidden` 不在共享库列出（仅作者保留） */
+    libraryScope: text("library_scope").notNull().default("all_coaches"),
   },
   (t) => [index("idx_plays_user").on(t.userId), index("idx_plays_user_updated").on(t.userId, t.updatedAt)],
 );

@@ -18,6 +18,7 @@ type Play = {
   teamId: string | null;
   teamIds: string[];
   document: TacticDocumentV1;
+  libraryScope: "all_coaches" | "hidden";
   updatedAt: string;
 };
 
@@ -51,6 +52,7 @@ export function PlayEditPage() {
   const [frameStepTarget, setFrameStepTarget] = useState<{ from: number; to: number } | null>(null);
   const [loop, setLoop] = useState(false);
   const [playbackSpeed, setPlaybackSpeed] = useState<0.5 | 1 | 2>(0.5);
+  const [libraryScope, setLibraryScope] = useState<"all_coaches" | "hidden" | null>(null);
 
   const savedSnapshotRef = useRef<string>("");
   const tMsRef = useRef(0);
@@ -207,6 +209,7 @@ export function PlayEditPage() {
         doc: p.document,
       });
       setViewUrl(shares[0]?.viewUrl ?? null);
+      setLibraryScope(p.libraryScope);
       setSaveStatus("saved");
     } catch (e) {
       setErr(e instanceof ApiError ? e.message : t("edit.loadFailed"));
@@ -438,6 +441,11 @@ export function PlayEditPage() {
             {viewUrl}
           </a>
         </div>
+      ) : null}
+      {libraryScope ? (
+        <p className="hint" style={{ margin: "0 0 0.75rem" }}>
+          {libraryScope === "all_coaches" ? t("edit.libraryVisibleAll") : t("edit.libraryHidden")}
+        </p>
       ) : null}
       <div className="row-actions" style={{ marginBottom: "1rem" }}>
         <button type="button" className="btn btn-primary" onClick={() => void doSave()}>
