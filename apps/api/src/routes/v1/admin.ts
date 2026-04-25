@@ -19,11 +19,11 @@ const adminPlaysListQuery = z.object({
   page: z.coerce.number().int().min(1).default(1),
   pageSize: z.coerce.number().int().min(1).max(200).default(40),
   q: z.string().max(200).optional(),
-  libraryScope: z.enum(["all_coaches", "hidden", "any"]).optional(),
+  libraryScope: z.enum(["all_coaches", "partial", "hidden", "any"]).optional(),
 });
 
 const adminPlayScopeBody = z.object({
-  libraryScope: z.enum(["all_coaches", "hidden"]),
+  libraryScope: z.enum(["all_coaches", "partial", "hidden"]),
 });
 
 function escapeIlike(s: string) {

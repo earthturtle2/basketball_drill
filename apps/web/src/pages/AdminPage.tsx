@@ -40,7 +40,7 @@ type AdminPlayRow = {
   name: string;
   userId: string;
   author: { name: string; email: string };
-  libraryScope: "all_coaches" | "hidden";
+  libraryScope: "all_coaches" | "partial" | "hidden";
   updatedAt: string;
 };
 
@@ -126,7 +126,7 @@ export function AdminPage() {
     }
   }
 
-  async function setPlayLibraryScope(playId: string, libraryScope: "all_coaches" | "hidden") {
+  async function setPlayLibraryScope(playId: string, libraryScope: AdminPlayRow["libraryScope"]) {
     setUpdatingPlayId(playId);
     setErr(null);
     setOk(null);
@@ -278,11 +278,12 @@ export function AdminPage() {
                   value={p.libraryScope}
                   disabled={updatingPlayId === p.id}
                   onChange={(e) => {
-                    const v = e.target.value as "all_coaches" | "hidden";
+                    const v = e.target.value as AdminPlayRow["libraryScope"];
                     if (v !== p.libraryScope) void setPlayLibraryScope(p.id, v);
                   }}
                 >
                   <option value="all_coaches">{t("admin.scopeAll")}</option>
+                  <option value="partial">{t("admin.scopePartial")}</option>
                   <option value="hidden">{t("admin.scopeHidden")}</option>
                 </select>
               </div>

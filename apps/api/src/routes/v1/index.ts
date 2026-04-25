@@ -38,6 +38,18 @@ export async function registerV1(fastify: FastifyInstance) {
       });
     });
 
+    f.get("/accounts", async (_request, reply) => {
+      const rows = await db
+        .select({
+          id: users.id,
+          email: users.email,
+          name: users.name,
+          role: users.role,
+        })
+        .from(users);
+      return reply.send(rows);
+    });
+
     f.post("/me/password", async (request, reply) => {
       const b = passwordChangeBody.parse(request.body);
       const u = (await db.select().from(users).where(eq(users.id, request.user!.id)).limit(1))[0];

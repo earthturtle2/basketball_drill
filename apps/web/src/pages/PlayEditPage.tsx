@@ -18,12 +18,14 @@ type Play = {
   teamId: string | null;
   teamIds: string[];
   document: TacticDocumentV1;
-  libraryScope: "all_coaches" | "hidden";
+  libraryScope: "all_coaches" | "partial" | "hidden";
+  sharedWithUserIds: string[];
   updatedAt: string;
 };
 
 type TeamPlayer = { id: string; name: string; number: number };
 type Team = { id: string; name: string; color: string; players: TeamPlayer[] };
+type Account = { id: string; email: string; name: string | null; role: string };
 type PlayShare = { shareId: string; token: string; viewUrl: string; expiresAt: string | null; createdAt: string };
 
 type SaveStatus = "saved" | "saving" | "unsaved";
@@ -38,6 +40,7 @@ export function PlayEditPage() {
   const [rosterTeamId, setRosterTeamId] = useState("");
   const [assignedTeamIds, setAssignedTeamIds] = useState<string[]>([]);
   const [teams, setTeams] = useState<Team[]>([]);
+  const [accounts, setAccounts] = useState<Account[]>([]);
   const [doc, setDoc] = useState<TacticDocumentV1 | null>(null);
   const [jsonText, setJsonText] = useState("");
   const [showJson, setShowJson] = useState(false);
@@ -52,7 +55,8 @@ export function PlayEditPage() {
   const [frameStepTarget, setFrameStepTarget] = useState<{ from: number; to: number } | null>(null);
   const [loop, setLoop] = useState(false);
   const [playbackSpeed, setPlaybackSpeed] = useState<0.5 | 1 | 2>(0.5);
-  const [libraryScope, setLibraryScope] = useState<"all_coaches" | "hidden" | null>(null);
+  const [libraryScope, setLibraryScope] = useState<"all_coaches" | "partial" | "hidden">("all_coaches");
+  const [sharedWithUserIds, setSharedWithUserIds] = useState<string[]>([]);
 
   const savedSnapshotRef = useRef<string>("");
   const tMsRef = useRef(0);
@@ -69,9 +73,9 @@ export function PlayEditPage() {
 
   const isDirty = useCallback(() => {
     if (!doc) return false;
-    const current = JSON.stringify({ name, description, assignedTeamIds, doc });
+    const current = JSON.stringify({ name, description, assignedTeamIds, libraryScope, sharedWithUserIds, doc });
     return current !== savedSnapshotRef.current;
-  }, [name, description, assignedTeamIds, doc]);
+  }, [name, description, assignedTeamIds, libraryScope, sharedWithUserIds, doc]);
 
   useEffect(() => {
     const handler = (e: BeforeUnloadEvent) => {
@@ -85,8 +89,8 @@ export function PlayEditPage() {
 
   const markSaved = useCallback(() => {
     setSaveStatus("saved");
-    savedSnapshotRef.current = JSON.stringify({ name, description, assignedTeamIds, doc });
-  }, [name, description, assignedTeamIds, doc]);
+    savedSnapshotRef.current = JSON.stringify({ name, description, assignedTeamIds, libraryScope, sharedWithUserIds, doc });
+  }, [name, description, assignedTeamIds, libraryScope, sharedWithUserIds, doc]);
 
   const syncJsonText = useCallback(
     (nextDoc: TacticDocumentV1) => {
@@ -164,6 +168,8 @@ export function PlayEditPage() {
           description,
           teamId: assignedTeamIds[0] ?? null,
           teamIds: assignedTeamIds,
+          libraryScope,
+          sharedWithUserIds: libraryScope === "partial" ? sharedWithUserIds : [],
           document: doc,
         }),
       });
@@ -172,7 +178,7 @@ export function PlayEditPage() {
       setErr(e instanceof ApiError ? e.message : t("edit.saveFailed"));
       setSaveStatus("unsaved");
     }
-  }, [id, name, description, assignedTeamIds, doc, markSaved, t]);
+  }, [id, name, description, assignedTeamIds, libraryScope, sharedWithUserIds, doc, markSaved, t]);
 
   useEffect(() => {
     if (!doc || saveStatus === "saved" || saveStatus === "saving") return;
@@ -195,6 +201,10 @@ export function PlayEditPage() {
       setDescription(p.description ?? "");
       const nextAssignedTeamIds = p.teamIds?.length ? p.teamIds : p.teamId ? [p.teamId] : [];
       setAssignedTeamIds(nextAssignedTeamIds);
+      const nextLibraryScope = p.libraryScope ?? "all_coaches";
+      const nextSharedWithUserIds = p.sharedWithUserIds ?? [];
+      setLibraryScope(nextLibraryScope);
+      setSharedWithUserIds(nextLibraryScope === "partial" ? nextSharedWithUserIds : []);
       setRosterTeamId("");
       setDoc(p.document);
       setJsonText(JSON.stringify(p.document, null, 2));
@@ -206,10 +216,11 @@ export function PlayEditPage() {
         name: p.name,
         description: p.description ?? "",
         assignedTeamIds: nextAssignedTeamIds,
+        libraryScope: nextLibraryScope,
+        sharedWithUserIds: nextLibraryScope === "partial" ? nextSharedWithUserIds : [],
         doc: p.document,
       });
       setViewUrl(shares[0]?.viewUrl ?? null);
-      setLibraryScope(p.libraryScope);
       setSaveStatus("saved");
     } catch (e) {
       setErr(e instanceof ApiError ? e.message : t("edit.loadFailed"));
@@ -225,12 +236,22 @@ export function PlayEditPage() {
     }
   }, []);
 
+  const loadAccounts = useCallback(async () => {
+    try {
+      const res = await api<Account[]>("/api/v1/accounts");
+      setAccounts(res);
+    } catch {
+      /* Sharing can still be set to all/hidden without account data. */
+    }
+  }, []);
+
   useEffect(() => {
     if (user) {
       void loadTeams();
+      void loadAccounts();
       void load();
     }
-  }, [user, load, loadTeams]);
+  }, [user, load, loadTeams, loadAccounts]);
 
   const startRef = useRef(0);
   useEffect(() => {
@@ -442,11 +463,6 @@ export function PlayEditPage() {
           </a>
         </div>
       ) : null}
-      {libraryScope ? (
-        <p className="hint" style={{ margin: "0 0 0.75rem" }}>
-          {libraryScope === "all_coaches" ? t("edit.libraryVisibleAll") : t("edit.libraryHidden")}
-        </p>
-      ) : null}
       <div className="row-actions" style={{ marginBottom: "1rem" }}>
         <button type="button" className="btn btn-primary" onClick={() => void doSave()}>
           {t("edit.save")}
@@ -502,6 +518,65 @@ export function PlayEditPage() {
           }}
         />
       </div>
+      <div className="field">
+        <label>{t("edit.librarySharing")}</label>
+        <div className="team-checkbox-grid">
+          {(["all_coaches", "hidden", "partial"] as const).map((scope) => (
+            <label key={scope} className="team-checkbox">
+              <input
+                type="radio"
+                name="libraryScope"
+                checked={libraryScope === scope}
+                onChange={() => {
+                  setLibraryScope(scope);
+                  if (scope !== "partial") setSharedWithUserIds([]);
+                  setSaveStatus("unsaved");
+                }}
+              />
+              {t(`edit.libraryScope.${scope}`)}
+            </label>
+          ))}
+        </div>
+        <p className="muted" style={{ margin: "0.35rem 0 0" }}>
+          {libraryScope === "all_coaches"
+            ? t("edit.libraryVisibleAll")
+            : libraryScope === "hidden"
+              ? t("edit.libraryHidden")
+              : t("edit.libraryPartialHint")}
+        </p>
+      </div>
+      {libraryScope === "partial" ? (
+        <div className="field">
+          <label>{t("edit.sharedAccounts")}</label>
+          <div className="team-checkbox-grid">
+            {accounts
+              .filter((account) => account.id !== user.id)
+              .map((account) => {
+                const checked = sharedWithUserIds.includes(account.id);
+                return (
+                  <label key={account.id} className="team-checkbox">
+                    <input
+                      type="checkbox"
+                      checked={checked}
+                      onChange={(e) => {
+                        setSharedWithUserIds((ids) =>
+                          e.target.checked ? [...ids, account.id] : ids.filter((id) => id !== account.id),
+                        );
+                        setSaveStatus("unsaved");
+                      }}
+                    />
+                    {account.name || account.email}
+                  </label>
+                );
+              })}
+          </div>
+          {accounts.filter((account) => account.id !== user.id).length === 0 ? (
+            <p className="muted" style={{ margin: "0.35rem 0 0" }}>
+              {t("edit.noShareAccounts")}
+            </p>
+          ) : null}
+        </div>
+      ) : null}
       {teams.length > 0 ? (
         <>
           <div className="field">

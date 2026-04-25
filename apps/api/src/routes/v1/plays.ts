@@ -18,6 +18,8 @@ const playCreateBody = z.object({
   document: z.unknown().optional(),
   teamId: z.string().optional(),
   teamIds: z.array(z.string().min(1)).max(50).optional(),
+  libraryScope: z.enum(["all_coaches", "partial", "hidden"]).optional(),
+  sharedWithUserIds: z.array(z.string().min(1)).max(200).optional(),
 });
 
 const playPatchBody = z.object({
@@ -27,6 +29,8 @@ const playPatchBody = z.object({
   document: z.unknown().optional(),
   teamId: z.string().nullable().optional(),
   teamIds: z.array(z.string().min(1)).max(50).optional(),
+  libraryScope: z.enum(["all_coaches", "partial", "hidden"]).optional(),
+  sharedWithUserIds: z.array(z.string().min(1)).max(200).optional(),
 });
 
 const listQuery = z.object({
@@ -41,7 +45,7 @@ const duplicateBody = z.object({
   name: z.string().min(1).max(200).optional(),
 });
 
-const libraryScopes = z.enum(["all_coaches", "hidden"]);
+const libraryScopes = z.enum(["all_coaches", "partial", "hidden"]);
 type LibraryScope = z.infer<typeof libraryScopes>;
 
 function escapeIlike(s: string) {
@@ -50,6 +54,21 @@ function escapeIlike(s: string) {
 
 function uniqueTeamIds(teamIds: string[] | undefined, legacyTeamId?: string | null) {
   return [...new Set([...(teamIds ?? []), ...(legacyTeamId ? [legacyTeamId] : [])])];
+}
+
+function uniqueUserIds(userIds: string[] | undefined) {
+  return [...new Set(userIds ?? [])];
+}
+
+function isLibraryVisibleTo(row: typeof plays.$inferSelect, userId: string) {
+  if (row.userId === userId) return row.libraryScope !== "hidden";
+  if (row.libraryScope === "all_coaches") return true;
+  if (row.libraryScope === "partial") return row.sharedWithUserIds.includes(userId);
+  return false;
+}
+
+function libraryVisibilitySql(userId: string) {
+  return sql`(${plays.libraryScope} = 'all_coaches' or (${plays.libraryScope} = 'partial' and exists (select 1 from json_each(${plays.sharedWithUserIds}) as j where j.value = ${userId})) or (${plays.userId} = ${userId} and ${plays.libraryScope} != 'hidden'))`;
 }
 
 function serializePlay(row: typeof plays.$inferSelect) {
@@ -62,6 +81,7 @@ function serializePlay(row: typeof plays.$inferSelect) {
     teamIds: uniqueTeamIds(row.teamIds, row.teamId),
     document: row.document,
     libraryScope: row.libraryScope as LibraryScope,
+    sharedWithUserIds: row.sharedWithUserIds,
     createdAt: row.createdAt.toISOString(),
     updatedAt: row.updatedAt.toISOString(),
   };
@@ -71,9 +91,10 @@ export async function playRoutes(fastify: FastifyInstance) {
   /** 共享模版库：全部「未删且对全员开放」的战术。路由必须在 `/plays/:playId` 之前。 */
   fastify.get("/plays/library", async (request, reply) => {
     const q = listQuery.parse((request as { query: Record<string, string> }).query);
+    const uid = request.user!.id;
     const conditions: [SQL, ...SQL[]] = [
       isNull(plays.deletedAt),
-      eq(plays.libraryScope, "all_coaches" satisfies LibraryScope),
+      libraryVisibilitySql(uid),
     ];
     if (q.q) {
       const pattern = `%${escapeIlike(q.q)}%`;
@@ -140,7 +161,7 @@ export async function playRoutes(fastify: FastifyInstance) {
       return sendError(reply, 404, "NOT_FOUND", "未找到");
     }
     const isOwner = row.userId === uid;
-    if (!isOwner && row.libraryScope !== "all_coaches") {
+    if (!isOwner && !isLibraryVisibleTo(row, uid)) {
       return sendError(reply, 404, "NOT_FOUND", "未找到");
     }
     const urow = (
@@ -168,7 +189,7 @@ export async function playRoutes(fastify: FastifyInstance) {
       return sendError(reply, 404, "NOT_FOUND", "未找到");
     }
     if (row.userId !== request.user!.id) {
-      if (row.libraryScope !== "all_coaches") {
+      if (!isLibraryVisibleTo(row, request.user!.id)) {
         return sendError(reply, 404, "NOT_FOUND", "未找到");
       }
     }
@@ -184,6 +205,7 @@ export async function playRoutes(fastify: FastifyInstance) {
         teamIds: row.teamIds,
         document: buildDocumentOnUpdate(row.document, row.name, { name: newName }),
         libraryScope: "all_coaches" satisfies LibraryScope,
+        sharedWithUserIds: [],
       })
       .returning();
     if (!created) return sendError(reply, 500, "INTERNAL", "复制失败");
@@ -264,6 +286,8 @@ export async function playRoutes(fastify: FastifyInstance) {
         description: b.description ?? null,
         tags: b.tags ?? [],
         document,
+        libraryScope: b.libraryScope ?? "all_coaches",
+        sharedWithUserIds: b.libraryScope === "partial" ? uniqueUserIds(b.sharedWithUserIds) : [],
       })
       .returning();
     if (!row) return sendError(reply, 500, "INTERNAL", "创建失败");
@@ -293,6 +317,11 @@ export async function playRoutes(fastify: FastifyInstance) {
       }
     }
     const document = buildDocumentOnUpdate(row.document, row.name, b);
+    const nextLibraryScope = b.libraryScope === undefined ? row.libraryScope : b.libraryScope;
+    const nextSharedWithUserIds =
+      nextLibraryScope === "partial"
+        ? uniqueUserIds(b.sharedWithUserIds ?? (row.libraryScope === "partial" ? row.sharedWithUserIds : []))
+        : [];
     const [u] = await db
       .update(plays)
       .set({
@@ -301,6 +330,8 @@ export async function playRoutes(fastify: FastifyInstance) {
         tags: b.tags !== undefined ? b.tags : row.tags,
         teamId: b.teamId === undefined ? row.teamId : b.teamId,
         teamIds: b.teamIds === undefined ? row.teamIds : b.teamIds,
+        libraryScope: nextLibraryScope,
+        sharedWithUserIds: nextSharedWithUserIds,
         document,
         updatedAt: new Date(),
       })
@@ -339,6 +370,7 @@ export async function playRoutes(fastify: FastifyInstance) {
         teamIds: row.teamIds,
         document: buildDocumentOnUpdate(row.document, row.name, { name: newName }),
         libraryScope: "all_coaches" satisfies LibraryScope,
+        sharedWithUserIds: [],
       })
       .returning();
     if (!created) return sendError(reply, 500, "INTERNAL", "复制失败");

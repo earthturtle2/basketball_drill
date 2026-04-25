@@ -80,6 +80,10 @@ if (hasTable("plays") && !hasColumn("plays", "library_scope")) {
   sqlite.exec("ALTER TABLE plays ADD COLUMN library_scope TEXT NOT NULL DEFAULT 'all_coaches'");
 }
 
+if (hasTable("plays") && !hasColumn("plays", "shared_with_user_ids")) {
+  sqlite.exec("ALTER TABLE plays ADD COLUMN shared_with_user_ids TEXT NOT NULL DEFAULT '[]'");
+}
+
 sqlite.exec(`
 CREATE TABLE IF NOT EXISTS invite_codes (
   id TEXT PRIMARY KEY NOT NULL,
