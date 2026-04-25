@@ -8,6 +8,12 @@ import { PlaysPage } from "./pages/PlaysPage";
 import { PlayEditPage } from "./pages/PlayEditPage";
 import { TeamsPage } from "./pages/TeamsPage";
 import { ViewPage } from "./pages/ViewPage";
+import { AdminPage } from "./pages/AdminPage";
+import { ChangePasswordPage } from "./pages/ChangePasswordPage";
+
+function isAdmin(role: string) {
+  return role === "admin" || role === "org_admin";
+}
 
 function Layout({ children }: { children: ReactNode }) {
   const loc = useLocation();
@@ -33,6 +39,14 @@ function Layout({ children }: { children: ReactNode }) {
               </Link>
               <Link to="/teams" className="btn btn-ghost">
                 {t("app.teams")}
+              </Link>
+              {isAdmin(user.role) ? (
+                <Link to="/admin" className="btn btn-ghost">
+                  {t("app.admin")}
+                </Link>
+              ) : null}
+              <Link to="/password" className="btn btn-ghost">
+                {t("app.password")}
               </Link>
               <button
                 className="btn btn-ghost"
@@ -77,6 +91,8 @@ export function App() {
         <Route path="/plays" element={<PlaysPage />} />
         <Route path="/plays/:id" element={<PlayEditPage />} />
         <Route path="/teams" element={<TeamsPage />} />
+        <Route path="/admin" element={<AdminPage />} />
+        <Route path="/password" element={<ChangePasswordPage />} />
         <Route path="/view/:token" element={<ViewPage />} />
         <Route path="*" element={<NotFound />} />
       </Routes>

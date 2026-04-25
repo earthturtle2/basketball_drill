@@ -36,5 +36,18 @@ const sqlite = new Database(filePath);
 sqlite.pragma("foreign_keys = ON");
 sqlite.pragma("journal_mode = WAL");
 
+sqlite.exec(`
+CREATE TABLE IF NOT EXISTS invite_codes (
+  id TEXT PRIMARY KEY NOT NULL,
+  code TEXT NOT NULL UNIQUE,
+  created_by TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  used_by TEXT REFERENCES users(id) ON DELETE SET NULL,
+  expires_at INTEGER,
+  created_at INTEGER NOT NULL,
+  used_at INTEGER
+);
+CREATE INDEX IF NOT EXISTS idx_invite_codes_created_by ON invite_codes(created_by);
+`);
+
 export const db = drizzle(sqlite, { schema });
 export { schema, sqlite as sqliteDb };

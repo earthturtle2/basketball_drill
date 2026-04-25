@@ -10,6 +10,7 @@ export function RegisterPage() {
   const { t } = useT();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [inviteCode, setInviteCode] = useState("");
   const [err, setErr] = useState<string | null>(null);
 
   if (user) return <Navigate to="/plays" replace />;
@@ -18,7 +19,7 @@ export function RegisterPage() {
     e.preventDefault();
     setErr(null);
     try {
-      await register(email, password);
+      await register(email, password, inviteCode);
       nav("/plays", { replace: true });
     } catch (e2) {
       setErr(e2 instanceof ApiError ? e2.message : t("register.failed"));
@@ -52,6 +53,17 @@ export function RegisterPage() {
             onChange={(e) => setPassword(e.target.value)}
             minLength={8}
             required
+          />
+        </div>
+        <div className="field">
+          <label htmlFor="invite">{t("register.inviteCode")}</label>
+          <input
+            id="invite"
+            type="text"
+            autoComplete="off"
+            value={inviteCode}
+            onChange={(e) => setInviteCode(e.target.value)}
+            placeholder={t("register.inviteCodePlaceholder")}
           />
         </div>
         <div className="form-actions">

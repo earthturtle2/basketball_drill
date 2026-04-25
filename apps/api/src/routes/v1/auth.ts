@@ -1,9 +1,9 @@
 import type { FastifyInstance } from "fastify";
 import { z } from "zod";
-import { eq, lt } from "drizzle-orm";
+import { count, eq, lt } from "drizzle-orm";
 import bcrypt from "bcryptjs";
 import { db } from "../../db/index.js";
-import { users, refreshTokens } from "../../db/schema.js";
+import { inviteCodes, users, refreshTokens } from "../../db/schema.js";
 import {
   signAccessToken,
   createRefreshTokenRaw,
@@ -17,6 +17,7 @@ const registerBody = z.object({
   email: z.string().email().max(255),
   password: z.string().min(8).max(128),
   name: z.string().max(100).optional(),
+  inviteCode: z.string().trim().min(1).max(64).optional(),
 });
 
 const loginBody = z.object({
@@ -42,11 +43,38 @@ export async function authRoutes(fastify: FastifyInstance) {
     const b = registerBody.parse(request.body);
     const exists = (await db.select().from(users).where(eq(users.email, b.email)).limit(1))[0];
     if (exists) return sendError(reply, 409, "EMAIL_TAKEN", "该邮箱已注册");
+    const userCount = (await db.select({ n: count() }).from(users))[0]?.n ?? 0;
+    const isFirstUser = Number(userCount) === 0;
+    const invite = b.inviteCode
+      ? (await db.select().from(inviteCodes).where(eq(inviteCodes.code, b.inviteCode)).limit(1))[0]
+      : undefined;
+    if (!isFirstUser) {
+      if (!invite) return sendError(reply, 400, "INVITE_REQUIRED", "需要有效邀请码才能注册");
+      if (invite.usedAt) return sendError(reply, 400, "INVITE_USED", "邀请码已被使用");
+      if (invite.expiresAt && invite.expiresAt < new Date()) {
+        return sendError(reply, 400, "INVITE_EXPIRED", "邀请码已过期");
+      }
+    }
     const passwordHash = await bcrypt.hash(b.password, 10);
-    const [u] = await db
-      .insert(users)
-      .values({ email: b.email, passwordHash, name: b.name ?? null })
-      .returning();
+    const u = db.transaction((tx) => {
+      const created = tx
+        .insert(users)
+        .values({
+          email: b.email,
+          passwordHash,
+          name: b.name ?? null,
+          role: isFirstUser ? "admin" : "coach",
+        })
+        .returning()
+        .get();
+      if (created && invite) {
+        tx.update(inviteCodes)
+          .set({ usedBy: created.id, usedAt: new Date() })
+          .where(eq(inviteCodes.id, invite.id))
+          .run();
+      }
+      return created;
+    });
     if (!u) return sendError(reply, 500, "INTERNAL", "创建用户失败");
     return reply.send(await issueTokens(u));
   });

@@ -21,7 +21,7 @@ interface AuthState {
   user: User | null;
   loading: boolean;
   login: (email: string, password: string) => Promise<void>;
-  register: (email: string, password: string, name?: string) => Promise<void>;
+  register: (email: string, password: string, inviteCode: string, name?: string) => Promise<void>;
   logout: () => void;
 }
 
@@ -73,10 +73,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   );
 
   const register = useCallback(
-    async (email: string, password: string, name?: string) => {
+    async (email: string, password: string, inviteCode: string, name?: string) => {
       const data = await api<{ accessToken: string; refreshToken: string }>(
         "/api/v1/auth/register",
-        { method: "POST", body: JSON.stringify({ email, password, name }) },
+        {
+          method: "POST",
+          body: JSON.stringify({ email, password, inviteCode: inviteCode.trim() || undefined, name }),
+        },
       );
       setTokens(data.accessToken, data.refreshToken);
       await fetchUser();

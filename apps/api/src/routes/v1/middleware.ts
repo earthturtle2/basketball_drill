@@ -19,3 +19,10 @@ export async function requireAuth(request: FastifyRequest, reply: FastifyReply) 
     return reply.status(401).send({ code: "UNAUTHENTICATED", message: "需要登录" });
   }
 }
+
+export async function requireAdmin(request: FastifyRequest, reply: FastifyReply) {
+  const role = request.user?.role;
+  if (role !== "admin" && role !== "org_admin") {
+    return reply.status(403).send({ code: "FORBIDDEN", message: "需要管理员权限" });
+  }
+}
