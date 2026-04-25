@@ -11,6 +11,7 @@ import { TeamsPage } from "./pages/TeamsPage";
 import { ViewPage } from "./pages/ViewPage";
 import { AdminPage } from "./pages/AdminPage";
 import { ChangePasswordPage } from "./pages/ChangePasswordPage";
+import { ProfilePage } from "./pages/ProfilePage";
 
 function isAdmin(role: string) {
   return role === "admin" || role === "org_admin";
@@ -49,6 +50,9 @@ function Layout({ children }: { children: ReactNode }) {
                   {t("app.admin")}
                 </Link>
               ) : null}
+              <Link to="/profile" className="btn btn-ghost">
+                {t("app.profile")}
+              </Link>
               <Link to="/password" className="btn btn-ghost">
                 {t("app.password")}
               </Link>
@@ -98,6 +102,7 @@ export function App() {
         <Route path="/plays/:id" element={<PlayEditPage />} />
         <Route path="/teams" element={<TeamsPage />} />
         <Route path="/admin" element={<AdminPage />} />
+        <Route path="/profile" element={<ProfilePage />} />
         <Route path="/password" element={<ChangePasswordPage />} />
         <Route path="/view/:token" element={<ViewPage />} />
         <Route path="*" element={<NotFound />} />

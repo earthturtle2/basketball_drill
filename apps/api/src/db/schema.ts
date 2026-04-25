@@ -14,6 +14,10 @@ export const users = sqliteTable("users", {
   email: text("email").notNull().unique(),
   passwordHash: text("password_hash").notNull(),
   name: text("name"),
+  /** 公开头像：http(s) 或受控体积的 data URL */
+  avatarUrl: text("avatar_url"),
+  /** 个人简介，展示用 */
+  bio: text("bio"),
   role: text("role").notNull().default("coach"),
   createdAt: integer("created_at", { mode: "timestamp_ms" })
     .notNull()

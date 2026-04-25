@@ -84,6 +84,13 @@ if (hasTable("plays") && !hasColumn("plays", "shared_with_user_ids")) {
   sqlite.exec("ALTER TABLE plays ADD COLUMN shared_with_user_ids TEXT NOT NULL DEFAULT '[]'");
 }
 
+if (hasTable("users") && !hasColumn("users", "avatar_url")) {
+  sqlite.exec("ALTER TABLE users ADD COLUMN avatar_url TEXT");
+}
+if (hasTable("users") && !hasColumn("users", "bio")) {
+  sqlite.exec("ALTER TABLE users ADD COLUMN bio TEXT");
+}
+
 sqlite.exec(`
 CREATE TABLE IF NOT EXISTS invite_codes (
   id TEXT PRIMARY KEY NOT NULL,

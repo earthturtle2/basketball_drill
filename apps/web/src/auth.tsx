@@ -15,14 +15,22 @@ import {
   onAuthFailure,
 } from "./api";
 
-type User = { id: string; email: string; name: string | null; role: string };
+export type AuthUser = {
+  id: string;
+  email: string;
+  name: string | null;
+  role: string;
+  avatarUrl: string | null;
+  bio: string | null;
+};
 
 interface AuthState {
-  user: User | null;
+  user: AuthUser | null;
   loading: boolean;
   login: (email: string, password: string) => Promise<void>;
   register: (email: string, password: string, inviteCode: string, name?: string) => Promise<void>;
   logout: () => void;
+  refreshUser: () => Promise<void>;
 }
 
 const AuthContext = createContext<AuthState | null>(null);
@@ -34,7 +42,7 @@ export function useAuth(): AuthState {
 }
 
 export function AuthProvider({ children }: { children: ReactNode }) {
-  const [user, setUser] = useState<User | null>(null);
+  const [user, setUser] = useState<AuthUser | null>(null);
   const [loading, setLoading] = useState(true);
 
   const fetchUser = useCallback(async () => {
@@ -44,7 +52,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       return;
     }
     try {
-      const u = await api<User>("/api/v1/me");
+      const u = await api<AuthUser>("/api/v1/me");
       setUser(u);
     } catch {
       clearTokens();
@@ -101,7 +109,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, []);
 
   return (
-    <AuthContext.Provider value={{ user, loading, login, register, logout }}>
+    <AuthContext.Provider value={{ user, loading, login, register, logout, refreshUser: fetchUser }}>
       {children}
     </AuthContext.Provider>
   );
