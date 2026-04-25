@@ -424,7 +424,8 @@ export function TacticEditor({
     if (e.kind === "screen" && e.t === currentT) {
       onChange({ ...doc, events: evs.filter((_, i) => i !== idx) });
     } else {
-      const endT = currentT > 0 ? currentT - 1 : 0;
+      const startT = e.kind === "screen" ? e.t : currentT;
+      const endT = Math.max(startT, Math.round((startT + currentT) / 2));
       onChange({
         ...doc,
         events: [...evs, { t: endT, kind: "screen_end" as const, from: selectedActorId }],
