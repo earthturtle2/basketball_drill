@@ -2,7 +2,12 @@ import { useState, useCallback, useRef, useMemo, useEffect } from "react";
 import type { TacticDocumentV1 } from "@basketball/shared";
 import { CourtSVG } from "./CourtSVG";
 import { PlayerDot } from "./PlayerDot";
-import { getActiveScreenEventIndex, resolveBallHolderAt, resolveScreenOverlaysAtT } from "./viewer-math";
+import {
+  getActiveScreenEventIndex,
+  playbackEndMs,
+  resolveBallHolderAt,
+  resolveScreenOverlaysAtT,
+} from "./viewer-math";
 import { MovementTrails } from "./MovementTrails";
 import { PassLines } from "./PassLines";
 import { EditorBench, type BenchPlayerOption, type EditorTool } from "./EditorBench";
@@ -62,6 +67,59 @@ function nearestTime(target: number, times: number[]): number {
 function timelineDurationMs(doc: TacticDocumentV1): number {
   const lastKeyframeT = doc.keyframes.length ? Math.max(...doc.keyframes.map((k) => k.t)) : 0;
   return Math.max(doc.meta.durationMs ?? lastKeyframeT, lastKeyframeT);
+}
+
+const TIMELINE_SNAP_MS = 50;
+const MIN_TIMELINE_DURATION_MS = 1000;
+const MAX_TIMELINE_DURATION_MS = 60000;
+
+/** 调节总时长时，按旧总时长比例缩放各关键帧与事件时间（与拖拽关键帧相同的 50ms 对齐）。 */
+function scaleDocToNewDuration(doc: TacticDocumentV1, newDurationMs: number): TacticDocumentV1 {
+  const clamped = Math.round(
+    Math.max(MIN_TIMELINE_DURATION_MS, Math.min(MAX_TIMELINE_DURATION_MS, newDurationMs)),
+  );
+  const oldBase = Math.max(playbackEndMs(doc), 1);
+  if (clamped === oldBase) {
+    return { ...doc, meta: { ...doc.meta, durationMs: clamped } };
+  }
+  const ratio = clamped / oldBase;
+
+  const indexed = doc.keyframes.map((k, origIdx) => ({ k, origIdx }));
+  const sorted = [...indexed].sort((a, b) => a.k.t - b.k.t);
+  const scaledTs: number[] = sorted.map(({ k }) => {
+    const raw = k.t * ratio;
+    return Math.round(Math.min(clamped, Math.max(0, raw)) / TIMELINE_SNAP_MS) * TIMELINE_SNAP_MS;
+  });
+  for (let j = 1; j < scaledTs.length; j++) {
+    scaledTs[j] = Math.max(
+      scaledTs[j - 1]! + TIMELINE_SNAP_MS,
+      Math.min(scaledTs[j]!, clamped),
+    );
+  }
+  if (scaledTs.length === 1) {
+    scaledTs[0] = Math.min(scaledTs[0]!, clamped);
+  }
+
+  const newKeyframes = doc.keyframes.map((kf, i) => {
+    const pos = sorted.findIndex((x) => x.origIdx === i);
+    const newT = pos >= 0 ? scaledTs[pos]! : kf.t;
+    return { ...kf, t: newT };
+  });
+
+  const evs = doc.events ?? [];
+  const newEvents = evs.map((e) => {
+    const raw = e.t * ratio;
+    let nt = Math.round(Math.min(clamped, Math.max(0, raw)) / TIMELINE_SNAP_MS) * TIMELINE_SNAP_MS;
+    nt = Math.max(0, Math.min(clamped, nt));
+    return { ...e, t: nt };
+  });
+
+  return {
+    ...doc,
+    meta: { ...doc.meta, durationMs: clamped },
+    keyframes: newKeyframes,
+    events: newEvents,
+  };
 }
 
 function evenlySpacedTime(index: number, count: number, durationMs: number): number {
@@ -459,7 +517,7 @@ export function TacticEditor({
   const handleMoveKeyframe = useCallback(
     (idx: number, newT: number) => {
       manuallyTimedKeyframes.current = true;
-      const dur = doc.meta.durationMs ?? 8000;
+      const dur = playbackEndMs(doc);
       const snapped = Math.round(Math.max(0, Math.min(newT, dur)) / 50) * 50;
       if (doc.keyframes.some((k, i) => i !== idx && k.t === snapped)) return;
       const oldT = doc.keyframes[idx].t;
@@ -515,7 +573,7 @@ export function TacticEditor({
 
   const handleDurationChange = useCallback(
     (ms: number) => {
-      onChange({ ...doc, meta: { ...doc.meta, durationMs: ms } });
+      onChange(scaleDocToNewDuration(doc, ms));
     },
     [doc, onChange],
   );
@@ -744,7 +802,7 @@ export function TacticEditor({
         <KeyframeTimeline
           keyframes={doc.keyframes}
           activeIndex={activeKfIdx}
-          durationMs={doc.meta.durationMs ?? 8000}
+          durationMs={Math.max(playbackEndMs(doc), MIN_TIMELINE_DURATION_MS)}
           currentT={currentT}
           onSelect={setActiveKfIdx}
           onAdd={handleAddKeyframe}
