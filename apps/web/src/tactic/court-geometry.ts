@@ -72,8 +72,8 @@ function rightHalf(bl: number): HalfPaths {
     ].join(" "),
     // Arc sweep=0 with right-side center → short arc on LEFT (toward center court)
     threePt: `M ${bl} ${THREE_CORNER} H ${ax} A ${THREE_R} ${THREE_R} 0 0 0 ${ax} ${COURT_H - THREE_CORNER} H ${bl}`,
-    // Semi-circle opening LEFT (toward center court): sweep=1 (CW on screen → goes left from top)
-    restricted: `M ${bx} ${CY - RESTRICTED_R} A ${RESTRICTED_R} ${RESTRICTED_R} 0 0 1 ${bx} ${CY + RESTRICTED_R}`,
+    // Semi-circle opening LEFT (toward center court).
+    restricted: `M ${bx} ${CY - RESTRICTED_R} A ${RESTRICTED_R} ${RESTRICTED_R} 0 0 0 ${bx} ${CY + RESTRICTED_R}`,
     rim: { cx: bx, cy: CY, r: RIM_R },
     backboard: `M ${bb} ${CY - BB_HALF} V ${CY + BB_HALF}`,
   };
@@ -101,8 +101,8 @@ function leftHalf(bl: number): HalfPaths {
     ].join(" "),
     // Arc sweep=1 with left-side center → short arc on RIGHT (toward center court)
     threePt: `M ${bl} ${THREE_CORNER} H ${ax} A ${THREE_R} ${THREE_R} 0 0 1 ${ax} ${COURT_H - THREE_CORNER} H ${bl}`,
-    // Semi-circle opening RIGHT (toward center court): sweep=0 (CCW on screen → goes right from top)
-    restricted: `M ${bx} ${CY - RESTRICTED_R} A ${RESTRICTED_R} ${RESTRICTED_R} 0 0 0 ${bx} ${CY + RESTRICTED_R}`,
+    // Semi-circle opening RIGHT (toward center court).
+    restricted: `M ${bx} ${CY - RESTRICTED_R} A ${RESTRICTED_R} ${RESTRICTED_R} 0 0 1 ${bx} ${CY + RESTRICTED_R}`,
     rim: { cx: bx, cy: CY, r: RIM_R },
     backboard: `M ${bb} ${CY - BB_HALF} V ${CY + BB_HALF}`,
   };

@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useParams } from "react-router-dom";
 import type { TacticDocumentV1 } from "@basketball/shared";
 import { PlayPreview } from "../tactic/PlayPreview";
@@ -23,8 +23,9 @@ export function ViewPage() {
   const [err, setErr] = useState<string | null>(null);
   const [tMs, setTms] = useState(0);
   const [playing, setPlaying] = useState(false);
-  const [frameByFrame, setFrameByFrame] = useState(true);
+  const [frameByFrame, setFrameByFrame] = useState(false);
   const [frameStepTarget, setFrameStepTarget] = useState<{ from: number; to: number } | null>(null);
+  const [loop, setLoop] = useState(false);
   const [playbackSpeed, setPlaybackSpeed] = useState<0.5 | 1 | 2>(0.5);
   const tMsRef = useRef(0);
   tMsRef.current = tMs;
@@ -128,98 +129,162 @@ export function ViewPage() {
 
   useEffect(() => {
     if (!doc || !playing || frameByFrame) return;
+    const endT = playbackEndMs(doc);
     const speed = playbackSpeed;
     startRef.current = performance.now() - tMsRef.current / speed;
     let raf: number;
     const tick = (now: number) => {
-      const elapsed = ((now - startRef.current) * speed) % (effectiveEnd || 1);
-      setTms(elapsed);
+      const raw = (now - startRef.current) * speed;
+      if (loop) {
+        setTms(raw % (endT || 1));
+      } else {
+        if (raw >= endT) {
+          setTms(endT);
+          setPlaying(false);
+          return;
+        }
+        setTms(raw);
+      }
       raf = requestAnimationFrame(tick);
     };
     raf = requestAnimationFrame(tick);
     return () => cancelAnimationFrame(raf);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [doc, playing, effectiveEnd, playbackSpeed, frameByFrame]);
+  }, [doc, playing, loop, playbackSpeed, frameByFrame]);
+
+  const previewStopTimes = useMemo(() => {
+    if (!doc) return [];
+    const endT = playbackEndMs(doc);
+    return [...new Set([0, ...doc.keyframes.map((k) => k.t), endT])]
+      .filter((tm) => tm >= 0 && tm <= endT)
+      .sort((a, b) => a - b);
+  }, [doc]);
 
   if (err) return <p className="error">{err}</p>;
   if (!data || !doc) return <p className="hint">{t("view.loading")}</p>;
+
+  const progressPct = effectiveEnd > 0 ? Math.max(0, Math.min(100, (tMs / effectiveEnd) * 100)) : 0;
+  const currentStopIdx = previewStopTimes.findIndex((tm) => Math.abs(tm - tMs) < 1);
+  const previousStop =
+    [...previewStopTimes].reverse().find((tm) => tm < tMs - 1) ?? previewStopTimes[0];
+  const nextStop = previewStopTimes.find((tm) => tm > tMs + 1) ?? previewStopTimes[previewStopTimes.length - 1];
+  const seekPreview = (nextT: number) => {
+    setPlaying(false);
+    setFrameStepTarget(null);
+    setTms(nextT);
+  };
 
   return (
     <div>
       <h1 style={{ margin: "0 0 0.25rem" }}>{data.play.name}</h1>
       {data.play.description ? <p className="hint">{data.play.description}</p> : null}
       <PlayPreview document={doc} tMs={tMs} />
-      <div className="controls">
-        <label className="muted" htmlFor="v">
-          {t("view.time")} {Math.round(tMs)} ms / {effectiveEnd} ms
-        </label>
-        <input
-          id="v"
-          type="range"
-          min={0}
-          max={effectiveEnd}
-          value={tMs}
-          onChange={(e) => {
-            setPlaying(false);
-            setFrameStepTarget(null);
-            setTms(Number(e.target.value));
-          }}
-        />
-        <button
-          type="button"
-          className="btn"
-          disabled={!!(frameByFrame && frameStepTarget !== null)}
-          onClick={() => {
-            if (frameByFrame) {
-              void startFrameStep();
-              return;
-            }
-            setPlaying((p) => !p);
-          }}
-        >
-          {frameByFrame ? t("view.play") : playing ? t("view.pause") : t("view.play")}
-        </button>
-        <label
-          className="muted"
-          style={{
-            fontSize: "0.82rem",
-            display: "inline-flex",
-            alignItems: "center",
-            gap: "0.35rem",
-            cursor: "pointer",
-            whiteSpace: "nowrap",
-          }}
-        >
-          <input
-            type="checkbox"
-            checked={frameByFrame}
-            onChange={(e) => setFrameByFrame(e.target.checked)}
-          />
-          <span>{t("view.frameByFrame")}</span>
-        </label>
-        <span
-          className="muted"
-          style={{
-            fontSize: "0.82rem",
-            display: "inline-flex",
-            alignItems: "center",
-            gap: "0.35rem",
-            flexWrap: "wrap",
-          }}
-        >
-          {t("view.speed")}
-          {([0.5, 1, 2] as const).map((s) => (
-            <button
-              key={s}
-              type="button"
-              className={`btn btn-sm ${playbackSpeed === s ? "btn-active" : ""}`}
-              onClick={() => setPlaybackSpeed(s)}
-              style={{ minWidth: 44, padding: "0.25rem 0.45rem" }}
-            >
-              {s}×
-            </button>
-          ))}
-        </span>
+      <div className="preview-controls">
+        <div className="preview-controls__timeline-row">
+          <span className="preview-controls__time">
+            {Math.round(tMs)} / {effectiveEnd} ms
+          </span>
+          <div className="preview-controls__timeline">
+            <div className="preview-controls__track">
+              <div className="preview-controls__progress" style={{ width: `${progressPct}%` }} />
+              {previewStopTimes.map((tm, i) => {
+                const left = effectiveEnd > 0 ? (tm / effectiveEnd) * 100 : 0;
+                const active = currentStopIdx === i;
+                return (
+                  <button
+                    key={`${tm}-${i}`}
+                    type="button"
+                    className={`preview-controls__mark${active ? " preview-controls__mark--active" : ""}`}
+                    style={{ left: `${left}%` }}
+                    onClick={() => seekPreview(tm)}
+                    title={`${t("kf.frame")} ${i + 1}: ${tm}ms`}
+                  />
+                );
+              })}
+            </div>
+            <input
+              id="v"
+              className="preview-controls__range"
+              type="range"
+              min={0}
+              max={effectiveEnd}
+              value={tMs}
+              onChange={(e) => seekPreview(Number(e.target.value))}
+              aria-label={t("view.time")}
+            />
+          </div>
+        </div>
+
+        <div className="preview-controls__actions">
+          <button
+            type="button"
+            className="btn btn-sm"
+            disabled={previousStop === undefined || tMs <= (previewStopTimes[0] ?? 0)}
+            onClick={() => previousStop !== undefined && seekPreview(previousStop)}
+            title={t("edit.prevFrame")}
+          >
+            {t("edit.prevFrame")}
+          </button>
+          <button
+            type="button"
+            className="btn btn-primary preview-controls__play"
+            disabled={!!(frameByFrame && frameStepTarget !== null)}
+            onClick={() => {
+              if (frameByFrame) {
+                void startFrameStep();
+                return;
+              }
+              if (playing) {
+                setPlaying(false);
+              } else {
+                if (tMs >= effectiveEnd) setTms(0);
+                setPlaying(true);
+              }
+            }}
+          >
+            {frameByFrame ? t("view.play") : playing ? t("view.pause") : t("view.play")}
+          </button>
+          <button
+            type="button"
+            className="btn btn-sm"
+            disabled={nextStop === undefined || tMs >= (previewStopTimes[previewStopTimes.length - 1] ?? effectiveEnd)}
+            onClick={() => nextStop !== undefined && seekPreview(nextStop)}
+            title={t("edit.nextFrame")}
+          >
+            {t("edit.nextFrame")}
+          </button>
+
+          <label className="preview-controls__toggle">
+            <input
+              type="checkbox"
+              checked={frameByFrame}
+              onChange={(e) => setFrameByFrame(e.target.checked)}
+            />
+            <span>{t("view.frameByFrame")}</span>
+          </label>
+          <label className="preview-controls__toggle">
+            <input
+              type="checkbox"
+              checked={loop}
+              onChange={(e) => setLoop(e.target.checked)}
+              disabled={frameByFrame}
+            />
+            <span>{t("edit.loop")}</span>
+          </label>
+          <span className="preview-controls__speed">
+            <span>{t("view.speed")}</span>
+            {([0.5, 1, 2] as const).map((s) => (
+              <button
+                key={s}
+                type="button"
+                className={`btn btn-sm ${playbackSpeed === s ? "btn-active" : ""}`}
+                onClick={() => setPlaybackSpeed(s)}
+              >
+                {s}×
+              </button>
+            ))}
+          </span>
+        </div>
       </div>
     </div>
   );
