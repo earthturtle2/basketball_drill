@@ -45,12 +45,42 @@ function nearestTime(target: number, times: number[]): number {
   return best;
 }
 
-function midpointTime(currentT: number, nextT: number | undefined, durationMs: number): number {
-  if (nextT !== undefined && nextT > currentT) {
-    return Math.round(((currentT + nextT) / 2) / 50) * 50;
+function timelineDurationMs(doc: TacticDocumentV1): number {
+  const lastKeyframeT = doc.keyframes.length ? Math.max(...doc.keyframes.map((k) => k.t)) : 0;
+  return Math.max(doc.meta.durationMs ?? lastKeyframeT, lastKeyframeT);
+}
+
+function evenlySpacedTime(index: number, count: number, durationMs: number): number {
+  if (count <= 1) return 0;
+  if (index === count - 1) return durationMs;
+  return Math.round((durationMs * index) / (count - 1));
+}
+
+function redistributeKeyframeTimes(
+  keyframes: TacticDocumentV1["keyframes"],
+  durationMs: number,
+): TacticDocumentV1["keyframes"] {
+  const sorted = [...keyframes].sort((a, b) => a.t - b.t);
+  return sorted.map((k, i) => ({ ...k, t: evenlySpacedTime(i, sorted.length, durationMs) }));
+}
+
+function remapEventsAtKeyframeTimes(
+  events: TacticDocumentV1["events"],
+  oldKeyframes: TacticDocumentV1["keyframes"],
+  newKeyframes: TacticDocumentV1["keyframes"],
+  extraTimeMap?: Map<number, number>,
+): TacticDocumentV1["events"] {
+  if (!events?.length) return events;
+  const timeMap = new Map<number, number>();
+  const count = Math.min(oldKeyframes.length, newKeyframes.length);
+  for (let i = 0; i < count; i++) {
+    timeMap.set(oldKeyframes[i].t, newKeyframes[i].t);
   }
-  const candidate = Math.round((currentT + 1000) / 50) * 50;
-  return candidate <= currentT ? currentT + 50 : Math.min(candidate, Math.max(durationMs, candidate));
+  extraTimeMap?.forEach((newT, oldT) => timeMap.set(oldT, newT));
+  return events.map((e) => {
+    const newT = timeMap.get(e.t);
+    return newT === undefined ? e : { ...e, t: newT };
+  });
 }
 
 function clonePosesForNewKeyframe(
@@ -247,44 +277,43 @@ export function TacticEditor({
   );
 
   const handleAddKeyframe = useCallback(() => {
-    const duration = doc.meta.durationMs ?? 8000;
-    const current = doc.keyframes[activeKfIdx] ?? doc.keyframes[doc.keyframes.length - 1];
-    const currentTForInsert = current?.t ?? 0;
-    const laterTimes = doc.keyframes
-      .map((k) => k.t)
-      .filter((t) => t > currentTForInsert)
-      .sort((a, b) => a - b);
-    const usedTimes = new Set(doc.keyframes.map((k) => k.t));
-    let t = midpointTime(currentTForInsert, laterTimes[0], duration);
-    while (usedTimes.has(t)) t += 50;
-    const newKf = { t, poses: current ? clonePosesForNewKeyframe(current.poses) : {} };
-    const newKfs = [...doc.keyframes, newKf].sort((a, b) => a.t - b.t);
+    const duration = timelineDurationMs(doc);
+    const sorted = [...doc.keyframes].sort((a, b) => a.t - b.t);
+    const last = sorted[sorted.length - 1];
+    const newKf = { t: duration, poses: last ? clonePosesForNewKeyframe(last.poses) : {} };
+    const newKfs = redistributeKeyframeTimes([...sorted, newKf], duration);
+    const existingNewKfs = newKfs.slice(0, sorted.length);
     onChange({
       ...doc,
-      meta: { ...doc.meta, durationMs: Math.max(duration, t) },
+      meta: { ...doc.meta, durationMs: duration },
       keyframes: newKfs,
+      events: remapEventsAtKeyframeTimes(doc.events, sorted, existingNewKfs),
     });
-    setActiveKfIdx(newKfs.findIndex((k) => k.t === t));
-  }, [doc, activeKfIdx, onChange]);
+    setActiveKfIdx(newKfs.length - 1);
+  }, [doc, onChange]);
 
   const handleRemoveKeyframe = useCallback(
     (idx: number) => {
       if (doc.keyframes.length <= 1) return;
-      const removedT = doc.keyframes[idx]?.t;
-      const filtered = doc.keyframes.filter((_, i) => i !== idx);
-      const sorted = [...filtered].sort((a, b) => a.t - b.t);
-      const times = sorted.map((k) => k.t);
-      const newEvents =
-        removedT === undefined || !doc.events?.length
-          ? doc.events
-          : doc.events.map((e) =>
-              e.t === removedT ? { ...e, t: nearestTime(removedT, times) } : e,
-            );
-      onChange({ ...doc, keyframes: sorted, events: newEvents });
+      const duration = timelineDurationMs(doc);
+      const sortedBefore = [...doc.keyframes].sort((a, b) => a.t - b.t);
+      const removed = sortedBefore[idx];
+      const keptBefore = sortedBefore.filter((_, i) => i !== idx);
+      const newKfs = redistributeKeyframeTimes(keptBefore, duration);
+      const removedEventTimeMap = new Map<number, number>();
+      if (removed) {
+        const keptTimes = keptBefore.map((k) => k.t);
+        const nearestKeptT = nearestTime(removed.t, keptTimes);
+        const nearestKeptIndex = keptBefore.findIndex((k) => k.t === nearestKeptT);
+        const fallbackT = newKfs[nearestKeptIndex]?.t ?? nearestKeptT;
+        removedEventTimeMap.set(removed.t, fallbackT);
+      }
+      const newEvents = remapEventsAtKeyframeTimes(doc.events, keptBefore, newKfs, removedEventTimeMap);
+      onChange({ ...doc, meta: { ...doc.meta, durationMs: duration }, keyframes: newKfs, events: newEvents });
       let newActive = activeKfIdx;
       if (idx < activeKfIdx) newActive = activeKfIdx - 1;
       else if (idx > activeKfIdx) newActive = activeKfIdx;
-      else newActive = Math.min(activeKfIdx, sorted.length - 1);
+      else newActive = Math.min(activeKfIdx, newKfs.length - 1);
       setActiveKfIdx(newActive);
     },
     [doc, activeKfIdx, onChange],
