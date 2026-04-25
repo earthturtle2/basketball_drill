@@ -27,6 +27,8 @@ interface Props {
   onToggleBall: (actorId: string) => void;
   onRemoveActor: () => void;
   onOpenTemplates: () => void;
+  onClearFrameAction: () => void;
+  canClearFrameAction: boolean;
   onScreenAngleChange: (angle: number) => void;
   onRemoveScreen: () => void;
 }
@@ -45,6 +47,8 @@ export function EditorBench({
   onToggleBall,
   onRemoveActor,
   onOpenTemplates,
+  onClearFrameAction,
+  canClearFrameAction,
   onScreenAngleChange,
   onRemoveScreen,
 }: Props) {
@@ -54,6 +58,38 @@ export function EditorBench({
   if (side === "right") {
     return (
       <div className={`editor-bench ${sideClass}`}>
+        <div className="bench-section">
+          <div className="bench-label">{t("bench.playerActions")}</div>
+          <div className="bench-row">
+            <button
+              type="button"
+              className={`btn btn-sm ${tool === "pass" ? "btn-active" : ""}`}
+              onClick={() => onToolChange(tool === "pass" ? "select" : "pass")}
+            >
+              {t("bench.pass")}
+            </button>
+            <button
+              type="button"
+              className={`btn btn-sm ${tool === "screen" ? "btn-active" : ""}`}
+              onClick={() => onToolChange(tool === "screen" ? "select" : "screen")}
+            >
+              {t("bench.screen")}
+            </button>
+            <button
+              type="button"
+              className="btn btn-sm"
+              disabled={!canClearFrameAction}
+              onClick={onClearFrameAction}
+              title={t("bench.clearFrameActionTitle")}
+            >
+              {t("bench.clearFrameAction")}
+            </button>
+          </div>
+          {tool === "pass" && !passSource && <p className="bench-tip">{t("bench.tipPassFrom")}</p>}
+          {tool === "pass" && passSource && <p className="bench-tip">{t("bench.tipPassTo")}</p>}
+          {tool === "screen" && <p className="bench-tip">{t("bench.tipScreen")}</p>}
+        </div>
+
         {selectedActor ? (
           <div className="bench-section">
             <div className="bench-label">{t("bench.playerProps")}</div>
@@ -83,9 +119,6 @@ export function EditorBench({
                 onClick={() => onToggleBall(selectedActor.id)}
               >
                 {t("bench.holdBall")}
-              </button>
-              <button type="button" className="btn btn-sm" onClick={onRemoveActor}>
-                {t("bench.remove")}
               </button>
             </div>
           </div>
@@ -183,38 +216,21 @@ export function EditorBench({
       </div>
 
       <div className="bench-section">
-        <div className="bench-label">{t("bench.tools")}</div>
+        <div className="bench-label">{t("bench.overall")}</div>
         <div className="bench-row">
           <button
             type="button"
-            className={`btn btn-sm ${tool === "select" ? "btn-active" : ""}`}
-            onClick={() => onToolChange("select")}
+            className="btn btn-sm"
+            onClick={onOpenTemplates}
           >
-            {t("bench.select")}
-          </button>
-          <button
-            type="button"
-            className={`btn btn-sm ${tool === "pass" ? "btn-active" : ""}`}
-            onClick={() => onToolChange("pass")}
-          >
-            {t("bench.pass")}
-          </button>
-          <button
-            type="button"
-            className={`btn btn-sm ${tool === "screen" ? "btn-active" : ""}`}
-            onClick={() => onToolChange("screen")}
-          >
-            {t("bench.screen")}
-          </button>
-          <button type="button" className="btn btn-sm" onClick={onOpenTemplates}>
             {t("bench.template")}
+          </button>
+          <button type="button" className="btn btn-sm" disabled={!selectedActor} onClick={onRemoveActor}>
+            {t("bench.remove")}
           </button>
         </div>
         {tool === "addOffense" && <p className="bench-tip">{t("bench.tipAddOffense")}</p>}
         {tool === "addDefense" && <p className="bench-tip">{t("bench.tipAddDefense")}</p>}
-        {tool === "pass" && !passSource && <p className="bench-tip">{t("bench.tipPassFrom")}</p>}
-        {tool === "pass" && passSource && <p className="bench-tip">{t("bench.tipPassTo")}</p>}
-        {tool === "screen" && <p className="bench-tip">{t("bench.tipScreen")}</p>}
       </div>
     </div>
   );

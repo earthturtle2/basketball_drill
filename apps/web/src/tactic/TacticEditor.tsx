@@ -308,6 +308,37 @@ export function TacticEditor({
     [doc, onChange, currentT],
   );
 
+  const handleClearSelectedFrameAction = useCallback(() => {
+    if (!selectedActorId || activeKfIdx <= 0) return;
+    const prevKf = doc.keyframes[activeKfIdx - 1];
+    const currentKf = doc.keyframes[activeKfIdx];
+    const prevPose = prevKf?.poses[selectedActorId];
+    if (!prevKf || !currentKf || !prevPose) return;
+
+    const previousHolder = resolveBallHolderAt(doc, Math.max(0, currentT - 1));
+    const cleanedEvents = (doc.events ?? []).filter((e) => {
+      if (e.t !== currentT) return true;
+      if (e.from === selectedActorId || e.to === selectedActorId) return false;
+      if (e.kind === "possess_end" && previousHolder === selectedActorId) return false;
+      return true;
+    });
+    const { cpx: _cpx, cpy: _cpy, ...poseWithoutCurve } = prevPose;
+    const keyframes = doc.keyframes.map((kfItem, i) => {
+      if (i !== activeKfIdx) return kfItem;
+      return {
+        ...kfItem,
+        poses: {
+          ...kfItem.poses,
+          [selectedActorId]: poseWithoutCurve,
+        },
+      };
+    });
+
+    onChange({ ...doc, keyframes, events: cleanedEvents });
+    setPassSource(null);
+    setTool("select");
+  }, [selectedActorId, activeKfIdx, doc, currentT, onChange]);
+
   const handleAddKeyframe = useCallback(() => {
     const duration = timelineDurationMs(doc);
     const sorted = [...doc.keyframes].sort((a, b) => a.t - b.t);
@@ -546,6 +577,8 @@ export function TacticEditor({
         onToggleBall={handleToggleBall}
         onRemoveActor={handleRemoveSelected}
         onOpenTemplates={onOpenTemplates}
+        onClearFrameAction={handleClearSelectedFrameAction}
+        canClearFrameAction={!!selectedPlayerData && activeKfIdx > 0}
         onScreenAngleChange={handleScreenAngleChange}
         onRemoveScreen={handleRemoveScreen}
       />
@@ -642,6 +675,8 @@ export function TacticEditor({
         onToggleBall={handleToggleBall}
         onRemoveActor={handleRemoveSelected}
         onOpenTemplates={onOpenTemplates}
+        onClearFrameAction={handleClearSelectedFrameAction}
+        canClearFrameAction={!!selectedPlayerData && activeKfIdx > 0}
         onScreenAngleChange={handleScreenAngleChange}
         onRemoveScreen={handleRemoveScreen}
       />
