@@ -12,13 +12,15 @@ import { db } from "../../db/index.js";
 import { refreshTokens, users, type UserRow } from "../../db/schema.js";
 import { sendError, zodToMessage } from "../../lib/errors.js";
 import { validateAvatarUrl } from "../../lib/user-profile.js";
+
 const passwordChangeBody = z.object({
   currentPassword: z.string().min(1).max(128),
   newPassword: z.string().min(8).max(128),
 });
 
 const mePatchBody = z.object({
-  name: z.union([z.string().max(80), z.null()]).optional(),
+  /** 与注册接口 `name` 上限一致 */
+  name: z.union([z.string().max(100), z.null()]).optional(),
   avatarUrl: z.union([z.string().max(120_000), z.null()]).optional(),
   bio: z.union([z.string().max(1000), z.null()]).optional(),
 });
@@ -65,7 +67,7 @@ export async function registerV1(fastify: FastifyInstance) {
         updates.name = patch.name === null ? null : patch.name.trim() || null;
       }
       if (patch.avatarUrl !== undefined) {
-        if (patch.avatarUrl === null) {
+        if (patch.avatarUrl === null || patch.avatarUrl.trim() === "") {
           updates.avatarUrl = null;
         } else {
           const v = validateAvatarUrl(patch.avatarUrl);
@@ -75,6 +77,11 @@ export async function registerV1(fastify: FastifyInstance) {
       }
       if (patch.bio !== undefined) {
         updates.bio = patch.bio === null ? null : patch.bio.trim() || null;
+      }
+      if (Object.keys(updates).length === 0) {
+        const full = (await db.select().from(users).where(eq(users.id, request.user!.id)).limit(1))[0];
+        if (!full) return sendError(reply, 404, "NOT_FOUND", "用户不存在");
+        return reply.send(serializeMeUser(full));
       }
       await db.update(users).set(updates).where(eq(users.id, request.user!.id));
       const full = (await db.select().from(users).where(eq(users.id, request.user!.id)).limit(1))[0];

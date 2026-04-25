@@ -15,16 +15,27 @@ type LibraryListItem = {
   description: string | null;
   tags: string[];
   userId: string;
-  author: { name: string };
+  author: { name: string; email: string; avatarUrl?: string | null };
   updatedAt: string;
 };
+
+function playIdSuffix(id: string) {
+  const hex = id.replace(/-/g, "");
+  return hex.length >= 8 ? hex.slice(-8) : id.slice(0, 8);
+}
 
 type LibraryDetail = {
   id: string;
   name: string;
   document: TacticDocumentV1;
   isOwner: boolean;
-  author: { id: string; name: string | null; email: string };
+  author: {
+    id: string;
+    name: string | null;
+    email: string;
+    avatarUrl?: string | null;
+    bio?: string | null;
+  };
   updatedAt: string;
 };
 
@@ -79,17 +90,21 @@ function LibraryList() {
         {items.map((p) => (
           <div key={p.id} className="list-item">
             <div>
-              <h3>
-                <Link to={`/library/${p.id}`}>{p.name}</Link>
-                {p.userId === user.id ? (
-                  <span className="status-pill" style={{ marginLeft: "0.5rem" }}>
-                    {t("lib.mine")}
-                  </span>
+              <h3 style={{ display: "flex", alignItems: "center", flexWrap: "wrap", gap: "0.5rem" }}>
+                {p.author.avatarUrl ? (
+                  <img src={p.author.avatarUrl} alt="" className="avatar-thumb" width={36} height={36} />
                 ) : null}
+                <Link to={`/library/${p.id}`}>{p.name}</Link>
+                {p.userId === user.id ? <span className="status-pill">{t("lib.mine")}</span> : null}
               </h3>
               <p className="muted">
-                {t("lib.by")} {p.author.name} · {t("plays.updatedAt")}{" "}
-                {new Date(p.updatedAt).toLocaleString()}
+                {t("lib.by")} {p.author.name}
+                {p.author.email && p.author.email !== p.author.name ? ` · ${p.author.email}` : null}
+                {" "}
+                · #{playIdSuffix(p.id)}
+                {p.tags.length ? ` · ${p.tags.slice(0, 4).join(", ")}${p.tags.length > 4 ? "…" : ""}` : null}
+                {" "}
+                · {t("plays.updatedAt")} {new Date(p.updatedAt).toLocaleString()}
               </p>
             </div>
             <div className="row-actions">
@@ -174,11 +189,35 @@ function LibraryDetail({ playId }: { playId: string }) {
       {err ? <p className="error">{err}</p> : null}
       {row && doc ? (
         <>
-          <h1 style={{ margin: "0 0 0.5rem" }}>{row.name}</h1>
-          <p className="hint">
-            {t("lib.by")} {row.author.name ?? row.author.email}
-            {row.isOwner ? ` · ${t("lib.mine")}` : null}
-          </p>
+          <div style={{ display: "flex", alignItems: "flex-start", gap: "0.75rem", marginBottom: "0.5rem" }}>
+            {row.author.avatarUrl ? (
+              <img
+                src={row.author.avatarUrl}
+                alt=""
+                className="avatar-thumb"
+                width={48}
+                height={48}
+                style={{ width: 48, height: 48 }}
+              />
+            ) : null}
+            <div style={{ minWidth: 0 }}>
+              <h1 style={{ margin: "0 0 0.35rem" }}>{row.name}</h1>
+              <p className="hint" style={{ margin: 0 }}>
+                {t("lib.by")} {row.author.name ?? row.author.email}
+                {row.author.name && row.author.email && row.author.name !== row.author.email
+                  ? ` · ${row.author.email}`
+                  : null}
+                {" "}
+                · #{playIdSuffix(row.id)}
+                {row.isOwner ? ` · ${t("lib.mine")}` : null}
+              </p>
+              {row.author.bio ? (
+                <p className="muted" style={{ margin: "0.5rem 0 0", whiteSpace: "pre-wrap" }}>
+                  {row.author.bio}
+                </p>
+              ) : null}
+            </div>
+          </div>
           <div className="row-actions" style={{ margin: "0.75rem 0" }}>
             <button type="button" className="btn btn-primary" onClick={() => void copy()} disabled={copying}>
               {copying ? t("lib.copying") : t("lib.copyToMine")}

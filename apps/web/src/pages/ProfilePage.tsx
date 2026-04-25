@@ -84,7 +84,7 @@ export function ProfilePage() {
           <input
             id="profile-name"
             type="text"
-            maxLength={80}
+            maxLength={100}
             value={name}
             onChange={(e) => setName(e.target.value)}
             placeholder={t("profile.nicknamePlaceholder")}

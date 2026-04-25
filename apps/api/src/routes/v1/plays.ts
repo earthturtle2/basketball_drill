@@ -98,7 +98,9 @@ export async function playRoutes(fastify: FastifyInstance) {
     ];
     if (q.q) {
       const pattern = `%${escapeIlike(q.q)}%`;
-      conditions.push(sql`lower(${plays.name}) like lower(${pattern})`);
+      conditions.push(
+        sql`(lower(${plays.name}) like lower(${pattern}) or lower(${users.email}) like lower(${pattern}))`,
+      );
     }
     if (q.tag) {
       conditions.push(
@@ -111,7 +113,11 @@ export async function playRoutes(fastify: FastifyInstance) {
       );
     }
     const where = and(...conditions);
-    const totalRow = await db.select({ n: count() }).from(plays).where(where);
+    const totalRow = await db
+      .select({ n: count() })
+      .from(plays)
+      .innerJoin(users, eq(plays.userId, users.id))
+      .where(where);
     const total = totalRow[0]?.n ?? 0;
     const offset = (q.page - 1) * q.pageSize;
     const rows = await db
@@ -125,6 +131,7 @@ export async function playRoutes(fastify: FastifyInstance) {
         teamIds: plays.teamIds,
         authorName: users.name,
         authorEmail: users.email,
+        authorAvatarUrl: users.avatarUrl,
         updatedAt: plays.updatedAt,
       })
       .from(plays)
@@ -144,6 +151,8 @@ export async function playRoutes(fastify: FastifyInstance) {
         teamIds: uniqueTeamIds(r.teamIds, r.teamId),
         author: {
           name: r.authorName ?? r.authorEmail,
+          email: r.authorEmail,
+          avatarUrl: r.authorAvatarUrl ?? null,
         },
         updatedAt: r.updatedAt.toISOString(),
       })),
@@ -166,7 +175,13 @@ export async function playRoutes(fastify: FastifyInstance) {
     }
     const urow = (
       await db
-        .select({ name: users.name, email: users.email, id: users.id })
+        .select({
+          id: users.id,
+          name: users.name,
+          email: users.email,
+          avatarUrl: users.avatarUrl,
+          bio: users.bio,
+        })
         .from(users)
         .where(eq(users.id, row.userId))
         .limit(1)
@@ -177,7 +192,13 @@ export async function playRoutes(fastify: FastifyInstance) {
     return reply.send({
       ...serializePlay(row),
       isOwner,
-      author: { id: urow.id, name: urow.name, email: urow.email },
+      author: {
+        id: urow.id,
+        name: urow.name,
+        email: urow.email,
+        avatarUrl: urow.avatarUrl ?? null,
+        bio: urow.bio ?? null,
+      },
     });
   });
 

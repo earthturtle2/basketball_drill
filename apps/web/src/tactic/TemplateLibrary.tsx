@@ -4,7 +4,17 @@ import { TEMPLATES } from "./templates";
 import { useT } from "../i18n";
 import { api, ApiError } from "../api";
 
-type SharedRow = { id: string; name: string; author: { name: string } };
+type SharedRow = {
+  id: string;
+  name: string;
+  tags?: string[];
+  author: { name: string; email?: string; avatarUrl?: string | null };
+};
+
+function playIdSuffix(id: string) {
+  const hex = id.replace(/-/g, "");
+  return hex.length >= 8 ? hex.slice(-8) : id.slice(0, 8);
+}
 
 interface Props {
   onSelect: (doc: TacticDocumentV1) => void;
@@ -111,9 +121,23 @@ export function TemplateLibrary({ onSelect, onClose }: Props) {
                   disabled={picking}
                   onClick={() => void applyShared(p.id)}
                 >
+                  {p.author.avatarUrl ? (
+                    <img
+                      src={p.author.avatarUrl}
+                      alt=""
+                      className="avatar-thumb"
+                      width={40}
+                      height={40}
+                      style={{ marginBottom: "0.35rem" }}
+                    />
+                  ) : null}
                   <strong>{p.name}</strong>
                   <span className="muted">
                     {p.author.name}
+                    {p.author.email && p.author.email !== p.author.name ? ` · ${p.author.email}` : null}
+                    {" "}
+                    · #{playIdSuffix(p.id)}
+                    {p.tags?.length ? ` · ${p.tags.slice(0, 3).join(", ")}${p.tags.length > 3 ? "…" : ""}` : null}
                   </span>
                 </button>
               ))}

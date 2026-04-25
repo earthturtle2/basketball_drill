@@ -25,7 +25,13 @@ type Play = {
 
 type TeamPlayer = { id: string; name: string; number: number };
 type Team = { id: string; name: string; color: string; players: TeamPlayer[] };
-type Account = { id: string; email: string; name: string | null; role: string };
+type Account = {
+  id: string;
+  email: string;
+  name: string | null;
+  role: string;
+  avatarUrl?: string | null;
+};
 type PlayShare = { shareId: string; token: string; viewUrl: string; expiresAt: string | null; createdAt: string };
 
 type SaveStatus = "saved" | "saving" | "unsaved";
@@ -554,7 +560,11 @@ export function PlayEditPage() {
               .map((account) => {
                 const checked = sharedWithUserIds.includes(account.id);
                 return (
-                  <label key={account.id} className="team-checkbox">
+                  <label
+                    key={account.id}
+                    className="team-checkbox"
+                    style={{ display: "flex", alignItems: "center", gap: "0.35rem" }}
+                  >
                     <input
                       type="checkbox"
                       checked={checked}
@@ -565,7 +575,17 @@ export function PlayEditPage() {
                         setSaveStatus("unsaved");
                       }}
                     />
-                    {account.name || account.email}
+                    {account.avatarUrl ? (
+                      <img
+                        src={account.avatarUrl}
+                        alt=""
+                        className="avatar-thumb"
+                        width={28}
+                        height={28}
+                        style={{ width: 28, height: 28 }}
+                      />
+                    ) : null}
+                    <span>{account.name || account.email}</span>
                   </label>
                 );
               })}
