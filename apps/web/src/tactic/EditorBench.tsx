@@ -12,6 +12,14 @@ type PlayerActor = {
   label: string;
 };
 
+export type BenchPlayerOption = {
+  id: string;
+  name: string;
+  number: number;
+  label: string;
+  disabled?: boolean;
+};
+
 interface Props {
   side: "left" | "right";
   tool: EditorTool;
@@ -31,6 +39,11 @@ interface Props {
   canClearFrameAction: boolean;
   onScreenAngleChange: (angle: number) => void;
   onRemoveScreen: () => void;
+  availablePlayers: BenchPlayerOption[];
+  pendingPlayer: BenchPlayerOption | null;
+  onRosterPlayerSelect: (player: BenchPlayerOption) => void;
+  canAddOffense: boolean;
+  canAddDefense: boolean;
 }
 
 export function EditorBench({
@@ -51,6 +64,11 @@ export function EditorBench({
   canClearFrameAction,
   onScreenAngleChange,
   onRemoveScreen,
+  availablePlayers,
+  pendingPlayer,
+  onRosterPlayerSelect,
+  canAddOffense,
+  canAddDefense,
 }: Props) {
   const { t } = useT();
   const sideClass = side === "left" ? "editor-bench--left" : "editor-bench--right";
@@ -193,19 +211,27 @@ export function EditorBench({
 
       <div className="bench-section">
         <div className="bench-label">{t("bench.players")}</div>
+        <div className="bench-player-grid">
+          {availablePlayers.map((player) => (
+            <button
+              key={player.id}
+              type="button"
+              className={`bench-player-card${pendingPlayer?.id === player.id ? " bench-player-card--active" : ""}`}
+              disabled={player.disabled || !canAddOffense}
+              onClick={() => onRosterPlayerSelect(player)}
+              title={player.name ? `${player.number} ${player.name}` : `${player.number}`}
+            >
+              <span>{player.number}</span>
+              <small>{player.name || player.label}</small>
+            </button>
+          ))}
+        </div>
         <div className="bench-row">
-          <button
-            type="button"
-            className={`bench-token bench-token--offense ${tool === "addOffense" ? "bench-token--active" : ""}`}
-            onClick={() => onToolChange(tool === "addOffense" ? "select" : "addOffense")}
-            title={t("bench.addOffenseTitle")}
-          >
-            +
-          </button>
           <span className="bench-hint">{t("bench.offense")}</span>
           <button
             type="button"
             className={`bench-token bench-token--defense ${tool === "addDefense" ? "bench-token--active" : ""}`}
+            disabled={!canAddDefense}
             onClick={() => onToolChange(tool === "addDefense" ? "select" : "addDefense")}
             title={t("bench.addDefenseTitle")}
           >
@@ -231,6 +257,8 @@ export function EditorBench({
         </div>
         {tool === "addOffense" && <p className="bench-tip">{t("bench.tipAddOffense")}</p>}
         {tool === "addDefense" && <p className="bench-tip">{t("bench.tipAddDefense")}</p>}
+        {!canAddOffense && <p className="bench-hint">{t("bench.maxOffense")}</p>}
+        {!canAddDefense && <p className="bench-hint">{t("bench.maxDefense")}</p>}
       </div>
     </div>
   );

@@ -15,9 +15,14 @@ type Play = {
   name: string;
   description: string | null;
   tags: string[];
+  teamId: string | null;
+  teamIds: string[];
   document: TacticDocumentV1;
   updatedAt: string;
 };
+
+type TeamPlayer = { id: string; name: string; number: number };
+type Team = { id: string; name: string; color: string; players: TeamPlayer[] };
 
 type SaveStatus = "saved" | "saving" | "unsaved";
 
@@ -28,6 +33,9 @@ export function PlayEditPage() {
   const { t } = useT();
   const [name, setName] = useState("");
   const [description, setDescription] = useState("");
+  const [rosterTeamId, setRosterTeamId] = useState("");
+  const [assignedTeamIds, setAssignedTeamIds] = useState<string[]>([]);
+  const [teams, setTeams] = useState<Team[]>([]);
   const [doc, setDoc] = useState<TacticDocumentV1 | null>(null);
   const [jsonText, setJsonText] = useState("");
   const [showJson, setShowJson] = useState(false);
@@ -58,9 +66,9 @@ export function PlayEditPage() {
 
   const isDirty = useCallback(() => {
     if (!doc) return false;
-    const current = JSON.stringify({ name, description, doc });
+    const current = JSON.stringify({ name, description, assignedTeamIds, doc });
     return current !== savedSnapshotRef.current;
-  }, [name, description, doc]);
+  }, [name, description, assignedTeamIds, doc]);
 
   useEffect(() => {
     const handler = (e: BeforeUnloadEvent) => {
@@ -74,8 +82,8 @@ export function PlayEditPage() {
 
   const markSaved = useCallback(() => {
     setSaveStatus("saved");
-    savedSnapshotRef.current = JSON.stringify({ name, description, doc });
-  }, [name, description, doc]);
+    savedSnapshotRef.current = JSON.stringify({ name, description, assignedTeamIds, doc });
+  }, [name, description, assignedTeamIds, doc]);
 
   const syncJsonText = useCallback(
     (nextDoc: TacticDocumentV1) => {
@@ -148,14 +156,20 @@ export function PlayEditPage() {
     try {
       await api<Play>(`/api/v1/plays/${id}`, {
         method: "PATCH",
-        body: JSON.stringify({ name, description, document: doc }),
+        body: JSON.stringify({
+          name,
+          description,
+          teamId: assignedTeamIds[0] ?? null,
+          teamIds: assignedTeamIds,
+          document: doc,
+        }),
       });
       markSaved();
     } catch (e) {
       setErr(e instanceof ApiError ? e.message : t("edit.saveFailed"));
       setSaveStatus("unsaved");
     }
-  }, [id, name, description, doc, markSaved, t]);
+  }, [id, name, description, assignedTeamIds, doc, markSaved, t]);
 
   useEffect(() => {
     if (!doc || saveStatus === "saved" || saveStatus === "saving") return;
@@ -175,6 +189,9 @@ export function PlayEditPage() {
       const p = await api<Play>(`/api/v1/plays/${id}`);
       setName(p.name);
       setDescription(p.description ?? "");
+      const nextAssignedTeamIds = p.teamIds?.length ? p.teamIds : p.teamId ? [p.teamId] : [];
+      setAssignedTeamIds(nextAssignedTeamIds);
+      setRosterTeamId("");
       setDoc(p.document);
       setJsonText(JSON.stringify(p.document, null, 2));
       undoStackRef.current = [];
@@ -184,6 +201,7 @@ export function PlayEditPage() {
       savedSnapshotRef.current = JSON.stringify({
         name: p.name,
         description: p.description ?? "",
+        assignedTeamIds: nextAssignedTeamIds,
         doc: p.document,
       });
       setSaveStatus("saved");
@@ -192,9 +210,21 @@ export function PlayEditPage() {
     }
   }, [id, t]);
 
+  const loadTeams = useCallback(async () => {
+    try {
+      const res = await api<Team[]>("/api/v1/teams");
+      setTeams(res);
+    } catch {
+      /* Editing still works without team data. */
+    }
+  }, []);
+
   useEffect(() => {
-    if (user) void load();
-  }, [user, load]);
+    if (user) {
+      void loadTeams();
+      void load();
+    }
+  }, [user, load, loadTeams]);
 
   const startRef = useRef(0);
   useEffect(() => {
@@ -368,6 +398,7 @@ export function PlayEditPage() {
   }[saveStatus];
   const canUndo = historyVersion >= 0 && undoStackRef.current.length > 0;
   const canRedo = historyVersion >= 0 && redoStackRef.current.length > 0;
+  const selectedRosterTeam = rosterTeamId ? teams.find((tm) => tm.id === rosterTeamId) : undefined;
   const progressPct = effectiveEnd > 0 ? Math.max(0, Math.min(100, (tMs / effectiveEnd) * 100)) : 0;
   const currentStopIdx = previewStopTimes.findIndex((tm) => Math.abs(tm - tMs) < 1);
   const previousStop =
@@ -456,6 +487,52 @@ export function PlayEditPage() {
           }}
         />
       </div>
+      {teams.length > 0 ? (
+        <>
+          <div className="field">
+            <label htmlFor="rosterTeam">{t("edit.rosterTeam")}</label>
+            <select
+              id="rosterTeam"
+              value={rosterTeamId}
+              onChange={(e) => setRosterTeamId(e.target.value)}
+            >
+              <option value="">{t("edit.defaultRoster")}</option>
+              {teams.map((tm) => (
+                <option key={tm.id} value={tm.id}>
+                  {tm.name}
+                </option>
+              ))}
+            </select>
+          </div>
+          <div className="field">
+            <label>{t("edit.assignedTeams")}</label>
+            <div className="team-checkbox-grid">
+              {teams.map((tm) => {
+                const checked = assignedTeamIds.includes(tm.id);
+                return (
+                  <label key={tm.id} className="team-checkbox">
+                    <input
+                      type="checkbox"
+                      checked={checked}
+                      onChange={(e) => {
+                        setAssignedTeamIds((ids) =>
+                          e.target.checked ? [...ids, tm.id] : ids.filter((id) => id !== tm.id),
+                        );
+                        setSaveStatus("unsaved");
+                      }}
+                    />
+                    <span style={{ background: tm.color }} />
+                    {tm.name}
+                  </label>
+                );
+              })}
+            </div>
+            <p className="muted" style={{ margin: "0.35rem 0 0" }}>
+              {assignedTeamIds.length === 0 ? t("edit.assignedAllTeamsHint") : t("edit.assignedTeamsHint")}
+            </p>
+          </div>
+        </>
+      ) : null}
 
       {doc ? (
         <TacticEditor
@@ -465,6 +542,7 @@ export function PlayEditPage() {
           courtMode={courtMode}
           onCourtModeChange={setCourtMode}
           onActiveTimeChange={handleActiveTimeChange}
+          teamPlayers={selectedRosterTeam?.players ?? []}
         />
       ) : null}
 

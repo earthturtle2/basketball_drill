@@ -5,7 +5,7 @@ import { PlayerDot } from "./PlayerDot";
 import { getActiveScreenEventIndex, resolveBallHolderAt, resolveScreenOverlaysAtT } from "./viewer-math";
 import { MovementTrails } from "./MovementTrails";
 import { PassLines } from "./PassLines";
-import { EditorBench, type EditorTool } from "./EditorBench";
+import { EditorBench, type BenchPlayerOption, type EditorTool } from "./EditorBench";
 import { KeyframeTimeline } from "./KeyframeTimeline";
 import { tacticToSvg, svgToTactic, type CourtMode } from "./court-geometry";
 
@@ -16,6 +16,7 @@ interface Props {
   courtMode: CourtMode;
   onCourtModeChange: (m: CourtMode) => void;
   onActiveTimeChange?: (tMs: number) => void;
+  teamPlayers?: { id: string; name: string; number: number }[];
 }
 
 let _nextId = 1;
@@ -24,6 +25,17 @@ function genId() {
 }
 
 const DEFAULT_NEW_FRAME_GAP_MS = 1000;
+
+type PlayerActor = Extract<TacticDocumentV1["actors"][number], { type: "player" }>;
+
+function isPlayerActor(actor: TacticDocumentV1["actors"][number]): actor is PlayerActor {
+  return actor.type === "player";
+}
+
+function nextAvailableNumber(existing: { number: number }[]): number {
+  const used = new Set(existing.map((p) => p.number));
+  return [1, 2, 3, 4, 5].find((n) => !used.has(n)) ?? existing.length + 1;
+}
 
 function remapEventsAtTime(
   events: TacticDocumentV1["events"],
@@ -132,10 +144,12 @@ export function TacticEditor({
   courtMode,
   onCourtModeChange,
   onActiveTimeChange,
+  teamPlayers = [],
 }: Props) {
   const [activeKfIdx, setActiveKfIdx] = useState(0);
   const [selectedActorId, setSelectedActorId] = useState<string | null>(null);
   const [tool, setTool] = useState<EditorTool>("select");
+  const [pendingPlayer, setPendingPlayer] = useState<BenchPlayerOption | null>(null);
   const [passSource, setPassSource] = useState<string | null>(null);
   const [draggingCp, setDraggingCp] = useState<{ actorId: string; kfIdx: number } | null>(null);
   const svgRef = useRef<SVGSVGElement>(null);
@@ -150,6 +164,22 @@ export function TacticEditor({
   const currentT = kf?.t ?? 0;
 
   const ballHolderId = useMemo(() => resolveBallHolderAt(doc, currentT), [doc, currentT]);
+  const offensePlayers = doc.actors.filter((a): a is PlayerActor => isPlayerActor(a) && a.team === "offense");
+  const defensePlayers = doc.actors.filter((a): a is PlayerActor => isPlayerActor(a) && a.team === "defense");
+  const canAddOffense = offensePlayers.length < 5;
+  const canAddDefense = defensePlayers.length < 5;
+
+  const availablePlayers = useMemo<BenchPlayerOption[]>(() => {
+    const source = teamPlayers.length
+      ? teamPlayers
+      : [1, 2, 3, 4, 5].map((number) => ({ id: `default-${number}`, name: "", number }));
+    const usedNumbers = new Set(offensePlayers.map((p) => p.number));
+    return source.map((p) => ({
+      ...p,
+      label: p.name ? `${p.number} ${p.name}` : `${p.number}`,
+      disabled: usedNumbers.has(p.number),
+    }));
+  }, [teamPlayers, offensePlayers]);
 
   useEffect(() => {
     onActiveTimeChange?.(currentT);
@@ -159,6 +189,7 @@ export function TacticEditor({
     const onKeyDown = (e: KeyboardEvent) => {
       if (e.key !== "Escape") return;
       setTool("select");
+      setPendingPlayer(null);
       setPassSource(null);
       setDraggingCp(null);
     };
@@ -173,9 +204,18 @@ export function TacticEditor({
     selectedPlayer?.type === "player" ? selectedPlayer : null;
 
   const handleToolChange = useCallback((t: EditorTool) => {
+    if ((t === "addOffense" && !canAddOffense) || (t === "addDefense" && !canAddDefense)) return;
     setTool(t);
+    if (t !== "addOffense") setPendingPlayer(null);
     setPassSource(null);
-  }, []);
+  }, [canAddOffense, canAddDefense]);
+
+  const handleRosterPlayerSelect = useCallback((player: BenchPlayerOption) => {
+    if (!canAddOffense || player.disabled) return;
+    setPendingPlayer(player);
+    setTool("addOffense");
+    setPassSource(null);
+  }, [canAddOffense]);
 
   const handleDrag = useCallback(
     (actorId: string, svgX: number, svgY: number) => {
@@ -233,15 +273,16 @@ export function TacticEditor({
       const [tx, ty] = svgToTactic(svgX, svgY, courtMode);
 
       const team: "offense" | "defense" = tool === "addOffense" ? "offense" : "defense";
-      const existing = doc.actors.filter((a) => a.type === "player" && a.team === team);
-      const num = existing.length + 1;
+      const existing = doc.actors.filter((a): a is PlayerActor => isPlayerActor(a) && a.team === team);
+      if (existing.length >= 5) return;
+      const num = team === "offense" && pendingPlayer ? pendingPlayer.number : nextAvailableNumber(existing);
       const id = genId();
       const newActor = {
         id,
         type: "player" as const,
         team,
         number: num,
-        label: `${num}`,
+        label: team === "offense" && pendingPlayer ? (pendingPlayer.name || `${num}`) : `${num}`,
       };
       const newKfs = doc.keyframes.map((k) => ({
         ...k,
@@ -253,9 +294,10 @@ export function TacticEditor({
         keyframes: newKfs,
       });
       setSelectedActorId(id);
+      setPendingPlayer(null);
       setTool("select");
     },
-    [tool, doc, onChange, courtMode],
+    [tool, doc, onChange, courtMode, pendingPlayer],
   );
 
   const handleRemoveSelected = useCallback(() => {
@@ -581,6 +623,11 @@ export function TacticEditor({
         canClearFrameAction={!!selectedPlayerData && activeKfIdx > 0}
         onScreenAngleChange={handleScreenAngleChange}
         onRemoveScreen={handleRemoveScreen}
+        availablePlayers={availablePlayers}
+        pendingPlayer={pendingPlayer}
+        onRosterPlayerSelect={handleRosterPlayerSelect}
+        canAddOffense={canAddOffense}
+        canAddDefense={canAddDefense}
       />
 
       <div className="editor-court">
@@ -679,6 +726,11 @@ export function TacticEditor({
         canClearFrameAction={!!selectedPlayerData && activeKfIdx > 0}
         onScreenAngleChange={handleScreenAngleChange}
         onRemoveScreen={handleRemoveScreen}
+        availablePlayers={availablePlayers}
+        pendingPlayer={pendingPlayer}
+        onRosterPlayerSelect={handleRosterPlayerSelect}
+        canAddOffense={canAddOffense}
+        canAddDefense={canAddDefense}
       />
 
       <div className="editor-timeline">

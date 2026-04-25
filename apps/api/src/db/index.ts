@@ -56,15 +56,24 @@ CREATE TABLE IF NOT EXISTS teams (
   user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
   name TEXT NOT NULL,
   color TEXT NOT NULL DEFAULT '#e53935',
+  players TEXT NOT NULL DEFAULT '[]',
   created_at INTEGER NOT NULL
 );
 CREATE INDEX IF NOT EXISTS idx_teams_user ON teams(user_id);
 `);
 
+if (hasTable("teams") && !hasColumn("teams", "players")) {
+  sqlite.exec("ALTER TABLE teams ADD COLUMN players TEXT NOT NULL DEFAULT '[]'");
+}
+
 if (hasTable("plays") && !hasColumn("plays", "team_id")) {
   sqlite.pragma("foreign_keys = OFF");
   sqlite.exec("ALTER TABLE plays ADD COLUMN team_id TEXT REFERENCES teams(id) ON DELETE SET NULL");
   sqlite.pragma("foreign_keys = ON");
+}
+
+if (hasTable("plays") && !hasColumn("plays", "team_ids")) {
+  sqlite.exec("ALTER TABLE plays ADD COLUMN team_ids TEXT NOT NULL DEFAULT '[]'");
 }
 
 sqlite.exec(`

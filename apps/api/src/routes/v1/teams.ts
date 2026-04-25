@@ -5,15 +5,33 @@ import { db } from "../../db/index.js";
 import { teams, plays } from "../../db/schema.js";
 import { sendError } from "../../lib/errors.js";
 
+const teamPlayer = z.object({
+  id: z.string().min(1).max(80),
+  name: z.string().max(100).default(""),
+  number: z.number().int().min(0).max(99),
+});
+
 const teamBody = z.object({
   name: z.string().min(1).max(100),
   color: z.string().min(3).max(30).optional(),
+  players: z.array(teamPlayer).max(20).optional(),
 });
 
 const teamPatchBody = z.object({
   name: z.string().min(1).max(100).optional(),
   color: z.string().min(3).max(30).optional(),
+  players: z.array(teamPlayer).max(20).optional(),
 });
+
+function serializeTeam(r: typeof teams.$inferSelect) {
+  return {
+    id: r.id,
+    name: r.name,
+    color: r.color,
+    players: r.players ?? [],
+    createdAt: r.createdAt.toISOString(),
+  };
+}
 
 export async function teamRoutes(fastify: FastifyInstance) {
   fastify.get("/teams", async (request, reply) => {
@@ -24,12 +42,7 @@ export async function teamRoutes(fastify: FastifyInstance) {
       .where(eq(teams.userId, uid))
       .orderBy(teams.createdAt);
     return reply.send(
-      rows.map((r) => ({
-        id: r.id,
-        name: r.name,
-        color: r.color,
-        createdAt: r.createdAt.toISOString(),
-      })),
+      rows.map(serializeTeam),
     );
   });
 
@@ -41,15 +54,11 @@ export async function teamRoutes(fastify: FastifyInstance) {
         userId: request.user!.id,
         name: b.name,
         color: b.color ?? "#e53935",
+        players: b.players ?? [],
       })
       .returning();
     if (!row) return sendError(reply, 500, "INTERNAL", "创建失败");
-    return reply.status(201).send({
-      id: row.id,
-      name: row.name,
-      color: row.color,
-      createdAt: row.createdAt.toISOString(),
-    });
+    return reply.status(201).send(serializeTeam(row));
   });
 
   fastify.patch("/teams/:teamId", async (request, reply) => {
@@ -66,16 +75,12 @@ export async function teamRoutes(fastify: FastifyInstance) {
       .set({
         name: b.name ?? row.name,
         color: b.color ?? row.color,
+        players: b.players ?? row.players,
       })
       .where(eq(teams.id, teamId))
       .returning();
     if (!u) return sendError(reply, 500, "INTERNAL", "更新失败");
-    return reply.send({
-      id: u.id,
-      name: u.name,
-      color: u.color,
-      createdAt: u.createdAt.toISOString(),
-    });
+    return reply.send(serializeTeam(u));
   });
 
   fastify.delete("/teams/:teamId", async (request, reply) => {
@@ -90,6 +95,17 @@ export async function teamRoutes(fastify: FastifyInstance) {
       .update(plays)
       .set({ teamId: null })
       .where(and(eq(plays.teamId, teamId), eq(plays.userId, request.user!.id)));
+    const userPlays = await db.select().from(plays).where(eq(plays.userId, request.user!.id));
+    await Promise.all(
+      userPlays
+        .filter((play) => play.teamIds.includes(teamId))
+        .map((play) =>
+          db
+            .update(plays)
+            .set({ teamIds: play.teamIds.filter((id) => id !== teamId) })
+            .where(eq(plays.id, play.id)),
+        ),
+    );
     await db.delete(teams).where(eq(teams.id, teamId));
     return reply.status(204).send();
   });

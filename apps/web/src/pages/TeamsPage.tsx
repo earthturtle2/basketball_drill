@@ -1,29 +1,114 @@
 import { useCallback, useEffect, useState } from "react";
-import { Navigate } from "react-router-dom";
+import { Link } from "react-router-dom";
 import { api, ApiError } from "../api";
 import { useAuth } from "../auth";
 import { useT } from "../i18n";
 
-type Team = { id: string; name: string; color: string; createdAt: string };
+type TeamPlayer = { id: string; name: string; number: number };
+type Team = { id: string; name: string; color: string; players: TeamPlayer[]; createdAt: string };
+
+function newPlayer(number: number): TeamPlayer {
+  return {
+    id: `tp-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}-${number}`,
+    name: "",
+    number,
+  };
+}
+
+function defaultPlayers(): TeamPlayer[] {
+  return [1, 2, 3, 4, 5].map(newPlayer);
+}
+
+function normalizePlayers(players: TeamPlayer[]): TeamPlayer[] {
+  return players
+    .map((p) => ({
+      id: p.id,
+      name: p.name.trim(),
+      number: Math.max(0, Math.min(99, Math.round(p.number || 0))),
+    }))
+    .filter((p) => p.id && p.number >= 0);
+}
+
+function PlayerRosterEditor({
+  players,
+  onChange,
+}: {
+  players: TeamPlayer[];
+  onChange: (players: TeamPlayer[]) => void;
+}) {
+  const { t } = useT();
+
+  return (
+    <div className="team-roster">
+      <div className="team-roster__header">
+        <label>{t("teams.players")}</label>
+        <button
+          type="button"
+          className="btn btn-sm btn-ghost"
+          onClick={() => onChange([...players, newPlayer((players.at(-1)?.number ?? players.length) + 1)])}
+        >
+          {t("teams.addPlayer")}
+        </button>
+      </div>
+      <div className="team-roster__rows">
+        {players.map((p, idx) => (
+          <div key={p.id} className="team-roster__row">
+            <input
+              type="number"
+              min={0}
+              max={99}
+              value={p.number}
+              aria-label={t("teams.playerNumber")}
+              onChange={(e) => {
+                const next = [...players];
+                next[idx] = { ...p, number: Number(e.target.value) || 0 };
+                onChange(next);
+              }}
+            />
+            <input
+              value={p.name}
+              placeholder={t("teams.playerNamePlaceholder")}
+              aria-label={t("teams.playerName")}
+              onChange={(e) => {
+                const next = [...players];
+                next[idx] = { ...p, name: e.target.value };
+                onChange(next);
+              }}
+            />
+            <button
+              type="button"
+              className="btn btn-sm btn-ghost"
+              onClick={() => onChange(players.filter((_, i) => i !== idx))}
+            >
+              {t("teams.removePlayer")}
+            </button>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
 
 export function TeamsPage() {
-  const { user } = useAuth();
+  const { user, loading } = useAuth();
   const { t } = useT();
   const [teams, setTeams] = useState<Team[]>([]);
   const [err, setErr] = useState<string | null>(null);
   const [name, setName] = useState("");
   const [color, setColor] = useState("#2e7d32");
+  const [players, setPlayers] = useState<TeamPlayer[]>(() => defaultPlayers());
   const [editId, setEditId] = useState<string | null>(null);
   const [editName, setEditName] = useState("");
   const [editColor, setEditColor] = useState("");
+  const [editPlayers, setEditPlayers] = useState<TeamPlayer[]>([]);
 
   const load = useCallback(async () => {
     setErr(null);
     try {
       const res = await api<Team[]>("/api/v1/teams");
       setTeams(res);
-    } catch {
-      setErr(t("teams.loadFailed"));
+    } catch (e) {
+      setErr(e instanceof ApiError && e.status === 401 ? t("teams.loginRequired") : t("teams.loadFailed"));
     }
   }, [t]);
 
@@ -31,7 +116,18 @@ export function TeamsPage() {
     if (user) void load();
   }, [user, load]);
 
-  if (!user) return <Navigate to="/login" replace />;
+  if (loading) return <p className="hint">{t("view.loading")}</p>;
+  if (!user) {
+    return (
+      <div className="card" style={{ maxWidth: 480, margin: "0 auto" }}>
+        <h1 style={{ margin: "0 0 0.5rem" }}>{t("teams.title")}</h1>
+        <p className="error">{t("teams.loginRequired")}</p>
+        <Link to="/login" className="btn btn-primary">
+          {t("app.login")}
+        </Link>
+      </div>
+    );
+  }
 
   async function create() {
     if (!name.trim()) return;
@@ -39,10 +135,11 @@ export function TeamsPage() {
     try {
       await api("/api/v1/teams", {
         method: "POST",
-        body: JSON.stringify({ name: name.trim(), color }),
+        body: JSON.stringify({ name: name.trim(), color, players: normalizePlayers(players) }),
       });
       setName("");
       setColor("#2e7d32");
+      setPlayers(defaultPlayers());
       await load();
     } catch (e) {
       setErr(e instanceof ApiError ? e.message : t("teams.createFailed"));
@@ -54,7 +151,7 @@ export function TeamsPage() {
     try {
       await api(`/api/v1/teams/${id}`, {
         method: "PATCH",
-        body: JSON.stringify({ name: editName, color: editColor }),
+        body: JSON.stringify({ name: editName, color: editColor, players: normalizePlayers(editPlayers) }),
       });
       setEditId(null);
       await load();
@@ -94,45 +191,56 @@ export function TeamsPage() {
             {t("teams.add")}
           </button>
         </div>
+        <PlayerRosterEditor players={players} onChange={setPlayers} />
       </div>
 
       <div className="list">
         {teams.map((tm) => (
           <div key={tm.id} className="list-item">
             {editId === tm.id ? (
-              <div style={{ display: "flex", gap: "0.5rem", flexWrap: "wrap", alignItems: "center", flex: 1 }}>
-                <input
-                  value={editName}
-                  onChange={(e) => setEditName(e.target.value)}
-                  style={{ flex: 1, minWidth: 100 }}
-                />
-                <input
-                  type="color"
-                  value={editColor}
-                  onChange={(e) => setEditColor(e.target.value)}
-                  style={{ width: 40, padding: "2px", height: 32 }}
-                />
-                <button type="button" className="btn btn-sm" onClick={() => void update(tm.id)}>
-                  {t("teams.save")}
-                </button>
-                <button type="button" className="btn btn-sm btn-ghost" onClick={() => setEditId(null)}>
-                  {t("teams.cancel")}
-                </button>
+              <div style={{ flex: 1 }}>
+                <div style={{ display: "flex", gap: "0.5rem", flexWrap: "wrap", alignItems: "center", flex: 1 }}>
+                  <input
+                    value={editName}
+                    onChange={(e) => setEditName(e.target.value)}
+                    style={{ flex: 1, minWidth: 100 }}
+                  />
+                  <input
+                    type="color"
+                    value={editColor}
+                    onChange={(e) => setEditColor(e.target.value)}
+                    style={{ width: 40, padding: "2px", height: 32 }}
+                  />
+                  <button type="button" className="btn btn-sm" onClick={() => void update(tm.id)}>
+                    {t("teams.save")}
+                  </button>
+                  <button type="button" className="btn btn-sm btn-ghost" onClick={() => setEditId(null)}>
+                    {t("teams.cancel")}
+                  </button>
+                </div>
+                <PlayerRosterEditor players={editPlayers} onChange={setEditPlayers} />
               </div>
             ) : (
               <>
-                <div style={{ display: "flex", alignItems: "center", gap: "0.6rem" }}>
-                  <span
-                    style={{
-                      display: "inline-block",
-                      width: 16,
-                      height: 16,
-                      borderRadius: "50%",
-                      background: tm.color,
-                      flexShrink: 0,
-                    }}
-                  />
-                  <h3>{tm.name}</h3>
+                <div>
+                  <div style={{ display: "flex", alignItems: "center", gap: "0.6rem" }}>
+                    <span
+                      style={{
+                        display: "inline-block",
+                        width: 16,
+                        height: 16,
+                        borderRadius: "50%",
+                        background: tm.color,
+                        flexShrink: 0,
+                      }}
+                    />
+                    <h3>{tm.name}</h3>
+                  </div>
+                  <p className="muted" style={{ margin: "0.35rem 0 0" }}>
+                    {(tm.players?.length ? tm.players : defaultPlayers())
+                      .map((p) => `${p.number}${p.name ? ` ${p.name}` : ""}`)
+                      .join(" / ")}
+                  </p>
                 </div>
                 <div className="row-actions">
                   <button
@@ -142,6 +250,7 @@ export function TeamsPage() {
                       setEditId(tm.id);
                       setEditName(tm.name);
                       setEditColor(tm.color);
+                      setEditPlayers(tm.players?.length ? tm.players : defaultPlayers());
                     }}
                   >
                     {t("teams.edit")}

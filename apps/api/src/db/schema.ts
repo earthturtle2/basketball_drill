@@ -1,6 +1,12 @@
 import { index, integer, sqliteTable, text } from "drizzle-orm/sqlite-core";
 import type { TacticDocumentV1 } from "@basketball/shared";
 
+export type TeamPlayer = {
+  id: string;
+  name: string;
+  number: number;
+};
+
 export const users = sqliteTable("users", {
   id: text("id")
     .primaryKey()
@@ -63,6 +69,10 @@ export const teams = sqliteTable(
       .references(() => users.id, { onDelete: "cascade" }),
     name: text("name").notNull(),
     color: text("color").notNull().default("#e53935"),
+    players: text("players", { mode: "json" })
+      .$type<TeamPlayer[]>()
+      .notNull()
+      .$defaultFn(() => []),
     createdAt: integer("created_at", { mode: "timestamp_ms" })
       .notNull()
       .$defaultFn(() => new Date()),
@@ -80,6 +90,10 @@ export const plays = sqliteTable(
       .notNull()
       .references(() => users.id, { onDelete: "cascade" }),
     teamId: text("team_id").references(() => teams.id, { onDelete: "set null" }),
+    teamIds: text("team_ids", { mode: "json" })
+      .$type<string[]>()
+      .notNull()
+      .$defaultFn(() => []),
     name: text("name").notNull(),
     description: text("description"),
     tags: text("tags", { mode: "json" })

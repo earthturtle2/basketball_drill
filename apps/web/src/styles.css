@@ -212,7 +212,8 @@ summary:focus-visible {
 }
 
 input,
-textarea {
+textarea,
+select {
   width: 100%;
   padding: 0.72rem 0.86rem;
   border-radius: 14px;
@@ -227,7 +228,8 @@ textarea {
     background 0.18s ease;
 }
 input:hover,
-textarea:hover {
+textarea:hover,
+select:hover {
   border-color: rgba(61, 220, 85, 0.35);
 }
 textarea {
@@ -399,6 +401,57 @@ pre.doc {
   font-size: 0.85rem;
 }
 
+.team-roster {
+  margin-top: 0.85rem;
+}
+.team-roster__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  margin-bottom: 0.45rem;
+}
+.team-roster__rows {
+  display: flex;
+  flex-direction: column;
+  gap: 0.45rem;
+}
+.team-roster__row {
+  display: grid;
+  grid-template-columns: 72px minmax(120px, 1fr) auto;
+  gap: 0.45rem;
+  align-items: center;
+}
+.team-roster__row input {
+  padding: 0.45rem 0.6rem;
+}
+.team-checkbox-grid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.55rem;
+}
+.team-checkbox {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  padding: 0.46rem 0.7rem;
+  border: 1px solid rgba(61, 220, 85, 0.16);
+  border-radius: 999px;
+  background: rgba(5, 17, 9, 0.5);
+  color: var(--text);
+  font-size: 0.86rem;
+  letter-spacing: 0;
+  text-transform: none;
+}
+.team-checkbox input {
+  width: auto;
+}
+.team-checkbox span {
+  width: 10px;
+  height: 10px;
+  border-radius: 999px;
+}
+
 /* Court SVG */
 .court-svg {
   width: 100%;
@@ -487,6 +540,49 @@ pre.doc {
 .bench-row--directions {
   display: grid;
   grid-template-columns: repeat(3, minmax(32px, 1fr));
+}
+.bench-player-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(58px, 1fr));
+  gap: 0.35rem;
+}
+.bench-player-card {
+  min-height: 48px;
+  padding: 0.35rem;
+  border-radius: 14px;
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  background:
+    linear-gradient(180deg, rgba(255, 97, 93, 0.92), rgba(229, 57, 53, 0.9));
+  color: #fff;
+  cursor: pointer;
+  box-shadow: 0 10px 24px rgba(0, 0, 0, 0.2);
+}
+.bench-player-card span,
+.bench-player-card small {
+  display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.bench-player-card span {
+  font-size: 1rem;
+  font-weight: 900;
+  line-height: 1.1;
+}
+.bench-player-card small {
+  margin-top: 0.1rem;
+  font-size: 0.65rem;
+  opacity: 0.9;
+}
+.bench-player-card:hover,
+.bench-player-card--active {
+  border-color: #fff;
+  box-shadow: 0 0 0 5px rgba(255, 255, 255, 0.1), 0 0 22px rgba(255, 255, 255, 0.28);
+}
+.bench-player-card:disabled {
+  cursor: not-allowed;
+  opacity: 0.42;
+  box-shadow: none;
 }
 .bench-hint {
   font-size: 0.78rem;
@@ -1008,6 +1104,12 @@ input[type="color"] {
   .list-item {
     flex-direction: column;
     align-items: flex-start;
+  }
+  .team-roster__row {
+    grid-template-columns: 64px minmax(100px, 1fr);
+  }
+  .team-roster__row .btn {
+    grid-column: 1 / -1;
   }
   .list-item .row-actions {
     width: 100%;

@@ -5,8 +5,9 @@ import { useAuth } from "../auth";
 import { useT } from "../i18n";
 import { DEFAULT_TACTIC_DOCUMENT } from "@basketball/shared";
 
-type PlayListItem = { id: string; name: string; teamId: string | null; updatedAt: string };
-type Team = { id: string; name: string; color: string };
+type PlayListItem = { id: string; name: string; teamId: string | null; teamIds: string[]; updatedAt: string };
+type TeamPlayer = { id: string; name: string; number: number };
+type Team = { id: string; name: string; color: string; players: TeamPlayer[] };
 
 export function PlaysPage() {
   const nav = useNavigate();
@@ -61,7 +62,7 @@ export function PlaysPage() {
         description: "",
         tags: [] as string[],
         document: DEFAULT_TACTIC_DOCUMENT,
-        teamId: filterTeamId || undefined,
+        teamIds: [] as string[],
       };
       const res = await api<{ id: string }>("/api/v1/plays", {
         method: "POST",
@@ -102,7 +103,8 @@ export function PlaysPage() {
       </div>
       <div className="list">
         {items.map((p) => {
-          const team = p.teamId ? teamMap.get(p.teamId) : null;
+          const assignedTeamIds = p.teamIds?.length ? p.teamIds : p.teamId ? [p.teamId] : [];
+          const assignedTeams = assignedTeamIds.map((teamId) => teamMap.get(teamId)).filter((tm): tm is Team => !!tm);
           return (
             <div key={p.id} className="list-item">
               <div>
@@ -110,21 +112,27 @@ export function PlaysPage() {
                   <Link to={`/plays/${p.id}`}>{p.name}</Link>
                 </h3>
                 <div className="muted">
-                  {team ? (
+                  {assignedTeams.length ? (
                     <span style={{ marginRight: "0.5rem" }}>
-                      <span
-                        style={{
-                          display: "inline-block",
-                          width: 8,
-                          height: 8,
-                          borderRadius: "50%",
-                          background: team.color,
-                          marginRight: 4,
-                        }}
-                      />
-                      {team.name}
+                      {assignedTeams.map((team) => (
+                        <span key={team.id} style={{ marginRight: "0.45rem" }}>
+                          <span
+                            style={{
+                              display: "inline-block",
+                              width: 8,
+                              height: 8,
+                              borderRadius: "50%",
+                              background: team.color,
+                              marginRight: 4,
+                            }}
+                          />
+                          {team.name}
+                        </span>
+                      ))}
                     </span>
-                  ) : null}
+                  ) : (
+                    <span style={{ marginRight: "0.5rem" }}>{t("plays.availableAllTeams")}</span>
+                  )}
                   {t("plays.updatedAt")} {new Date(p.updatedAt).toLocaleString()}
                 </div>
               </div>

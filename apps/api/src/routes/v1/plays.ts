@@ -17,6 +17,7 @@ const playCreateBody = z.object({
   tags: z.array(z.string().max(64)).max(32).optional(),
   document: z.unknown().optional(),
   teamId: z.string().optional(),
+  teamIds: z.array(z.string().min(1)).max(50).optional(),
 });
 
 const playPatchBody = z.object({
@@ -25,6 +26,7 @@ const playPatchBody = z.object({
   tags: z.array(z.string().max(64)).max(32).optional(),
   document: z.unknown().optional(),
   teamId: z.string().nullable().optional(),
+  teamIds: z.array(z.string().min(1)).max(50).optional(),
 });
 
 const listQuery = z.object({
@@ -43,6 +45,24 @@ function escapeIlike(s: string) {
   return s.replace(/[\\%_]/g, (c) => `\\${c}`);
 }
 
+function uniqueTeamIds(teamIds: string[] | undefined, legacyTeamId?: string | null) {
+  return [...new Set([...(teamIds ?? []), ...(legacyTeamId ? [legacyTeamId] : [])])];
+}
+
+function serializePlay(row: typeof plays.$inferSelect) {
+  return {
+    id: row.id,
+    name: row.name,
+    description: row.description,
+    tags: row.tags,
+    teamId: row.teamId,
+    teamIds: uniqueTeamIds(row.teamIds, row.teamId),
+    document: row.document,
+    createdAt: row.createdAt.toISOString(),
+    updatedAt: row.updatedAt.toISOString(),
+  };
+}
+
 export async function playRoutes(fastify: FastifyInstance) {
   fastify.get("/plays", async (request, reply) => {
     const q = listQuery.parse((request as { query: Record<string, string> }).query);
@@ -58,7 +78,9 @@ export async function playRoutes(fastify: FastifyInstance) {
       );
     }
     if (q.teamId) {
-      conditions.push(eq(plays.teamId, q.teamId));
+      conditions.push(
+        sql`(${plays.teamId} = ${q.teamId} or json_array_length(${plays.teamIds}) = 0 or exists (select 1 from json_each(${plays.teamIds}) as j where j.value = ${q.teamId}))`,
+      );
     }
     const where = and(...conditions);
     const totalRow = await db.select({ n: count() }).from(plays).where(where);
@@ -71,6 +93,7 @@ export async function playRoutes(fastify: FastifyInstance) {
         description: plays.description,
         tags: plays.tags,
         teamId: plays.teamId,
+        teamIds: plays.teamIds,
         updatedAt: plays.updatedAt,
       })
       .from(plays)
@@ -79,7 +102,11 @@ export async function playRoutes(fastify: FastifyInstance) {
       .limit(q.pageSize)
       .offset(offset);
     return reply.send({
-      items: rows.map((r) => ({ ...r, updatedAt: r.updatedAt.toISOString() })),
+      items: rows.map((r) => ({
+        ...r,
+        teamIds: uniqueTeamIds(r.teamIds, r.teamId),
+        updatedAt: r.updatedAt.toISOString(),
+      })),
       page: q.page,
       pageSize: q.pageSize,
       total: Number(total),
@@ -104,6 +131,7 @@ export async function playRoutes(fastify: FastifyInstance) {
       .values({
         userId: request.user!.id,
         teamId: b.teamId ?? null,
+        teamIds: uniqueTeamIds(b.teamIds, b.teamId),
         name: b.name,
         description: b.description ?? null,
         tags: b.tags ?? [],
@@ -111,15 +139,7 @@ export async function playRoutes(fastify: FastifyInstance) {
       })
       .returning();
     if (!row) return sendError(reply, 500, "INTERNAL", "创建失败");
-    return reply.status(201).send({
-      id: row.id,
-      name: row.name,
-      description: row.description,
-      tags: row.tags,
-      document: row.document,
-      createdAt: row.createdAt.toISOString(),
-      updatedAt: row.updatedAt.toISOString(),
-    });
+    return reply.status(201).send(serializePlay(row));
   });
 
   fastify.get("/plays/:playId", async (request, reply) => {
@@ -128,15 +148,7 @@ export async function playRoutes(fastify: FastifyInstance) {
     if (!row || row.deletedAt || row.userId !== request.user!.id) {
       return sendError(reply, 404, "NOT_FOUND", "未找到");
     }
-    return reply.send({
-      id: row.id,
-      name: row.name,
-      description: row.description,
-      tags: row.tags,
-      document: row.document,
-      createdAt: row.createdAt.toISOString(),
-      updatedAt: row.updatedAt.toISOString(),
-    });
+    return reply.send(serializePlay(row));
   });
 
   fastify.patch("/plays/:playId", async (request, reply) => {
@@ -160,21 +172,14 @@ export async function playRoutes(fastify: FastifyInstance) {
         description: b.description === undefined ? row.description : b.description,
         tags: b.tags !== undefined ? b.tags : row.tags,
         teamId: b.teamId === undefined ? row.teamId : b.teamId,
+        teamIds: b.teamIds === undefined ? row.teamIds : b.teamIds,
         document,
         updatedAt: new Date(),
       })
       .where(eq(plays.id, playId))
       .returning();
     if (!u) return sendError(reply, 500, "INTERNAL", "更新失败");
-    return reply.send({
-      id: u.id,
-      name: u.name,
-      description: u.description,
-      tags: u.tags,
-      document: u.document,
-      createdAt: u.createdAt.toISOString(),
-      updatedAt: u.updatedAt.toISOString(),
-    });
+    return reply.send(serializePlay(u));
   });
 
   fastify.delete("/plays/:playId", async (request, reply) => {
@@ -202,18 +207,12 @@ export async function playRoutes(fastify: FastifyInstance) {
         name: newName,
         description: row.description,
         tags: row.tags,
+        teamId: row.teamId,
+        teamIds: row.teamIds,
         document: buildDocumentOnUpdate(row.document, row.name, { name: newName }),
       })
       .returning();
     if (!created) return sendError(reply, 500, "INTERNAL", "复制失败");
-    return reply.status(201).send({
-      id: created.id,
-      name: created.name,
-      description: created.description,
-      tags: created.tags,
-      document: created.document,
-      createdAt: created.createdAt.toISOString(),
-      updatedAt: created.updatedAt.toISOString(),
-    });
+    return reply.status(201).send(serializePlay(created));
   });
 }
