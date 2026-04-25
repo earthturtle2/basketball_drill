@@ -835,6 +835,20 @@ pre.doc {
   box-shadow: var(--shadow);
 }
 
+.avatar-crop-modal {
+  max-width: min(440px, 100%);
+}
+
+.avatar-crop-wrap {
+  position: relative;
+  width: 100%;
+  height: 280px;
+  border-radius: 14px;
+  overflow: hidden;
+  background: #070f0a;
+  border: 1px solid var(--border);
+}
+
 /* Template grid */
 .template-grid {
   display: flex;

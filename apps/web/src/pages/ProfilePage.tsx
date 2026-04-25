@@ -3,8 +3,10 @@ import { Navigate } from "react-router-dom";
 import { ApiError, api } from "../api";
 import { useAuth, type AuthUser } from "../auth";
 import { useT } from "../i18n";
+import { AvatarCropModal } from "../components/AvatarCropModal";
 
-const AVATAR_FILE_MAX = 96 * 1024;
+/** 上传原图上限（裁剪后会缩放压缩为较小 JPEG） */
+const AVATAR_UPLOAD_MAX = 12 * 1024 * 1024;
 
 export function ProfilePage() {
   const { user, loading, refreshUser } = useAuth();
@@ -15,6 +17,7 @@ export function ProfilePage() {
   const [err, setErr] = useState<string | null>(null);
   const [ok, setOk] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
+  const [cropObjectUrl, setCropObjectUrl] = useState<string | null>(null);
 
   useEffect(() => {
     if (!user) return;
@@ -22,6 +25,12 @@ export function ProfilePage() {
     setAvatarUrl(user.avatarUrl ?? "");
     setBio(user.bio ?? "");
   }, [user]);
+
+  useEffect(() => {
+    return () => {
+      if (cropObjectUrl) URL.revokeObjectURL(cropObjectUrl);
+    };
+  }, [cropObjectUrl]);
 
   if (loading) return <p className="hint">{t("view.loading")}</p>;
   if (!user) return <Navigate to="/login" replace />;
@@ -57,19 +66,36 @@ export function ProfilePage() {
     const f = ev.target.files?.[0];
     ev.target.value = "";
     if (!f) return;
-    if (f.size > AVATAR_FILE_MAX) {
-      setErr(t("profile.avatarTooLarge"));
+    if (!/^image\/(jpeg|png)$/i.test(f.type)) {
+      setErr(t("profile.avatarTypeInvalid"));
       return;
     }
-    const r = new FileReader();
-    r.onload = () => {
-      if (typeof r.result === "string") setAvatarUrl(r.result);
-    };
-    r.readAsDataURL(f);
+    if (f.size > AVATAR_UPLOAD_MAX) {
+      setErr(t("profile.avatarFileTooBig"));
+      return;
+    }
+    setCropObjectUrl(URL.createObjectURL(f));
+  }
+
+  function closeCropModal() {
+    if (cropObjectUrl) {
+      URL.revokeObjectURL(cropObjectUrl);
+      setCropObjectUrl(null);
+    }
   }
 
   return (
     <div className="card" style={{ maxWidth: 520, margin: "0 auto" }}>
+      {cropObjectUrl ? (
+        <AvatarCropModal
+          imageSrc={cropObjectUrl}
+          onCancel={closeCropModal}
+          onConfirm={(jpegDataUrl) => {
+            setAvatarUrl(jpegDataUrl);
+            closeCropModal();
+          }}
+        />
+      ) : null}
       <h1 style={{ margin: "0 0 0.5rem" }}>{t("profile.title")}</h1>
       <p className="hint">{t("profile.hint")}</p>
       {err ? <p className="error">{err}</p> : null}
