@@ -8,7 +8,7 @@ import { TacticEditor } from "../tactic/TacticEditor";
 import { PlayPreview } from "../tactic/PlayPreview";
 import { TemplateLibrary } from "../tactic/TemplateLibrary";
 import { playbackEndMs } from "../tactic/viewer-math";
-import type { CourtMode } from "../tactic/court-geometry";
+import { courtModeFromDocument, type CourtMode } from "../tactic/court-geometry";
 
 type Play = {
   id: string;
@@ -56,7 +56,6 @@ export function PlayEditPage() {
   const [err, setErr] = useState<string | null>(null);
   const [viewUrl, setViewUrl] = useState<string | null>(null);
   const [saveStatus, setSaveStatus] = useState<SaveStatus>("saved");
-  const [courtMode, setCourtMode] = useState<CourtMode>("half");
   const [frameByFrame, setFrameByFrame] = useState(false);
   const [frameStepTarget, setFrameStepTarget] = useState<{ from: number; to: number } | null>(null);
   const [loop, setLoop] = useState(false);
@@ -240,6 +239,20 @@ export function PlayEditPage() {
     } catch {
       /* Editing still works without team data. */
     }
+  }, []);
+
+  const handleCourtModeChange = useCallback((mode: CourtMode) => {
+    setDoc((prev) => {
+      if (!prev) return prev;
+      return {
+        ...prev,
+        meta: {
+          ...prev.meta,
+          court: { ...prev.meta.court, preset: mode },
+        },
+      };
+    });
+    setSaveStatus("unsaved");
   }, []);
 
   const loadAccounts = useCallback(async () => {
@@ -649,8 +662,8 @@ export function PlayEditPage() {
           document={doc}
           onChange={handleDocChange}
           onOpenTemplates={() => setShowTemplates(true)}
-          courtMode={courtMode}
-          onCourtModeChange={setCourtMode}
+          courtMode={courtModeFromDocument(doc)}
+          onCourtModeChange={handleCourtModeChange}
           onActiveTimeChange={handleActiveTimeChange}
           teamPlayers={selectedRosterTeam?.players ?? []}
         />
@@ -659,7 +672,7 @@ export function PlayEditPage() {
       {doc ? (
         <div className="card" style={{ marginTop: "1rem" }}>
           <h2 style={{ margin: "0 0 0.5rem", fontSize: "1.05rem" }}>{t("edit.preview")}</h2>
-          <PlayPreview document={doc} tMs={tMs} courtMode={courtMode} />
+          <PlayPreview document={doc} tMs={tMs} courtMode={courtModeFromDocument(doc)} />
           <div className="preview-controls">
             <div className="preview-controls__timeline-row">
               <span className="preview-controls__time">

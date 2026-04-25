@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useParams } from "react-router-dom";
 import type { TacticDocumentV1 } from "@basketball/shared";
 import { PlayPreview } from "../tactic/PlayPreview";
+import { courtModeFromDocument } from "../tactic/court-geometry";
 import { playbackEndMs } from "../tactic/viewer-math";
 import { useT } from "../i18n";
 
@@ -178,7 +179,7 @@ export function ViewPage() {
     <div className="view-page">
       <h1 style={{ margin: "0 0 0.25rem" }}>{data.play.name}</h1>
       {data.play.description ? <p className="hint">{data.play.description}</p> : null}
-      <PlayPreview document={doc} tMs={tMs} />
+      <PlayPreview document={doc} tMs={tMs} courtMode={courtModeFromDocument(doc)} />
       <div className="preview-controls view-controls">
         <div className="preview-controls__timeline-row">
           <span className="preview-controls__time">

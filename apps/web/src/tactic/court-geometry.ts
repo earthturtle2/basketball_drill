@@ -5,11 +5,20 @@
  * Origin top-left, x right, y down.
  */
 
+import type { TacticDocumentV1 } from "@basketball/shared";
+
 export const HALF_W = 140;
 export const FULL_W = 280;
 export const COURT_H = 150;
 
 export type CourtMode = "half" | "full";
+
+/** 与编辑页一致：半场/全场写入 `meta.court.preset`，分享页等只读预览由此读取。 */
+export function courtModeFromDocument(doc: TacticDocumentV1): CourtMode {
+  const p = doc.meta?.court?.preset;
+  if (p === "full") return "full";
+  return "half";
+}
 
 export function courtWidth(mode: CourtMode): number {
   return mode === "full" ? FULL_W : HALF_W;

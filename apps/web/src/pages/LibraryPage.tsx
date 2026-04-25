@@ -7,7 +7,7 @@ import type { TacticDocumentV1 } from "@basketball/shared";
 import { tryParseTacticDocumentV1 } from "@basketball/shared";
 import { PlayPreview } from "../tactic/PlayPreview";
 import { playbackEndMs } from "../tactic/viewer-math";
-import type { CourtMode } from "../tactic/court-geometry";
+import { courtModeFromDocument, type CourtMode } from "../tactic/court-geometry";
 
 type LibraryListItem = {
   id: string;
@@ -157,6 +157,10 @@ function LibraryDetail({ playId }: { playId: string }) {
 
   useEffect(() => {
     if (doc) setTms(0);
+  }, [doc]);
+
+  useEffect(() => {
+    if (doc) setCourtMode(courtModeFromDocument(doc));
   }, [doc]);
 
   async function copy() {
