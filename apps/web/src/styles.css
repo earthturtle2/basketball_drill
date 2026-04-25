@@ -1082,8 +1082,10 @@ input[type="color"] {
     border-radius: 22px;
   }
   .view-controls .preview-controls__timeline-row {
+    position: relative;
+    z-index: 1;
     gap: 0.46rem;
-    padding-bottom: 0.28rem;
+    padding-bottom: 0.5rem;
   }
   .view-controls .preview-controls__time {
     align-self: center;
@@ -1106,16 +1108,18 @@ input[type="color"] {
     height: 24px;
   }
   .view-controls .preview-controls__range {
-    top: 0;
-    bottom: 0;
-    height: 46px;
+    inset: 6px 0 auto;
+    height: 34px;
+    margin: 0;
     touch-action: pan-y;
   }
   .view-controls__actions {
+    position: relative;
+    z-index: 5;
     display: grid;
     grid-template-columns: 1fr;
     gap: 0.62rem;
-    padding-top: 0.1rem;
+    padding-top: 0.35rem;
   }
   .view-controls__transport {
     display: grid;
