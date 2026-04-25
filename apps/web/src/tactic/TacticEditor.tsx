@@ -1,4 +1,4 @@
-import { useState, useCallback, useRef, useMemo } from "react";
+import { useState, useCallback, useRef, useMemo, useEffect } from "react";
 import type { TacticDocumentV1 } from "@basketball/shared";
 import { CourtSVG } from "./CourtSVG";
 import { PlayerDot } from "./PlayerDot";
@@ -15,6 +15,7 @@ interface Props {
   onOpenTemplates: () => void;
   courtMode: CourtMode;
   onCourtModeChange: (m: CourtMode) => void;
+  onActiveTimeChange?: (tMs: number) => void;
 }
 
 let _nextId = 1;
@@ -22,45 +23,44 @@ function genId() {
   return `p${Date.now().toString(36)}${_nextId++}`;
 }
 
-/** Evenly space keyframe times from 0 to durationMs (inclusive ends when count >= 2). */
-function equalKeyframeTimes(count: number, durationMs: number): number[] {
-  if (count <= 0) return [];
-  if (count === 1) return [0];
-  return Array.from({ length: count }, (_, i) =>
-    Math.round((i * durationMs) / (count - 1)),
-  );
-}
-
-/**
- * Remap event timestamps when keyframe times change so events stay aligned
- * with the keyframes they were originally placed on.
- *
- * @param events      Current event array
- * @param pairs       Array of [oldTime, newTime] for corresponding keyframes
- * @param allNewTimes All new keyframe times (used as fallback for unmatched events)
- */
-function remapEventTimes(
+function remapEventsAtTime(
   events: TacticDocumentV1["events"],
-  pairs: [number, number][],
-  allNewTimes: number[],
+  oldT: number,
+  newT: number,
 ): TacticDocumentV1["events"] {
-  if (!events?.length || allNewTimes.length === 0) return events;
-  const exactMap = new Map<number, number>();
-  for (const [oldT, newT] of pairs) exactMap.set(oldT, newT);
-  return events.map((e) => {
-    const mapped = exactMap.get(e.t);
-    if (mapped !== undefined) return mapped === e.t ? e : { ...e, t: mapped };
-    let best = allNewTimes[0]!;
-    let bestDist = Math.abs(e.t - best);
-    for (const nt of allNewTimes) {
-      const d = Math.abs(e.t - nt);
-      if (d < bestDist) { bestDist = d; best = nt; }
-    }
-    return best === e.t ? e : { ...e, t: best };
-  });
+  if (!events?.length || oldT === newT) return events;
+  return events.map((e) => (e.t === oldT ? { ...e, t: newT } : e));
 }
 
-export function TacticEditor({ document: doc, onChange, onOpenTemplates, courtMode, onCourtModeChange }: Props) {
+function nearestTime(target: number, times: number[]): number {
+  let best = times[0] ?? target;
+  let bestDist = Math.abs(target - best);
+  for (const t of times) {
+    const d = Math.abs(target - t);
+    if (d < bestDist) {
+      best = t;
+      bestDist = d;
+    }
+  }
+  return best;
+}
+
+function midpointTime(currentT: number, nextT: number | undefined, durationMs: number): number {
+  if (nextT !== undefined && nextT > currentT) {
+    return Math.round(((currentT + nextT) / 2) / 50) * 50;
+  }
+  const candidate = Math.round((currentT + 1000) / 50) * 50;
+  return candidate <= currentT ? currentT + 50 : Math.min(candidate, Math.max(durationMs, candidate));
+}
+
+export function TacticEditor({
+  document: doc,
+  onChange,
+  onOpenTemplates,
+  courtMode,
+  onCourtModeChange,
+  onActiveTimeChange,
+}: Props) {
   const [activeKfIdx, setActiveKfIdx] = useState(0);
   const [selectedActorId, setSelectedActorId] = useState<string | null>(null);
   const [tool, setTool] = useState<EditorTool>("select");
@@ -77,6 +77,21 @@ export function TacticEditor({ document: doc, onChange, onOpenTemplates, courtMo
   const currentT = kf?.t ?? 0;
 
   const ballHolderId = useMemo(() => resolveBallHolderAt(doc, currentT), [doc, currentT]);
+
+  useEffect(() => {
+    onActiveTimeChange?.(currentT);
+  }, [currentT, onActiveTimeChange]);
+
+  useEffect(() => {
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (e.key !== "Escape") return;
+      setTool("select");
+      setPassSource(null);
+      setDraggingCp(null);
+    };
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, []);
 
   const selectedPlayer = selectedActorId
     ? doc.actors.find((a) => a.id === selectedActorId && a.type === "player")
@@ -105,17 +120,17 @@ export function TacticEditor({ document: doc, onChange, onOpenTemplates, courtMo
     (actorId: string) => {
       if (tool === "pass") {
         if (!passSource) {
+          if (ballHolderId && ballHolderId !== actorId) {
+            setSelectedActorId(actorId);
+            return;
+          }
           setPassSource(actorId);
         } else if (passSource !== actorId) {
           const newEvent = { t: currentT, kind: "pass" as const, from: passSource, to: actorId };
           const events = [...(doc.events ?? []), newEvent];
           let newActors = doc.actors;
           if (!newActors.some((a) => a.type === "ball")) {
-            newActors = [...newActors, { id: "ball", type: "ball" as const, heldBy: actorId }];
-          } else {
-            newActors = newActors.map((a) =>
-              a.type === "ball" ? { ...a, heldBy: actorId } : a,
-            );
+            newActors = [...newActors, { id: "ball", type: "ball" as const, heldBy: passSource }];
           }
           onChange({ ...doc, actors: newActors, events });
           setPassSource(null);
@@ -130,7 +145,7 @@ export function TacticEditor({ document: doc, onChange, onOpenTemplates, courtMo
         setSelectedActorId(actorId);
       }
     },
-    [tool, passSource, currentT, doc, onChange],
+    [tool, passSource, ballHolderId, currentT, doc, onChange],
   );
 
   const handleCourtClick = useCallback(
@@ -222,40 +237,43 @@ export function TacticEditor({ document: doc, onChange, onOpenTemplates, courtMo
 
   const handleAddKeyframe = useCallback(() => {
     const duration = doc.meta.durationMs ?? 8000;
-    const sorted = [...doc.keyframes].sort((a, b) => a.t - b.t);
-    const oldTimes = sorted.map((k) => k.t);
-    const last = sorted[sorted.length - 1];
-    const newKf = { t: 0, poses: last ? { ...last.poses } : {} };
-    const combined = [...sorted, newKf];
-    const times = equalKeyframeTimes(combined.length, duration);
-    const newKfs = combined.map((k, i) => ({ ...k, t: times[i]! }));
-    const pairs: [number, number][] = oldTimes.map((ot, i) => [ot, times[i]!]);
-    const newEvents = remapEventTimes(doc.events, pairs, times);
-    onChange({ ...doc, keyframes: newKfs, events: newEvents });
-    setActiveKfIdx(newKfs.length - 1);
-  }, [doc, onChange]);
+    const current = doc.keyframes[activeKfIdx] ?? doc.keyframes[doc.keyframes.length - 1];
+    const currentTForInsert = current?.t ?? 0;
+    const laterTimes = doc.keyframes
+      .map((k) => k.t)
+      .filter((t) => t > currentTForInsert)
+      .sort((a, b) => a - b);
+    const usedTimes = new Set(doc.keyframes.map((k) => k.t));
+    let t = midpointTime(currentTForInsert, laterTimes[0], duration);
+    while (usedTimes.has(t)) t += 50;
+    const newKf = { t, poses: current ? { ...current.poses } : {} };
+    const newKfs = [...doc.keyframes, newKf].sort((a, b) => a.t - b.t);
+    onChange({
+      ...doc,
+      meta: { ...doc.meta, durationMs: Math.max(duration, t) },
+      keyframes: newKfs,
+    });
+    setActiveKfIdx(newKfs.findIndex((k) => k.t === t));
+  }, [doc, activeKfIdx, onChange]);
 
   const handleRemoveKeyframe = useCallback(
     (idx: number) => {
       if (doc.keyframes.length <= 1) return;
-      const duration = doc.meta.durationMs ?? 8000;
-      const oldSorted = [...doc.keyframes].sort((a, b) => a.t - b.t);
+      const removedT = doc.keyframes[idx]?.t;
       const filtered = doc.keyframes.filter((_, i) => i !== idx);
       const sorted = [...filtered].sort((a, b) => a.t - b.t);
-      const times = equalKeyframeTimes(sorted.length, duration);
-      const newKfs = sorted.map((k, i) => ({ ...k, t: times[i]! }));
-      const pairs: [number, number][] = [];
-      for (let i = 0, j = 0; i < oldSorted.length; i++) {
-        if (i === idx) continue;
-        pairs.push([oldSorted[i].t, times[j]!]);
-        j++;
-      }
-      const newEvents = remapEventTimes(doc.events, pairs, times);
-      onChange({ ...doc, keyframes: newKfs, events: newEvents });
+      const times = sorted.map((k) => k.t);
+      const newEvents =
+        removedT === undefined || !doc.events?.length
+          ? doc.events
+          : doc.events.map((e) =>
+              e.t === removedT ? { ...e, t: nearestTime(removedT, times) } : e,
+            );
+      onChange({ ...doc, keyframes: sorted, events: newEvents });
       let newActive = activeKfIdx;
       if (idx < activeKfIdx) newActive = activeKfIdx - 1;
       else if (idx > activeKfIdx) newActive = activeKfIdx;
-      else newActive = Math.min(activeKfIdx, newKfs.length - 1);
+      else newActive = Math.min(activeKfIdx, sorted.length - 1);
       setActiveKfIdx(newActive);
     },
     [doc, activeKfIdx, onChange],
@@ -268,16 +286,21 @@ export function TacticEditor({ document: doc, onChange, onOpenTemplates, courtMo
       if (doc.keyframes.some((k, i) => i !== idx && k.t === snapped)) return;
       const oldT = doc.keyframes[idx].t;
       const newKfs = doc.keyframes
-        .map((k, i) => (i === idx ? { ...k, t: snapped } : k))
-        .sort((a, b) => a.t - b.t);
-      const newIdx = newKfs.findIndex((k) => k.t === snapped);
-      const newEvents = remapEventTimes(
-        doc.events,
-        [[oldT, snapped]],
-        newKfs.map((k) => k.t),
-      );
+        .map((k, i) => (i === idx ? { ...k, t: snapped } : k));
+      const newEvents = remapEventsAtTime(doc.events, oldT, snapped);
       onChange({ ...doc, keyframes: newKfs, events: newEvents });
-      setActiveKfIdx(newIdx);
+      setActiveKfIdx(idx);
+    },
+    [doc, onChange],
+  );
+
+  const handleCommitKeyframeMove = useCallback(
+    (idx: number) => {
+      const movedT = doc.keyframes[idx]?.t;
+      if (movedT === undefined) return;
+      const newKfs = [...doc.keyframes].sort((a, b) => a.t - b.t);
+      onChange({ ...doc, keyframes: newKfs });
+      setActiveKfIdx(newKfs.findIndex((k) => k.t === movedT));
     },
     [doc, onChange],
   );
@@ -476,6 +499,7 @@ export function TacticEditor({ document: doc, onChange, onOpenTemplates, courtMo
                   label={a.label}
                   selected={a.id === selectedActorId}
                   hasBall={a.id === ballHolderId}
+                  draggable={tool === "select"}
                   onDrag={handleDrag}
                   onSelect={handleActorClick}
                 />
@@ -512,6 +536,7 @@ export function TacticEditor({ document: doc, onChange, onOpenTemplates, courtMo
           onAdd={handleAddKeyframe}
           onRemove={handleRemoveKeyframe}
           onMove={handleMoveKeyframe}
+          onMoveEnd={handleCommitKeyframeMove}
           onDurationChange={handleDurationChange}
         />
       </div>

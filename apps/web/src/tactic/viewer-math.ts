@@ -22,7 +22,7 @@ export function samplePoses(
   document: TacticDocumentV1,
   tMs: number,
 ): Record<string, Vec> {
-  const kf = document.keyframes;
+  const kf = [...document.keyframes].sort((a, b) => a.t - b.t);
   if (kf.length === 0) return {};
   if (tMs <= kf[0]!.t) {
     return { ...kf[0]!.poses };

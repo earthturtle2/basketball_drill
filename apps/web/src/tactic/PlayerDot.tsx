@@ -8,6 +8,7 @@ interface Props {
   label: string;
   selected: boolean;
   hasBall: boolean;
+  draggable?: boolean;
   onDrag: (actorId: string, svgX: number, svgY: number) => void;
   onSelect: (actorId: string) => void;
 }
@@ -20,6 +21,7 @@ export function PlayerDot({
   label,
   selected,
   hasBall,
+  draggable = true,
   onDrag,
   onSelect,
 }: Props) {
@@ -41,11 +43,12 @@ export function PlayerDot({
     (e: React.PointerEvent<SVGGElement>) => {
       e.stopPropagation();
       onSelect(actorId);
+      if (!draggable) return;
       dragging.current = true;
       const g = e.currentTarget;
       g.setPointerCapture(e.pointerId);
     },
-    [actorId, onSelect],
+    [actorId, draggable, onSelect],
   );
 
   const onPointerMove = useCallback(

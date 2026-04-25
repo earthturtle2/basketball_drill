@@ -15,6 +15,7 @@ interface Props {
   onAdd: () => void;
   onRemove: (idx: number) => void;
   onMove: (idx: number, t: number) => void;
+  onMoveEnd?: (idx: number) => void;
   onDurationChange: (ms: number) => void;
 }
 
@@ -27,6 +28,7 @@ export function KeyframeTimeline({
   onAdd,
   onRemove,
   onMove,
+  onMoveEnd,
   onDurationChange,
 }: Props) {
   const { t } = useT();
@@ -69,8 +71,9 @@ export function KeyframeTimeline({
   );
 
   const handleMarkerPointerUp = useCallback(() => {
+    if (draggingIdx.current !== null) onMoveEnd?.(draggingIdx.current);
     draggingIdx.current = null;
-  }, []);
+  }, [onMoveEnd]);
 
   const pct = (tv: number) => `${(tv / Math.max(durationMs, 1)) * 100}%`;
 
@@ -90,6 +93,7 @@ export function KeyframeTimeline({
               onPointerDown={(e) => handleMarkerPointerDown(i, e)}
               onPointerMove={handleMarkerPointerMove}
               onPointerUp={handleMarkerPointerUp}
+              onPointerCancel={handleMarkerPointerUp}
             />
           ))}
         </div>

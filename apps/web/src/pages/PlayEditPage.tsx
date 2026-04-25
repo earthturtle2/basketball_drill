@@ -3,7 +3,7 @@ import { Link, Navigate, useNavigate, useParams } from "react-router-dom";
 import { api, ApiError } from "../api";
 import { useAuth } from "../auth";
 import { useT } from "../i18n";
-import type { TacticDocumentV1 } from "@basketball/shared";
+import { tryParseTacticDocumentV1, type TacticDocumentV1 } from "@basketball/shared";
 import { TacticEditor } from "../tactic/TacticEditor";
 import { PlayPreview } from "../tactic/PlayPreview";
 import { TemplateLibrary } from "../tactic/TemplateLibrary";
@@ -51,6 +51,10 @@ export function PlayEditPage() {
   const frameStepTargetRef = useRef(frameStepTarget);
   frameStepTargetRef.current = frameStepTarget;
   const autoSaveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const undoStackRef = useRef<TacticDocumentV1[]>([]);
+  const redoStackRef = useRef<TacticDocumentV1[]>([]);
+  const lastUndoPushAtRef = useRef(0);
+  const [historyVersion, setHistoryVersion] = useState(0);
 
   const isDirty = useCallback(() => {
     if (!doc) return false;
@@ -72,6 +76,64 @@ export function PlayEditPage() {
     setSaveStatus("saved");
     savedSnapshotRef.current = JSON.stringify({ name, description, doc });
   }, [name, description, doc]);
+
+  const syncJsonText = useCallback(
+    (nextDoc: TacticDocumentV1) => {
+      if (showJson) setJsonText(JSON.stringify(nextDoc, null, 2));
+    },
+    [showJson],
+  );
+
+  const pushUndoSnapshot = useCallback((snapshot: TacticDocumentV1) => {
+    const now = performance.now();
+    if (undoStackRef.current.length === 0 || now - lastUndoPushAtRef.current > 500) {
+      undoStackRef.current.push(snapshot);
+      if (undoStackRef.current.length > 100) undoStackRef.current.shift();
+      lastUndoPushAtRef.current = now;
+      setHistoryVersion((v) => v + 1);
+    }
+    redoStackRef.current = [];
+  }, []);
+
+  const restoreDoc = useCallback(
+    (nextDoc: TacticDocumentV1) => {
+      setDoc(nextDoc);
+      syncJsonText(nextDoc);
+      setSaveStatus("unsaved");
+      setHistoryVersion((v) => v + 1);
+    },
+    [syncJsonText],
+  );
+
+  const undo = useCallback(() => {
+    if (!doc || undoStackRef.current.length === 0) return;
+    const prev = undoStackRef.current.pop()!;
+    redoStackRef.current.push(doc);
+    restoreDoc(prev);
+  }, [doc, restoreDoc]);
+
+  const redo = useCallback(() => {
+    if (!doc || redoStackRef.current.length === 0) return;
+    const next = redoStackRef.current.pop()!;
+    undoStackRef.current.push(doc);
+    restoreDoc(next);
+  }, [doc, restoreDoc]);
+
+  useEffect(() => {
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (!(e.metaKey || e.ctrlKey)) return;
+      const key = e.key.toLowerCase();
+      if (key === "z" && !e.shiftKey) {
+        e.preventDefault();
+        undo();
+      } else if (key === "y" || (key === "z" && e.shiftKey)) {
+        e.preventDefault();
+        redo();
+      }
+    };
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, [undo, redo]);
 
   const doSave = useCallback(async () => {
     if (!id || !doc) return;
@@ -109,6 +171,9 @@ export function PlayEditPage() {
       setDescription(p.description ?? "");
       setDoc(p.document);
       setJsonText(JSON.stringify(p.document, null, 2));
+      undoStackRef.current = [];
+      redoStackRef.current = [];
+      setHistoryVersion((v) => v + 1);
       setTms(0);
       savedSnapshotRef.current = JSON.stringify({
         name: p.name,
@@ -218,16 +283,23 @@ export function PlayEditPage() {
   }, [doc]);
 
   function handleDocChange(newDoc: TacticDocumentV1) {
+    if (doc) pushUndoSnapshot(doc);
     setDoc(newDoc);
-    setJsonText(JSON.stringify(newDoc, null, 2));
+    syncJsonText(newDoc);
     setSaveStatus("unsaved");
   }
 
   function applyLocalJson() {
     setErr(null);
     try {
-      const d = JSON.parse(jsonText) as TacticDocumentV1;
-      setDoc(d);
+      const parsed = tryParseTacticDocumentV1(JSON.parse(jsonText));
+      if (!parsed.success) {
+        setErr(parsed.error.issues[0]?.message ?? t("edit.jsonInvalid"));
+        return;
+      }
+      if (doc) pushUndoSnapshot(doc);
+      setDoc(parsed.data);
+      setJsonText(JSON.stringify(parsed.data, null, 2));
       setSaveStatus("unsaved");
     } catch {
       setErr(t("edit.jsonInvalid"));
@@ -279,6 +351,8 @@ export function PlayEditPage() {
     saving: t("edit.statusSaving"),
     unsaved: t("edit.statusUnsaved"),
   }[saveStatus];
+  const canUndo = historyVersion >= 0 && undoStackRef.current.length > 0;
+  const canRedo = historyVersion >= 0 && redoStackRef.current.length > 0;
 
   return (
     <div>
@@ -305,6 +379,24 @@ export function PlayEditPage() {
       <div className="row-actions" style={{ marginBottom: "1rem" }}>
         <button type="button" className="btn btn-primary" onClick={() => void doSave()}>
           {t("edit.save")}
+        </button>
+        <button
+          type="button"
+          className="btn"
+          disabled={!canUndo}
+          onClick={undo}
+          title="⌘Z / Ctrl+Z"
+        >
+          {t("edit.undo")}
+        </button>
+        <button
+          type="button"
+          className="btn"
+          disabled={!canRedo}
+          onClick={redo}
+          title="⌘⇧Z / Ctrl+Y"
+        >
+          {t("edit.redo")}
         </button>
         <button type="button" className="btn" onClick={() => void duplicate()}>
           {t("edit.duplicate")}
@@ -347,6 +439,11 @@ export function PlayEditPage() {
           onOpenTemplates={() => setShowTemplates(true)}
           courtMode={courtMode}
           onCourtModeChange={setCourtMode}
+          onActiveTimeChange={(nextT) => {
+            setPlaying(false);
+            setFrameStepTarget(null);
+            setTms(nextT);
+          }}
         />
       ) : null}
 
@@ -480,7 +577,11 @@ export function PlayEditPage() {
       <details
         style={{ marginTop: "1rem" }}
         open={showJson}
-        onToggle={(e) => setShowJson((e.target as HTMLDetailsElement).open)}
+        onToggle={(e) => {
+          const open = (e.target as HTMLDetailsElement).open;
+          setShowJson(open);
+          if (open && doc) setJsonText(JSON.stringify(doc, null, 2));
+        }}
       >
         <summary className="muted" style={{ cursor: "pointer" }}>{t("edit.jsonTitle")}</summary>
         <div className="field" style={{ marginTop: "0.5rem" }}>

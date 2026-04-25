@@ -1,4 +1,5 @@
 import type { TacticDocumentV1 } from "@basketball/shared";
+import { useMemo } from "react";
 import { tacticToSvg, type CourtMode } from "./court-geometry";
 import { resolveBallHolderAt } from "./viewer-math";
 
@@ -71,8 +72,13 @@ function wavyPathD(points: [number, number][], amp: number = 1.8, waveLen: numbe
 }
 
 export function MovementTrails({ document: doc, teamColors, courtMode = "half", upToKeyframeIndex }: Props) {
-  const players = doc.actors.filter((a) => a.type === "player");
-  const kfs = doc.keyframes;
+  const players = useMemo(() => doc.actors.filter((a) => a.type === "player"), [doc.actors]);
+  const kfs = useMemo(() => [...doc.keyframes].sort((a, b) => a.t - b.t), [doc.keyframes]);
+  const holdersByTime = useMemo(() => {
+    const out = new Map<number, string | undefined>();
+    for (const kf of kfs) out.set(kf.t, resolveBallHolderAt(doc, kf.t));
+    return out;
+  }, [doc, kfs]);
   if (kfs.length < 2) return null;
 
   const endSeg = upToKeyframeIndex === undefined ? kfs.length - 1 : Math.min(Math.max(0, upToKeyframeIndex), kfs.length - 1);
@@ -94,7 +100,7 @@ export function MovementTrails({ document: doc, teamColors, courtMode = "half", 
           const [x1, y1] = tacticToSvg(currPose.x, currPose.y, courtMode);
           if (Math.abs(x1 - x0) < 0.5 && Math.abs(y1 - y0) < 0.5) continue;
 
-          const holder = resolveBallHolderAt(doc, kfs[i].t);
+          const holder = holdersByTime.get(kfs[i].t);
           const isDribble = holder === actor.id;
 
           const hasCp = currPose.cpx !== undefined && currPose.cpy !== undefined;
