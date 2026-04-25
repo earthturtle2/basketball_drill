@@ -2,10 +2,12 @@ import {
   createContext,
   useCallback,
   useContext,
+  useEffect,
   useMemo,
   useState,
   type ReactNode,
 } from "react";
+import { useAuth } from "./auth";
 
 export type Lang = "zh" | "en";
 
@@ -553,21 +555,33 @@ interface LangContextValue {
 }
 
 const LangContext = createContext<LangContextValue>({
-  lang: "zh",
+  lang: "en",
   setLang: () => {},
   t: (k) => k,
 });
 
+const DEFAULT_LANG: Lang = "en";
+const GUEST_LANG_KEY = "lang:guest";
+const userLangKey = (userId: string) => `lang:user:${userId}`;
+
+function readStoredLang(key: string): Lang {
+  return localStorage.getItem(key) === "zh" ? "zh" : DEFAULT_LANG;
+}
+
 export function LangProvider({ children }: { children: ReactNode }) {
-  const [lang, setLangState] = useState<Lang>(() => {
-    const saved = localStorage.getItem("lang");
-    return saved === "en" ? "en" : "zh";
-  });
+  const { user, loading } = useAuth();
+  const storageKey = user ? userLangKey(user.id) : GUEST_LANG_KEY;
+  const [lang, setLangState] = useState<Lang>(() => readStoredLang(GUEST_LANG_KEY));
+
+  useEffect(() => {
+    if (loading) return;
+    setLangState(readStoredLang(storageKey));
+  }, [loading, storageKey]);
 
   const setLang = useCallback((l: Lang) => {
     setLangState(l);
-    localStorage.setItem("lang", l);
-  }, []);
+    localStorage.setItem(storageKey, l);
+  }, [storageKey]);
 
   const t = useCallback(
     (key: string) => dicts[lang][key] ?? key,

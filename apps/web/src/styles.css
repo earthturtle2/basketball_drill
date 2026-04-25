@@ -977,6 +977,24 @@ pre.doc {
   min-width: 44px;
   padding: 0.25rem 0.45rem;
 }
+.view-controls__actions,
+.view-controls__transport,
+.view-controls__options {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+}
+.view-controls__transport {
+  flex: 1 1 auto;
+}
+.view-controls__options {
+  justify-content: center;
+}
+.view-controls__speed {
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
 .controls {
   display: flex;
   align-items: center;
@@ -1051,6 +1069,89 @@ input[type="color"] {
   .preview-controls__speed {
     width: 100%;
     margin-left: 0;
+  }
+
+  .view-page h1 {
+    max-width: none;
+    font-size: clamp(1.5rem, 8vw, 2.25rem);
+  }
+  .view-controls {
+    gap: 0.9rem;
+    margin-top: 1rem;
+    padding: 0.95rem;
+    border-radius: 22px;
+  }
+  .view-controls .preview-controls__timeline-row {
+    gap: 0.55rem;
+  }
+  .view-controls .preview-controls__time {
+    align-self: center;
+    padding: 0.28rem 0.68rem;
+    border: 1px solid rgba(61, 220, 85, 0.16);
+    border-radius: 999px;
+    background: rgba(5, 17, 9, 0.5);
+  }
+  .view-controls .preview-controls__timeline {
+    height: 62px;
+    min-width: 0;
+  }
+  .view-controls .preview-controls__track {
+    height: 14px;
+  }
+  .view-controls .preview-controls__mark {
+    width: 30px;
+    height: 30px;
+  }
+  .view-controls .preview-controls__range {
+    top: 0;
+    bottom: 0;
+    height: 62px;
+    touch-action: pan-y;
+  }
+  .view-controls__actions {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 0.8rem;
+  }
+  .view-controls__transport {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(96px, 1.2fr) minmax(0, 1fr);
+    gap: 0.65rem;
+    width: 100%;
+  }
+  .view-controls__transport .btn {
+    width: 100%;
+    min-height: 48px;
+  }
+  .view-controls__transport .preview-controls__play {
+    min-height: 54px;
+    font-size: 1rem;
+  }
+  .view-controls__options {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 0.55rem;
+    width: 100%;
+  }
+  .view-controls .preview-controls__toggle {
+    justify-content: center;
+    min-height: 44px;
+    padding: 0.55rem 0.7rem;
+    border: 1px solid rgba(61, 220, 85, 0.16);
+    border-radius: 999px;
+    background: rgba(237, 245, 239, 0.035);
+  }
+  .view-controls__speed {
+    display: grid;
+    grid-template-columns: auto repeat(3, 1fr);
+    align-items: center;
+    gap: 0.55rem;
+    width: 100%;
+  }
+  .view-controls__speed .btn-sm {
+    min-height: 44px;
+    min-width: 0;
+    padding: 0.42rem 0.5rem;
   }
 
   /* Editor grid → single column on mobile */

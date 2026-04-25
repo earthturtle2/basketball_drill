@@ -13,14 +13,14 @@ if (!el) {
 }
 createRoot(el).render(
   <StrictMode>
-    <LangProvider>
-      <ErrorBoundary>
-        <BrowserRouter>
-          <AuthProvider>
+    <ErrorBoundary>
+      <BrowserRouter>
+        <AuthProvider>
+          <LangProvider>
             <App />
-          </AuthProvider>
-        </BrowserRouter>
-      </ErrorBoundary>
-    </LangProvider>
+          </LangProvider>
+        </AuthProvider>
+      </BrowserRouter>
+    </ErrorBoundary>
   </StrictMode>,
 );

@@ -175,11 +175,11 @@ export function ViewPage() {
   };
 
   return (
-    <div>
+    <div className="view-page">
       <h1 style={{ margin: "0 0 0.25rem" }}>{data.play.name}</h1>
       {data.play.description ? <p className="hint">{data.play.description}</p> : null}
       <PlayPreview document={doc} tMs={tMs} />
-      <div className="preview-controls">
+      <div className="preview-controls view-controls">
         <div className="preview-controls__timeline-row">
           <span className="preview-controls__time">
             {Math.round(tMs)} / {effectiveEnd} ms
@@ -215,63 +215,68 @@ export function ViewPage() {
           </div>
         </div>
 
-        <div className="preview-controls__actions">
-          <button
-            type="button"
-            className="btn btn-sm"
-            disabled={previousStop === undefined || tMs <= (previewStopTimes[0] ?? 0)}
-            onClick={() => previousStop !== undefined && seekPreview(previousStop)}
-            title={t("edit.prevFrame")}
-          >
-            {t("edit.prevFrame")}
-          </button>
-          <button
-            type="button"
-            className="btn btn-primary preview-controls__play"
-            disabled={!!(frameByFrame && frameStepTarget !== null)}
-            onClick={() => {
-              if (frameByFrame) {
-                void startFrameStep();
-                return;
-              }
-              if (playing) {
-                setPlaying(false);
-              } else {
-                if (tMs >= effectiveEnd) setTms(0);
-                setPlaying(true);
-              }
-            }}
-          >
-            {frameByFrame ? t("view.play") : playing ? t("view.pause") : t("view.play")}
-          </button>
-          <button
-            type="button"
-            className="btn btn-sm"
-            disabled={nextStop === undefined || tMs >= (previewStopTimes[previewStopTimes.length - 1] ?? effectiveEnd)}
-            onClick={() => nextStop !== undefined && seekPreview(nextStop)}
-            title={t("edit.nextFrame")}
-          >
-            {t("edit.nextFrame")}
-          </button>
+        <div className="preview-controls__actions view-controls__actions">
+          <div className="view-controls__transport">
+            <button
+              type="button"
+              className="btn btn-sm"
+              disabled={previousStop === undefined || tMs <= (previewStopTimes[0] ?? 0)}
+              onClick={() => previousStop !== undefined && seekPreview(previousStop)}
+              title={t("edit.prevFrame")}
+            >
+              {t("edit.prevFrame")}
+            </button>
+            <button
+              type="button"
+              className="btn btn-primary preview-controls__play"
+              disabled={!!(frameByFrame && frameStepTarget !== null)}
+              onClick={() => {
+                if (frameByFrame) {
+                  void startFrameStep();
+                  return;
+                }
+                if (playing) {
+                  setPlaying(false);
+                } else {
+                  if (tMs >= effectiveEnd) setTms(0);
+                  setPlaying(true);
+                }
+              }}
+            >
+              {frameByFrame ? t("view.play") : playing ? t("view.pause") : t("view.play")}
+            </button>
+            <button
+              type="button"
+              className="btn btn-sm"
+              disabled={nextStop === undefined || tMs >= (previewStopTimes[previewStopTimes.length - 1] ?? effectiveEnd)}
+              onClick={() => nextStop !== undefined && seekPreview(nextStop)}
+              title={t("edit.nextFrame")}
+            >
+              {t("edit.nextFrame")}
+            </button>
+          </div>
 
-          <label className="preview-controls__toggle">
-            <input
-              type="checkbox"
-              checked={frameByFrame}
-              onChange={(e) => setFrameByFrame(e.target.checked)}
-            />
-            <span>{t("view.frameByFrame")}</span>
-          </label>
-          <label className="preview-controls__toggle">
-            <input
-              type="checkbox"
-              checked={loop}
-              onChange={(e) => setLoop(e.target.checked)}
-              disabled={frameByFrame}
-            />
-            <span>{t("edit.loop")}</span>
-          </label>
-          <span className="preview-controls__speed">
+          <div className="view-controls__options">
+            <label className="preview-controls__toggle">
+              <input
+                type="checkbox"
+                checked={frameByFrame}
+                onChange={(e) => setFrameByFrame(e.target.checked)}
+              />
+              <span>{t("view.frameByFrame")}</span>
+            </label>
+            <label className="preview-controls__toggle">
+              <input
+                type="checkbox"
+                checked={loop}
+                onChange={(e) => setLoop(e.target.checked)}
+                disabled={frameByFrame}
+              />
+              <span>{t("edit.loop")}</span>
+            </label>
+          </div>
+
+          <span className="preview-controls__speed view-controls__speed">
             <span>{t("view.speed")}</span>
             {([0.5, 1, 2] as const).map((s) => (
               <button
