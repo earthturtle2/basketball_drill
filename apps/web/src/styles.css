@@ -1139,6 +1139,12 @@ pre.doc {
   border-radius: 999px;
   background: rgba(237, 245, 239, 0.035);
   min-width: 0;
+  transition:
+    border-color 0.15s ease,
+    background 0.15s ease,
+    box-shadow 0.15s ease,
+    opacity 0.15s ease,
+    color 0.15s ease;
 }
 .preview-controls .preview-controls__toggle > span {
   min-width: 0;
@@ -1147,6 +1153,29 @@ pre.doc {
 .preview-controls .preview-controls__toggle > input[type="checkbox"] {
   margin: 0;
   flex-shrink: 0;
+  width: 1.05rem;
+  height: 1.05rem;
+  accent-color: var(--accent);
+  cursor: pointer;
+}
+.preview-controls .preview-controls__toggle:has(input:disabled) {
+  cursor: not-allowed;
+}
+.preview-controls .preview-controls__toggle:has(input:disabled:not(:checked)) {
+  opacity: 0.5;
+}
+.preview-controls .preview-controls__toggle:has(input:checked) {
+  border-color: var(--accent);
+  background:
+    linear-gradient(180deg, rgba(61, 220, 85, 0.22), rgba(39, 145, 58, 0.16)),
+    rgba(61, 220, 85, 0.08);
+  color: #dfffe5;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.08), 0 0 0 3px rgba(61, 220, 85, 0.1);
+  opacity: 1;
+}
+.preview-controls .preview-controls__toggle:has(input:checked) > span {
+  color: #dfffe5;
+  font-weight: 760;
 }
 .preview-controls .view-controls__speed {
   display: grid;
