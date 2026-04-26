@@ -297,16 +297,16 @@ const zh: Record<string, string> = {
   "tpl.hint": "选择一个模板将替换当前战术内容",
 
   // Template names & descriptions
-  "tpl.highPnr.name": "高位挡拆",
-  "tpl.highPnr.desc": "底角+弱侧45拉开，高位掩护顺下外传。",
+  "tpl.highPnr.name": "三人拉开挡拆",
+  "tpl.highPnr.desc": "3v0 教学：底角牵制不动，高位掩护顺下传球。",
   "tpl.fastBreak.name": "快攻 3v2",
-  "tpl.fastBreak.desc": "两翼占边，中路牵制分球右翼。",
-  "tpl.horns.name": "Horns 进攻体系",
-  "tpl.horns.desc": "双肘双底角，进肘策应传底角。",
-  "tpl.handoff.name": "手递手",
-  "tpl.handoff.desc": "五人拉开，肘区手递手后中路突。",
+  "tpl.fastBreak.desc": "3v2 经典：两翼占边，中路牵制分右翼。",
+  "tpl.horns.name": "Horns（四人）",
+  "tpl.horns.desc": "4v0：双肘+单底角，进肘传切再传角。",
+  "tpl.handoff.name": "二人肘区递手",
+  "tpl.handoff.desc": "2v0：肘区手递手，接球中路突破。",
   "tpl.zone131.name": "1-3-1 联防",
-  "tpl.zone131.desc": "随球滑动，顶-腰-底线轮转。",
+  "tpl.zone131.desc": "5 人联防壳：随球顶-腰-底线滑动。",
 
   // Team labels in templates
   "team.offense": "进攻",
@@ -598,16 +598,16 @@ const en: Record<string, string> = {
   "tpl.hint": "Selecting a template will replace the current play",
 
   // Template names & descriptions
-  "tpl.highPnr.name": "High Pick & Roll",
-  "tpl.highPnr.desc": "45° + corners spaced; high screen, roll, kick-out.",
+  "tpl.highPnr.name": "Spread P&R (3v0)",
+  "tpl.highPnr.desc": "Classic 3-man shell: corner stays, high screen, roll pass.",
   "tpl.fastBreak.name": "Fast Break 3v2",
-  "tpl.fastBreak.desc": "Wide lanes, middle drive, kick to the right wing.",
-  "tpl.horns.name": "Horns Offense",
-  "tpl.horns.desc": "Elbows + corners; entry pass, corner look.",
-  "tpl.handoff.name": "Handoff",
-  "tpl.handoff.desc": "Five-out spacing; elbow DHO, middle drive.",
+  "tpl.fastBreak.desc": "Primary break: wide lanes, drive, pitch to wing.",
+  "tpl.horns.name": "Horns (4v0)",
+  "tpl.horns.desc": "Elbows + one corner; PG entry, pass to corner.",
+  "tpl.handoff.name": "Elbow DHO (2v0)",
+  "tpl.handoff.desc": "Two-man drill: dribble handoff, middle drive.",
   "tpl.zone131.name": "1-3-1 Zone",
-  "tpl.zone131.desc": "Chaser and wing line slide with the ball.",
+  "tpl.zone131.desc": "Five-man shell: slides vs. ball movement.",
 
   // Team labels in templates
   "team.offense": "Offense",
