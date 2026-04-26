@@ -24,6 +24,7 @@ const zh: Record<string, string> = {
   "app.login": "登录",
   "app.register": "注册",
   "app.notFound": "未找到页面",
+  "app.toggleNav": "展开或收起导航菜单",
 
   // ErrorBoundary
   "error.title": "出了点问题",
@@ -327,6 +328,7 @@ const en: Record<string, string> = {
   "app.login": "Login",
   "app.register": "Register",
   "app.notFound": "Page not found",
+  "app.toggleNav": "Open or close navigation menu",
 
   // ErrorBoundary
   "error.title": "Something went wrong",

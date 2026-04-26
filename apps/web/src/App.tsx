@@ -1,4 +1,4 @@
-import type { ReactNode } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 import { Link, Navigate, Route, Routes, useLocation, useNavigate } from "react-router-dom";
 import { useAuth } from "./auth";
 import { useT, LangToggle } from "./i18n";
@@ -22,43 +22,82 @@ function Layout({ children }: { children: ReactNode }) {
   const nav = useNavigate();
   const { user, loading, logout } = useAuth();
   const { t } = useT();
+  const [topNavOpen, setTopNavOpen] = useState(false);
+
+  useEffect(() => {
+    setTopNavOpen(false);
+  }, [loc.pathname]);
+
+  useEffect(() => {
+    if (!topNavOpen) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") setTopNavOpen(false);
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [topNavOpen]);
+
+  useEffect(() => {
+    const mq = window.matchMedia("(min-width: 700px)");
+    const onWide = () => {
+      if (mq.matches) setTopNavOpen(false);
+    };
+    mq.addEventListener("change", onWide);
+    return () => mq.removeEventListener("change", onWide);
+  }, []);
 
   if (loc.pathname.startsWith("/view/")) {
     return <div className="app-shell">{children}</div>;
   }
 
+  const closeNav = () => setTopNavOpen(false);
+
   return (
     <div className="app-shell">
-      <header className="top">
+      <header className={`top${topNavOpen ? " top--nav-open" : ""}`}>
         <Link to={user ? "/plays" : "/"} className="brand">
           {t("app.brand")}
         </Link>
-        <nav className="row-actions">
+        <button
+          type="button"
+          className="top-menu-toggle"
+          aria-expanded={topNavOpen}
+          aria-controls="site-nav"
+          aria-label={t("app.toggleNav")}
+          onClick={() => setTopNavOpen((o) => !o)}
+        >
+          <span className="top-menu-toggle__bar" />
+          <span className="top-menu-toggle__bar" />
+          <span className="top-menu-toggle__bar" />
+        </button>
+        <nav id="site-nav" className="top-nav row-actions">
           {loading ? null : user ? (
             <>
-              <Link to="/plays" className="btn btn-ghost">
+              <Link to="/plays" className="btn btn-ghost" onClick={closeNav}>
                 {t("app.myPlays")}
               </Link>
-              <Link to="/library" className="btn btn-ghost">
+              <Link to="/library" className="btn btn-ghost" onClick={closeNav}>
                 {t("app.library")}
               </Link>
-              <Link to="/teams" className="btn btn-ghost">
+              <Link to="/teams" className="btn btn-ghost" onClick={closeNav}>
                 {t("app.teams")}
               </Link>
               {isAdmin(user.role) ? (
-                <Link to="/admin" className="btn btn-ghost">
+                <Link to="/admin" className="btn btn-ghost" onClick={closeNav}>
                   {t("app.admin")}
                 </Link>
               ) : null}
-              <Link to="/profile" className="btn btn-ghost">
+              <Link to="/profile" className="btn btn-ghost" onClick={closeNav}>
                 {t("app.profile")}
               </Link>
-              <Link to="/password" className="btn btn-ghost">
+              <Link to="/password" className="btn btn-ghost" onClick={closeNav}>
                 {t("app.password")}
               </Link>
               <button
+                type="button"
                 className="btn btn-ghost"
                 onClick={() => {
+                  closeNav();
                   logout();
                   nav("/login");
                 }}
@@ -68,10 +107,10 @@ function Layout({ children }: { children: ReactNode }) {
             </>
           ) : (
             <>
-              <Link to="/login" className="btn btn-ghost">
+              <Link to="/login" className="btn btn-ghost" onClick={closeNav}>
                 {t("app.login")}
               </Link>
-              <Link to="/register" className="btn btn-primary">
+              <Link to="/register" className="btn btn-primary" onClick={closeNav}>
                 {t("app.register")}
               </Link>
             </>
@@ -79,6 +118,13 @@ function Layout({ children }: { children: ReactNode }) {
           <LangToggle />
         </nav>
       </header>
+      {topNavOpen ? (
+        <div
+          className="top-nav-backdrop"
+          aria-hidden="true"
+          onClick={() => setTopNavOpen(false)}
+        />
+      ) : null}
       {children}
     </div>
   );
