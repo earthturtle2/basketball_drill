@@ -1122,7 +1122,7 @@ pre.doc {
 }
 .preview-controls .view-controls__options {
   display: grid;
-  grid-template-columns: 1fr;
+  grid-template-columns: 1fr 1fr;
   gap: 0.46rem;
   width: 100%;
   min-width: 0;
@@ -1294,6 +1294,9 @@ input[type="color"] {
   .preview-controls__speed {
     width: 100%;
     margin-left: 0;
+  }
+  .preview-controls .view-controls__options {
+    grid-template-columns: 1fr;
   }
 
   .view-page h1 {
