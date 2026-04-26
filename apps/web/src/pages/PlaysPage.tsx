@@ -106,10 +106,10 @@ export function PlaysPage() {
           const assignedTeamIds = p.teamIds?.length ? p.teamIds : p.teamId ? [p.teamId] : [];
           const assignedTeams = assignedTeamIds.map((teamId) => teamMap.get(teamId)).filter((tm): tm is Team => !!tm);
           return (
-            <div key={p.id} className="list-item">
+            <Link key={p.id} to={`/plays/${p.id}`} className="list-item list-item--link">
               <div>
                 <h3>
-                  <Link to={`/plays/${p.id}`}>{p.name}</Link>
+                  <span className="list-item__title">{p.name}</span>
                 </h3>
                 <div className="muted">
                   {assignedTeams.length ? (
@@ -136,10 +136,7 @@ export function PlaysPage() {
                   {t("plays.updatedAt")} {new Date(p.updatedAt).toLocaleString()}
                 </div>
               </div>
-              <Link to={`/plays/${p.id}`} className="btn btn-ghost">
-                {t("plays.open")}
-              </Link>
-            </div>
+            </Link>
           );
         })}
         {items.length === 0 && !err ? (

@@ -87,13 +87,13 @@ function LibraryList() {
       </div>
       <div className="list">
         {items.map((p) => (
-          <div key={p.id} className="list-item">
+          <Link key={p.id} to={`/library/${p.id}`} className="list-item list-item--link">
             <div>
               <h3 style={{ display: "flex", alignItems: "center", flexWrap: "wrap", gap: "0.5rem" }}>
                 {p.author.avatarUrl ? (
                   <img src={p.author.avatarUrl} alt="" className="avatar-thumb" width={36} height={36} />
                 ) : null}
-                <Link to={`/library/${p.id}`}>{p.name}</Link>
+                <span className="list-item__title">{p.name}</span>
                 {p.userId === user.id ? <span className="status-pill">{t("lib.mine")}</span> : null}
               </h3>
               <p className="muted">
@@ -106,12 +106,7 @@ function LibraryList() {
                 · {t("plays.updatedAt")} {new Date(p.updatedAt).toLocaleString()}
               </p>
             </div>
-            <div className="row-actions">
-              <Link to={`/library/${p.id}`} className="btn btn-ghost">
-                {t("lib.open")}
-              </Link>
-            </div>
-          </div>
+          </Link>
         ))}
         {items.length === 0 && !err ? <p className="muted">{t("lib.empty")}</p> : null}
       </div>
