@@ -298,20 +298,15 @@ const zh: Record<string, string> = {
 
   // Template names & descriptions
   "tpl.highPnr.name": "高位挡拆",
-  "tpl.highPnr.desc":
-    "两翼底角拉开；5上提掩护，1借掩护转向突破，5顺下；1牵制后传球给顺下5完成攻筐，1撤弱侧底角。内置约10秒、8个关键帧。",
+  "tpl.highPnr.desc": "底角+弱侧45拉开，高位掩护顺下外传。",
   "tpl.fastBreak.name": "快攻 3v2",
-  "tpl.fastBreak.desc":
-    "三线快下，两名防守回撤；1中路持球吸引双人，分球给右翼2，3弱侧牵制。内置约10秒、8个关键帧。",
+  "tpl.fastBreak.desc": "两翼占边，中路牵制分球右翼。",
   "tpl.horns.name": "Horns 进攻体系",
-  "tpl.horns.desc":
-    "4、5双肘，底角2、3；1交球给右肘4后借5一侧空切，4策应再传底角2。内置约10秒、8个关键帧。",
+  "tpl.horns.desc": "双肘双底角，进肘策应传底角。",
   "tpl.handoff.name": "手递手",
-  "tpl.handoff.desc":
-    "2肘区持球，1从弱侧切入汇合；手递手后1中路突破攻框，2下沉护筐侧。内置约10秒、8个关键帧。",
+  "tpl.handoff.desc": "五人拉开，肘区手递手后中路突。",
   "tpl.zone131.name": "1-3-1 联防",
-  "tpl.zone131.desc":
-    "球沿顶弧—侧翼—底角—对侧转移时，顶防、腰线三人与底线扫荡者如何滑动补位并复位。内置约10秒、8个关键帧。",
+  "tpl.zone131.desc": "随球滑动，顶-腰-底线轮转。",
 
   // Team labels in templates
   "team.offense": "进攻",
@@ -604,20 +599,15 @@ const en: Record<string, string> = {
 
   // Template names & descriptions
   "tpl.highPnr.name": "High Pick & Roll",
-  "tpl.highPnr.desc":
-    "Corners filled; #5 steps up to screen, #1 turns the corner as #5 rolls. #1 hits the roller for a finish, then spaces weak-side. Built-in ~10s / 8 keyframes.",
+  "tpl.highPnr.desc": "45° + corners spaced; high screen, roll, kick-out.",
   "tpl.fastBreak.name": "Fast Break 3v2",
-  "tpl.fastBreak.desc":
-    "Three-man outlets vs. two retreating defenders. #1 attacks the key, draws both, kicks to the right-wing trailer (#2); #3 stays weak-side. ~10s / 8 keyframes.",
+  "tpl.fastBreak.desc": "Wide lanes, middle drive, kick to the right wing.",
   "tpl.horns.name": "Horns Offense",
-  "tpl.horns.desc":
-    "#4 and #5 on the elbows, corners spotted; #1 enters to the right elbow (#4), cuts off #5, then #4 finds #2 in the corner. ~10s / 8 keyframes.",
+  "tpl.horns.desc": "Elbows + corners; entry pass, corner look.",
   "tpl.handoff.name": "Handoff",
-  "tpl.handoff.desc":
-    "#2 at the elbow; #1 cuts in from the weak side for the dribble handoff, then drives middle. #2 sinks after the exchange. ~10s / 8 keyframes.",
+  "tpl.handoff.desc": "Five-out spacing; elbow DHO, middle drive.",
   "tpl.zone131.name": "1-3-1 Zone",
-  "tpl.zone131.desc":
-    "As the ball moves top–wing–corner–reverse, the chaser, three wing-line defenders, and the baseline runner slide and recover in the 1-3-1 shell. ~10s / 8 keyframes.",
+  "tpl.zone131.desc": "Chaser and wing line slide with the ball.",
 
   // Team labels in templates
   "team.offense": "Offense",
