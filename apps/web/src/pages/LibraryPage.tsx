@@ -5,9 +5,8 @@ import { useAuth } from "../auth";
 import { useT } from "../i18n";
 import type { TacticDocumentV1 } from "@basketball/shared";
 import { tryParseTacticDocumentV1 } from "@basketball/shared";
-import { PlayPreview } from "../tactic/PlayPreview";
-import { playbackEndMs } from "../tactic/viewer-math";
-import { courtModeFromDocument, type CourtMode } from "../tactic/court-geometry";
+import { PlaybackPreviewSection } from "../tactic/PlaybackPreviewSection";
+import { courtModeFromDocument } from "../tactic/court-geometry";
 
 type LibraryListItem = {
   id: string;
@@ -131,14 +130,11 @@ function LibraryDetail({ playId }: { playId: string }) {
   const { user } = useAuth();
   const [row, setRow] = useState<LibraryDetail | null>(null);
   const [err, setErr] = useState<string | null>(null);
-  const [tMs, setTms] = useState(0);
   const [copying, setCopying] = useState(false);
-  const [courtMode, setCourtMode] = useState<CourtMode>("half");
 
   useEffect(() => {
     setRow(null);
     setErr(null);
-    setTms(0);
     (async () => {
       try {
         const p = await api<LibraryDetail>(`/api/v1/plays/library/${playId}`);
@@ -154,14 +150,6 @@ function LibraryDetail({ playId }: { playId: string }) {
     const r = tryParseTacticDocumentV1(row.document);
     return r.success ? r.data : null;
   }, [row]);
-
-  useEffect(() => {
-    if (doc) setTms(0);
-  }, [doc]);
-
-  useEffect(() => {
-    if (doc) setCourtMode(courtModeFromDocument(doc));
-  }, [doc]);
 
   async function copy() {
     setCopying(true);
@@ -180,8 +168,6 @@ function LibraryDetail({ playId }: { playId: string }) {
   }
 
   if (!user) return <Navigate to="/login" replace />;
-
-  const endMs = doc ? playbackEndMs(doc) : 0;
 
   return (
     <div>
@@ -232,33 +218,10 @@ function LibraryDetail({ playId }: { playId: string }) {
               </Link>
             ) : null}
           </div>
-          <div className="field" style={{ marginBottom: "0.75rem" }}>
-            <label>
-              {t("bench.court")}{" "}
-              <select
-                className="btn"
-                value={courtMode}
-                onChange={(e) => setCourtMode(e.target.value as CourtMode)}
-                style={{ marginLeft: "0.35rem" }}
-              >
-                <option value="half">{t("bench.half")}</option>
-                <option value="full">{t("bench.full")}</option>
-              </select>
-            </label>
-          </div>
-          <div className="field" style={{ marginBottom: "0.5rem" }}>
-            <label htmlFor="lib-t">{t("view.time")}</label>
-            <input
-              id="lib-t"
-              className="preview-controls__range"
-              type="range"
-              min={0}
-              max={Math.max(0, endMs)}
-              value={Math.min(tMs, endMs)}
-              onChange={(e) => setTms(Number(e.target.value))}
-            />
-          </div>
-          <PlayPreview document={doc} tMs={tMs} courtMode={courtMode} />
+          <p className="muted" style={{ margin: "0 0 0.75rem" }}>
+            {t("bench.court")}: {courtModeFromDocument(doc) === "full" ? t("bench.full") : t("bench.half")}
+          </p>
+          <PlaybackPreviewSection document={doc} resetPlaybackKey={playId} rangeInputId="lib-playback-range" />
         </>
       ) : !err && row === null ? (
         <p className="hint">{t("view.loading")}</p>
