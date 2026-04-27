@@ -9,7 +9,7 @@ import {
   createRefreshTokenRaw,
   hashRefreshToken,
   refreshExpiresAt,
-  ACCESS_TTL_S,
+  getAccessTtlSeconds,
 } from "../../lib/tokens.js";
 import { sendError } from "../../lib/errors.js";
 
@@ -35,7 +35,7 @@ async function issueTokens(user: { id: string; email: string; role: string }) {
   const tokenHash = hashRefreshToken(raw);
   const exp = refreshExpiresAt();
   await db.insert(refreshTokens).values({ userId: user.id, tokenHash, expiresAt: exp });
-  return { accessToken, refreshToken: raw, expiresIn: ACCESS_TTL_S };
+  return { accessToken, refreshToken: raw, expiresIn: getAccessTtlSeconds() };
 }
 
 export async function authRoutes(fastify: FastifyInstance) {

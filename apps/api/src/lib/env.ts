@@ -18,10 +18,34 @@ function req(name: string, fallback?: string) {
   return v;
 }
 
+function intInRange(
+  name: string,
+  def: number,
+  min: number,
+  max: number,
+) {
+  const raw = process.env[name];
+  if (raw === undefined || raw === "") return def;
+  const n = Number(raw);
+  if (!Number.isFinite(n) || n < min || n > max) return def;
+  return Math.trunc(n);
+}
+
+/** Access JWT lifetime (default 15m). Affects `expiresIn` in auth responses. */
+const accessTokenTtlSeconds = intInRange("JWT_ACCESS_TTL_SECONDS", 15 * 60, 60, 24 * 60 * 60);
+
+/**
+ * Opaque refresh token lifetime in days (default 30). Rotates on each `/auth/refresh`;
+ * active users get a rolling window. Increase via env to reduce re-logins.
+ */
+const refreshTokenTtlDays = intInRange("JWT_REFRESH_TTL_DAYS", 30, 1, 365);
+
 export const env = {
   databaseUrl: req("DATABASE_URL"),
   jwtAccessSecret: req("JWT_ACCESS_SECRET"),
   publicAppUrl: process.env.PUBLIC_APP_URL ?? "http://localhost:5173",
   port: Number(process.env.PORT ?? 3002),
   host: process.env.HOST ?? "0.0.0.0",
+  accessTokenTtlSeconds,
+  refreshTokenTtlDays,
 };
