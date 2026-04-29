@@ -1,8 +1,8 @@
-import type { FastifyInstance } from "fastify";
+import type { FastifyInstance, FastifyReply } from "fastify";
 import { z } from "zod";
-import { and, count, desc, eq, isNull, sql, type SQL } from "drizzle-orm";
+import { and, count, desc, eq, inArray, isNull, sql, type SQL } from "drizzle-orm";
 import { db } from "../../db/index.js";
-import { plays, users } from "../../db/schema.js";
+import { plays, teams, users } from "../../db/schema.js";
 import {
   buildDocumentFromInput,
   buildDocumentOnUpdate,
@@ -52,12 +52,47 @@ function escapeIlike(s: string) {
   return s.replace(/[\\%_]/g, (c) => `\\${c}`);
 }
 
+function cleanUniqueIds(ids: string[]) {
+  return [...new Set(ids.map((id) => id.trim()).filter(Boolean))];
+}
+
 function uniqueTeamIds(teamIds: string[] | undefined, legacyTeamId?: string | null) {
-  return [...new Set([...(teamIds ?? []), ...(legacyTeamId ? [legacyTeamId] : [])])];
+  return cleanUniqueIds([...(teamIds ?? []), ...(legacyTeamId ? [legacyTeamId] : [])]);
 }
 
 function uniqueUserIds(userIds: string[] | undefined) {
-  return [...new Set(userIds ?? [])];
+  return cleanUniqueIds(userIds ?? []);
+}
+
+async function ownedTeamIdsOrError(
+  reply: FastifyReply,
+  userId: string,
+  teamIds: string[],
+) {
+  const ids = cleanUniqueIds(teamIds);
+  if (ids.length === 0) return ids;
+  const rows = await db
+    .select({ id: teams.id })
+    .from(teams)
+    .where(and(eq(teams.userId, userId), inArray(teams.id, ids)));
+  if (rows.length !== ids.length) {
+    sendError(reply, 400, "INVALID_TEAM", "队伍不存在或无权使用");
+    return null;
+  }
+  return ids;
+}
+
+function teamIdsFromPatch(
+  row: typeof plays.$inferSelect,
+  patch: z.infer<typeof playPatchBody>,
+) {
+  if (patch.teamIds !== undefined) {
+    return uniqueTeamIds(patch.teamIds, patch.teamId ?? null);
+  }
+  if (patch.teamId !== undefined) {
+    return uniqueTeamIds(undefined, patch.teamId);
+  }
+  return uniqueTeamIds(row.teamIds, row.teamId);
 }
 
 function isLibraryVisibleTo(row: typeof plays.$inferSelect, userId: string) {
@@ -215,6 +250,11 @@ export async function playRoutes(fastify: FastifyInstance) {
       }
     }
     const newName = b.name?.trim() || `${row.name}（副本）`;
+    const copiedTeamIds =
+      row.userId === request.user!.id
+        ? await ownedTeamIdsOrError(reply, request.user!.id, uniqueTeamIds(row.teamIds, row.teamId))
+        : [];
+    if (!copiedTeamIds) return;
     const [created] = await db
       .insert(plays)
       .values({
@@ -222,8 +262,8 @@ export async function playRoutes(fastify: FastifyInstance) {
         name: newName,
         description: row.description,
         tags: row.tags,
-        teamId: row.teamId,
-        teamIds: row.teamIds,
+        teamId: copiedTeamIds[0] ?? null,
+        teamIds: copiedTeamIds,
         document: buildDocumentOnUpdate(row.document, row.name, { name: newName }),
         libraryScope: "all_coaches" satisfies LibraryScope,
         sharedWithUserIds: [],
@@ -297,12 +337,18 @@ export async function playRoutes(fastify: FastifyInstance) {
       tags: b.tags,
       document: r.data,
     });
+    const assignedTeamIds = await ownedTeamIdsOrError(
+      reply,
+      request.user!.id,
+      uniqueTeamIds(b.teamIds, b.teamId),
+    );
+    if (!assignedTeamIds) return;
     const [row] = await db
       .insert(plays)
       .values({
         userId: request.user!.id,
-        teamId: b.teamId ?? null,
-        teamIds: uniqueTeamIds(b.teamIds, b.teamId),
+        teamId: assignedTeamIds[0] ?? null,
+        teamIds: assignedTeamIds,
         name: b.name,
         description: b.description ?? null,
         tags: b.tags ?? [],
@@ -343,14 +389,19 @@ export async function playRoutes(fastify: FastifyInstance) {
       nextLibraryScope === "partial"
         ? uniqueUserIds(b.sharedWithUserIds ?? (row.libraryScope === "partial" ? row.sharedWithUserIds : []))
         : [];
+    const teamAssignmentChanged = b.teamIds !== undefined || b.teamId !== undefined;
+    const nextTeamIds = teamAssignmentChanged
+      ? await ownedTeamIdsOrError(reply, request.user!.id, teamIdsFromPatch(row, b))
+      : row.teamIds;
+    if (!nextTeamIds) return;
     const [u] = await db
       .update(plays)
       .set({
         name: b.name !== undefined ? b.name : row.name,
         description: b.description === undefined ? row.description : b.description,
         tags: b.tags !== undefined ? b.tags : row.tags,
-        teamId: b.teamId === undefined ? row.teamId : b.teamId,
-        teamIds: b.teamIds === undefined ? row.teamIds : b.teamIds,
+        teamId: teamAssignmentChanged ? (nextTeamIds[0] ?? null) : row.teamId,
+        teamIds: nextTeamIds,
         libraryScope: nextLibraryScope,
         sharedWithUserIds: nextSharedWithUserIds,
         document,
@@ -380,6 +431,12 @@ export async function playRoutes(fastify: FastifyInstance) {
       return sendError(reply, 404, "NOT_FOUND", "未找到");
     }
     const newName = b.name?.trim() || `${row.name}（副本）`;
+    const copiedTeamIds = await ownedTeamIdsOrError(
+      reply,
+      request.user!.id,
+      uniqueTeamIds(row.teamIds, row.teamId),
+    );
+    if (!copiedTeamIds) return;
     const [created] = await db
       .insert(plays)
       .values({
@@ -387,8 +444,8 @@ export async function playRoutes(fastify: FastifyInstance) {
         name: newName,
         description: row.description,
         tags: row.tags,
-        teamId: row.teamId,
-        teamIds: row.teamIds,
+        teamId: copiedTeamIds[0] ?? null,
+        teamIds: copiedTeamIds,
         document: buildDocumentOnUpdate(row.document, row.name, { name: newName }),
         libraryScope: "all_coaches" satisfies LibraryScope,
         sharedWithUserIds: [],

@@ -63,6 +63,15 @@ async function tryRefresh() {
   return data.accessToken;
 }
 
+let refreshPromise: Promise<string | null> | null = null;
+
+function refreshOnce() {
+  refreshPromise ??= tryRefresh().finally(() => {
+    refreshPromise = null;
+  });
+  return refreshPromise;
+}
+
 export async function api<T>(
   path: string,
   init?: RequestInit & { _retry?: boolean },
@@ -79,7 +88,11 @@ export async function api<T>(
   }
   const res = await fetch(`${base()}${path}`, { ...init, headers });
   if (res.status === 401 && !init?._retry && getRefreshToken()) {
-    const newAccess = await tryRefresh();
+    const latestToken = getAccessToken();
+    if (token && latestToken && latestToken !== token) {
+      return api<T>(path, { ...init, _retry: true });
+    }
+    const newAccess = await refreshOnce();
     if (newAccess) {
       return api<T>(path, { ...init, _retry: true });
     }

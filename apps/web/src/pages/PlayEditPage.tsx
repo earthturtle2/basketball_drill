@@ -341,9 +341,6 @@ export function PlayEditPage() {
     return stops;
   }, [doc]);
 
-  if (!user) return <Navigate to="/login" replace />;
-  if (!id) return <p className="error">{t("edit.missingId")}</p>;
-
   const startFrameStep = useCallback(() => {
     if (!doc || frameStepTargetRef.current) return;
     const endT = playbackEndMs(doc);
@@ -372,6 +369,9 @@ export function PlayEditPage() {
     setTms(t0);
     setFrameStepTarget({ from: t0, to: t1 });
   }, [doc]);
+
+  if (!user) return <Navigate to="/login" replace />;
+  if (!id) return <p className="error">{t("edit.missingId")}</p>;
 
   function handleDocChange(newDoc: TacticDocumentV1) {
     if (doc) pushUndoSnapshot(doc);

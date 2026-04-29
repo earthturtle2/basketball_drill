@@ -135,6 +135,23 @@ function NotFound() {
   return <p className="hint">{t("app.notFound")}</p>;
 }
 
+function RequireAuth({ children }: { children: ReactNode }) {
+  const loc = useLocation();
+  const { user, loading } = useAuth();
+  const { t } = useT();
+  if (loading) return <p className="hint">{t("view.loading")}</p>;
+  if (!user) return <Navigate to="/login" state={{ from: loc }} replace />;
+  return children;
+}
+
+function RequireAdmin({ children }: { children: ReactNode }) {
+  const { user } = useAuth();
+  const { t } = useT();
+  if (!user) return null;
+  if (!isAdmin(user.role)) return <p className="error">{t("admin.forbidden")}</p>;
+  return children;
+}
+
 export function App() {
   return (
     <Layout>
@@ -142,14 +159,38 @@ export function App() {
         <Route path="/" element={<Navigate to="/plays" replace />} />
         <Route path="/login" element={<LoginPage />} />
         <Route path="/register" element={<RegisterPage />} />
-        <Route path="/plays" element={<PlaysPage />} />
-        <Route path="/library" element={<LibraryPage />} />
-        <Route path="/library/:id" element={<LibraryPage />} />
-        <Route path="/plays/:id" element={<PlayEditPage />} />
-        <Route path="/teams" element={<TeamsPage />} />
-        <Route path="/admin" element={<AdminPage />} />
-        <Route path="/profile" element={<ProfilePage />} />
-        <Route path="/password" element={<ChangePasswordPage />} />
+        <Route
+          path="/plays"
+          element={<RequireAuth><PlaysPage /></RequireAuth>}
+        />
+        <Route
+          path="/library"
+          element={<RequireAuth><LibraryPage /></RequireAuth>}
+        />
+        <Route
+          path="/library/:id"
+          element={<RequireAuth><LibraryPage /></RequireAuth>}
+        />
+        <Route
+          path="/plays/:id"
+          element={<RequireAuth><PlayEditPage /></RequireAuth>}
+        />
+        <Route
+          path="/teams"
+          element={<RequireAuth><TeamsPage /></RequireAuth>}
+        />
+        <Route
+          path="/admin"
+          element={<RequireAuth><RequireAdmin><AdminPage /></RequireAdmin></RequireAuth>}
+        />
+        <Route
+          path="/profile"
+          element={<RequireAuth><ProfilePage /></RequireAuth>}
+        />
+        <Route
+          path="/password"
+          element={<RequireAuth><ChangePasswordPage /></RequireAuth>}
+        />
         <Route path="/view/:token" element={<ViewPage />} />
         <Route path="*" element={<NotFound />} />
       </Routes>

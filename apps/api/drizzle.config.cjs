@@ -18,6 +18,8 @@ if (raw.startsWith("file:")) {
   if (!isAbsolute(p)) {
     url = `file:${resolve(repoRoot, p)}`;
   }
+} else if (/^[a-z][a-z0-9+.-]*:/i.test(raw)) {
+  throw new Error(`Unsupported DATABASE_URL scheme for SQLite: ${raw.split(":")[0]}`);
 } else if (!isAbsolute(raw)) {
   url = resolve(repoRoot, raw);
 }

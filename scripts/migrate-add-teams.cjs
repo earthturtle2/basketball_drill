@@ -21,6 +21,9 @@ if (!raw) {
 
 let dbPath = raw;
 if (raw.startsWith("file:")) dbPath = raw.slice("file:".length);
+else if (/^[a-z][a-z0-9+.-]*:/i.test(raw)) {
+  throw new Error(`Unsupported DATABASE_URL scheme for SQLite: ${raw.split(":")[0]}`);
+}
 if (!isAbsolute(dbPath)) dbPath = resolve(repoRoot, dbPath);
 
 const dir = require("node:path").dirname(dbPath);

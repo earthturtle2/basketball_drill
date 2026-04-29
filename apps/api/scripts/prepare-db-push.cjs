@@ -18,6 +18,9 @@ function resolveSqlitePath(value) {
     const p = value.slice("file:".length);
     return isAbsolute(p) ? p : resolve(repoRoot, p);
   }
+  if (/^[a-z][a-z0-9+.-]*:/i.test(value)) {
+    throw new Error(`Unsupported DATABASE_URL scheme for SQLite: ${value.split(":")[0]}`);
+  }
   return isAbsolute(value) ? value : resolve(repoRoot, value);
 }
 
