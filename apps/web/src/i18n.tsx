@@ -297,16 +297,16 @@ const zh: Record<string, string> = {
   "tpl.hint": "选择一个模板将替换当前战术内容",
 
   // Template names & descriptions
-  "tpl.highPnr.name": "三人拉开挡拆",
-  "tpl.highPnr.desc": "3v0 教学：底角牵制不动，高位掩护顺下传球。",
-  "tpl.fastBreak.name": "快攻 3v2",
-  "tpl.fastBreak.desc": "3v2 经典：两翼占边，中路牵制分右翼。",
-  "tpl.horns.name": "Horns（四人）",
-  "tpl.horns.desc": "4v0：双肘+单底角，进肘传切再传角。",
-  "tpl.handoff.name": "二人肘区递手",
-  "tpl.handoff.desc": "2v0：肘区手递手，接球中路突破。",
-  "tpl.zone131.name": "1-3-1 联防",
-  "tpl.zone131.desc": "5 人联防壳：随球顶-腰-底线滑动。",
+  "tpl.highPnr.name": "高位挡拆 5v5",
+  "tpl.highPnr.desc": "经典挡拆：持球借掩护，防守挤过+内线沉退，弱侧 tag 后回位。",
+  "tpl.fastBreak.name": "快攻 3v2 轮转",
+  "tpl.fastBreak.desc": "经典快攻：两翼拉宽，顶防先停球，底防护筐并扑传球点。",
+  "tpl.horns.name": "Horns Flare 5v5",
+  "tpl.horns.desc": "双肘落位：进肘、后卫清空，弱侧 flare 掩护后防守追防/换防。",
+  "tpl.handoff.name": "Chicago 手递手 5v5",
+  "tpl.handoff.desc": "下掩护接手递手：射手卷出，防守追防/换防，弱侧协防轮转。",
+  "tpl.zone131.name": "1-3-1 vs overload",
+  "tpl.zone131.desc": "进攻 overload 传导，联防顶、翼、中、底线随球同步滑动。",
 
   // Team labels in templates
   "team.offense": "进攻",
@@ -598,16 +598,16 @@ const en: Record<string, string> = {
   "tpl.hint": "Selecting a template will replace the current play",
 
   // Template names & descriptions
-  "tpl.highPnr.name": "Spread P&R (3v0)",
-  "tpl.highPnr.desc": "Classic 3-man shell: corner stays, high screen, roll pass.",
-  "tpl.fastBreak.name": "Fast Break 3v2",
-  "tpl.fastBreak.desc": "Primary break: wide lanes, drive, pitch to wing.",
-  "tpl.horns.name": "Horns (4v0)",
-  "tpl.horns.desc": "Elbows + one corner; PG entry, pass to corner.",
-  "tpl.handoff.name": "Elbow DHO (2v0)",
-  "tpl.handoff.desc": "Two-man drill: dribble handoff, middle drive.",
-  "tpl.zone131.name": "1-3-1 Zone",
-  "tpl.zone131.desc": "Five-man shell: slides vs. ball movement.",
+  "tpl.highPnr.name": "High P&R 5v5",
+  "tpl.highPnr.desc": "Classic ball screen: guard turns the corner, big drops, weak side tags then recovers.",
+  "tpl.fastBreak.name": "Fast Break 3v2 Rotation",
+  "tpl.fastBreak.desc": "Wide lanes; top defender stops ball while the back defender protects rim and rotates out.",
+  "tpl.horns.name": "Horns Flare 5v5",
+  "tpl.horns.desc": "Elbow entry, guard clear, weak-side flare screen, then chase/switch coverage.",
+  "tpl.handoff.name": "Chicago DHO 5v5",
+  "tpl.handoff.desc": "Pin-down into DHO with chase/switch coverage and weak-side help rotation.",
+  "tpl.zone131.name": "1-3-1 vs Overload",
+  "tpl.zone131.desc": "Overload ball movement with the chaser, wings, middle and baseline runner sliding together.",
 
   // Team labels in templates
   "team.offense": "Offense",
