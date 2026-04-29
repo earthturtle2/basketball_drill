@@ -44,6 +44,7 @@ interface Props {
   onRosterPlayerSelect: (player: BenchPlayerOption) => void;
   canAddOffense: boolean;
   canAddDefense: boolean;
+  canUseRosterPlayers: boolean;
 }
 
 export function EditorBench({
@@ -69,6 +70,7 @@ export function EditorBench({
   onRosterPlayerSelect,
   canAddOffense,
   canAddDefense,
+  canUseRosterPlayers,
 }: Props) {
   const { t } = useT();
   const sideClass = side === "left" ? "editor-bench--left" : "editor-bench--right";
@@ -249,9 +251,13 @@ export function EditorBench({
             {t("bench.remove")}
           </button>
         </div>
-        {tool === "addOffense" && <p className="bench-tip">{t("bench.tipAddOffense")}</p>}
+        {pendingPlayer ? (
+          <p className="bench-tip">{t("bench.tipRosterReplace")}</p>
+        ) : tool === "addOffense" ? (
+          <p className="bench-tip">{t("bench.tipAddOffense")}</p>
+        ) : null}
         {tool === "addDefense" && <p className="bench-tip">{t("bench.tipAddDefense")}</p>}
-        {!canAddOffense && <p className="bench-hint">{t("bench.maxOffense")}</p>}
+        {!canAddOffense && !pendingPlayer && <p className="bench-hint">{t("bench.maxOffense")}</p>}
         {!canAddDefense && <p className="bench-hint">{t("bench.maxDefense")}</p>}
       </div>
 
@@ -263,9 +269,9 @@ export function EditorBench({
               key={player.id}
               type="button"
               className={`bench-roster-player${pendingPlayer?.id === player.id ? " bench-roster-player--active" : ""}`}
-              disabled={player.disabled || !canAddOffense}
+              disabled={player.disabled || !canUseRosterPlayers}
               onClick={() => onRosterPlayerSelect(player)}
-              title={player.name ? `${player.number} ${player.name}` : `${player.number}`}
+              title={player.disabled ? t("bench.rosterPlayerInUse") : player.label}
             >
               <span className="bench-roster-dot">{player.number}</span>
               {player.name ? <small>{player.name}</small> : null}

@@ -29,6 +29,7 @@ const actor = z.discriminatedUnion("type", [
     id: z.string().min(1),
     type: z.literal("player"),
     team: z.enum(["offense", "defense"]),
+    rosterPlayerId: z.string().min(1).optional(),
     number: z.number().int().min(0).max(99),
     label: z.string(),
   }),

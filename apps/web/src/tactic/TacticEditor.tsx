@@ -42,6 +42,17 @@ function nextAvailableNumber(existing: { number: number }[]): number {
   return [1, 2, 3, 4, 5].find((n) => !used.has(n)) ?? existing.length + 1;
 }
 
+function rosterPlayerLabel(player: { name: string; number: number }): string {
+  const name = player.name.trim();
+  return name || `${player.number}`;
+}
+
+function actorMatchesRosterPlayer(actor: PlayerActor, player: { id: string; name: string; number: number }): boolean {
+  if (actor.rosterPlayerId === player.id) return true;
+  const name = player.name.trim();
+  return !actor.rosterPlayerId && !!name && actor.number === player.number && actor.label === name;
+}
+
 function remapEventsAtTime(
   events: TacticDocumentV1["events"],
   oldT: number,
@@ -226,18 +237,21 @@ export function TacticEditor({
   const defensePlayers = doc.actors.filter((a): a is PlayerActor => isPlayerActor(a) && a.team === "defense");
   const canAddOffense = offensePlayers.length < 5;
   const canAddDefense = defensePlayers.length < 5;
+  const canUseRosterPlayers = canAddOffense || offensePlayers.length > 0;
 
   const availablePlayers = useMemo<BenchPlayerOption[]>(() => {
-    const usedNumbers = new Set(offensePlayers.map((p) => p.number));
     return teamPlayers.map((p) => ({
       ...p,
-      label: p.name ? `${p.number} ${p.name}` : `${p.number}`,
-      disabled: usedNumbers.has(p.number),
+      label: p.name.trim() ? `${p.number} ${p.name.trim()}` : `${p.number}`,
+      disabled: offensePlayers.some((actor) => actorMatchesRosterPlayer(actor, p)),
     }));
   }, [teamPlayers, offensePlayers]);
 
   useEffect(() => {
-    if (pendingPlayer && !availablePlayers.some((p) => p.id === pendingPlayer.id)) {
+    const pendingOption = pendingPlayer
+      ? availablePlayers.find((p) => p.id === pendingPlayer.id)
+      : undefined;
+    if (pendingPlayer && (!pendingOption || pendingOption.disabled)) {
       setPendingPlayer(null);
     }
   }, [availablePlayers, pendingPlayer]);
@@ -272,11 +286,11 @@ export function TacticEditor({
   }, [canAddOffense, canAddDefense]);
 
   const handleRosterPlayerSelect = useCallback((player: BenchPlayerOption) => {
-    if (!canAddOffense || player.disabled) return;
+    if (!canUseRosterPlayers || player.disabled) return;
     setPendingPlayer(player);
     setTool("addOffense");
     setPassSource(null);
-  }, [canAddOffense]);
+  }, [canUseRosterPlayers]);
 
   const handleDrag = useCallback(
     (actorId: string, svgX: number, svgY: number) => {
@@ -292,7 +306,27 @@ export function TacticEditor({
 
   const handleActorClick = useCallback(
     (actorId: string) => {
-      if (tool === "pass") {
+      if (tool === "addOffense" && pendingPlayer) {
+        const target = doc.actors.find((a): a is PlayerActor => isPlayerActor(a) && a.id === actorId);
+        if (!target || target.team !== "offense") {
+          setSelectedActorId(actorId);
+          return;
+        }
+        const newActors = doc.actors.map((a) => {
+          if (a.id !== actorId || a.type !== "player") return a;
+          return {
+            ...a,
+            rosterPlayerId: pendingPlayer.id,
+            number: pendingPlayer.number,
+            label: rosterPlayerLabel(pendingPlayer),
+          };
+        });
+        onChange({ ...doc, actors: newActors });
+        setSelectedActorId(actorId);
+        setPendingPlayer(null);
+        setPassSource(null);
+        setTool("select");
+      } else if (tool === "pass") {
         if (!passSource) {
           if (ballHolderId && ballHolderId !== actorId) {
             setSelectedActorId(actorId);
@@ -319,7 +353,7 @@ export function TacticEditor({
         setSelectedActorId(actorId);
       }
     },
-    [tool, passSource, ballHolderId, currentT, doc, onChange],
+    [tool, pendingPlayer, passSource, ballHolderId, currentT, doc, onChange],
   );
 
   const handleCourtClick = useCallback(
@@ -338,13 +372,16 @@ export function TacticEditor({
       if (existing.length >= 5) return;
       const num = team === "offense" && pendingPlayer ? pendingPlayer.number : nextAvailableNumber(existing);
       const id = genId();
-      const newActor = {
+      const newActor: PlayerActor = {
         id,
         type: "player" as const,
         team,
         number: num,
-        label: team === "offense" && pendingPlayer ? (pendingPlayer.name || `${num}`) : `${num}`,
+        label: team === "offense" && pendingPlayer ? rosterPlayerLabel(pendingPlayer) : `${num}`,
       };
+      if (team === "offense" && pendingPlayer) {
+        newActor.rosterPlayerId = pendingPlayer.id;
+      }
       const newKfs = doc.keyframes.map((k) => ({
         ...k,
         poses: { ...k.poses, [id]: { x: tx, y: ty } },
@@ -385,7 +422,9 @@ export function TacticEditor({
     (actorId: string, updates: { label?: string; number?: number }) => {
       const newActors = doc.actors.map((a) => {
         if (a.id !== actorId || a.type !== "player") return a;
-        return { ...a, ...updates };
+        const nextActor = { ...a, ...updates };
+        delete nextActor.rosterPlayerId;
+        return nextActor;
       });
       onChange({ ...doc, actors: newActors });
     },
@@ -693,6 +732,7 @@ export function TacticEditor({
         onRosterPlayerSelect={handleRosterPlayerSelect}
         canAddOffense={canAddOffense}
         canAddDefense={canAddDefense}
+        canUseRosterPlayers={canUseRosterPlayers}
       />
 
       <div className="editor-court">
@@ -796,6 +836,7 @@ export function TacticEditor({
         onRosterPlayerSelect={handleRosterPlayerSelect}
         canAddOffense={canAddOffense}
         canAddDefense={canAddDefense}
+        canUseRosterPlayers={canUseRosterPlayers}
       />
 
       <div className="editor-timeline">

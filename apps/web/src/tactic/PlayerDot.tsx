@@ -68,7 +68,7 @@ export function PlayerDot({
 
   return (
     <g
-      style={{ cursor: "grab" }}
+      style={{ cursor: draggable ? "grab" : "pointer" }}
       onPointerDown={onPointerDown}
       onPointerMove={onPointerMove}
       onPointerUp={onPointerUp}
