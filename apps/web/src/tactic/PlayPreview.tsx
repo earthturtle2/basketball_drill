@@ -3,66 +3,12 @@ import type { TacticDocumentV1 } from "@basketball/shared";
 import {
   samplePoses,
   resolveBallState,
-  resolveBallHolderAt,
   resolveScreenOverlaysAtT,
   passFlyMs,
 } from "./viewer-math";
 import { CourtSVG } from "./CourtSVG";
 import { tacticToSvg, type CourtMode } from "./court-geometry";
-
-function sampleBezier(
-  p0: [number, number],
-  cp: [number, number],
-  p1: [number, number],
-  n: number = 24,
-): [number, number][] {
-  const pts: [number, number][] = [];
-  for (let i = 0; i <= n; i++) {
-    const t = i / n;
-    const u = 1 - t;
-    pts.push([
-      u * u * p0[0] + 2 * u * t * cp[0] + t * t * p1[0],
-      u * u * p0[1] + 2 * u * t * cp[1] + t * t * p1[1],
-    ]);
-  }
-  return pts;
-}
-
-function wavyPathD(points: [number, number][], amp = 1.8, waveLen = 5): string {
-  if (points.length < 2) return "";
-  let total = 0;
-  const cum = [0];
-  for (let i = 1; i < points.length; i++) {
-    const dx = points[i][0] - points[i - 1][0];
-    const dy = points[i][1] - points[i - 1][1];
-    total += Math.sqrt(dx * dx + dy * dy);
-    cum.push(total);
-  }
-  if (total < 1) return `M ${points[0][0]} ${points[0][1]} L ${points[points.length - 1][0]} ${points[points.length - 1][1]}`;
-  const waves = Math.max(2, Math.round(total / waveLen));
-  const steps = waves * 4;
-  let d = `M ${points[0][0]} ${points[0][1]}`;
-  for (let si = 1; si <= steps; si++) {
-    const t = si / steps;
-    const dist = t * total;
-    let seg = 0;
-    for (let j = 1; j < cum.length; j++) {
-      if (cum[j] >= dist) { seg = j - 1; break; }
-    }
-    const segLen = cum[seg + 1] - cum[seg];
-    const segT = segLen > 0 ? (dist - cum[seg]) / segLen : 0;
-    const px = points[seg][0] + (points[seg + 1][0] - points[seg][0]) * segT;
-    const py = points[seg][1] + (points[seg + 1][1] - points[seg][1]) * segT;
-    const dx = points[seg + 1][0] - points[seg][0];
-    const dy = points[seg + 1][1] - points[seg][1];
-    const sl = Math.sqrt(dx * dx + dy * dy) || 1;
-    const nx = -dy / sl;
-    const ny = dx / sl;
-    const w = si === steps ? 0 : Math.sin(t * waves * 2 * Math.PI) * amp;
-    d += ` L ${(px + nx * w).toFixed(2)} ${(py + ny * w).toFixed(2)}`;
-  }
-  return d;
-}
+import { movementTrailPieces, wavyPathD } from "./movement-trails-path";
 
 function lerp(a: number, b: number, t: number) {
   return a + (b - a) * t;
@@ -160,14 +106,12 @@ export function PlayPreview({
         const [x1, y1] = tacticToSvg(currPose.x, currPose.y, courtMode);
         if (Math.abs(x1 - x0) < 0.5 && Math.abs(y1 - y0) < 0.5) continue;
 
-        const holder = resolveBallHolderAt(doc, kfs[i].t);
-        const isDribble = holder === actor.id;
-        const hasCp = currPose.cpx !== undefined && currPose.cpy !== undefined;
-        const cp: [number, number] | null = hasCp
+        const cp: [number, number] | null = currPose.cpx !== undefined && currPose.cpy !== undefined
           ? tacticToSvg(currPose.cpx!, currPose.cpy!, courtMode)
           : null;
 
         const completed = kfs[i].t <= tMs;
+        const segmentEndT = completed ? kfs[i].t : tMs;
         // For in-progress segment, compute the endpoint at current time
         let endX = x1, endY = y1;
         let partialCp = cp;
@@ -190,42 +134,50 @@ export function PlayPreview({
           }
         }
 
-        if (isDribble) {
-          const pts: [number, number][] = partialCp
-            ? sampleBezier([x0, y0], partialCp, [endX, endY], 30)
-            : [[x0, y0], [endX, endY]];
-          trails.push(
-            <path
-              key={`mv-${actor.id}-${i}`}
-              d={wavyPathD(pts)}
-              fill="none"
-              stroke={color}
-              strokeWidth="0.7"
-              opacity="0.35"
-            />,
-          );
-        } else if (partialCp) {
-          trails.push(
-            <path
-              key={`mv-${actor.id}-${i}`}
-              d={`M ${x0} ${y0} Q ${partialCp[0]} ${partialCp[1]} ${endX} ${endY}`}
-              fill="none"
-              stroke={color}
-              strokeWidth="0.6"
-              opacity="0.3"
-            />,
-          );
-        } else {
-          trails.push(
-            <line
-              key={`mv-${actor.id}-${i}`}
-              x1={x0} y1={y0} x2={endX} y2={endY}
-              stroke={color}
-              strokeWidth="0.6"
-              opacity="0.3"
-            />,
-          );
-        }
+        const pieces = movementTrailPieces({
+          doc,
+          actorId: actor.id,
+          t0: kfs[i - 1].t,
+          t1: segmentEndT,
+          p0: [x0, y0],
+          p1: [endX, endY],
+          cp: partialCp,
+        });
+        pieces.forEach((piece, partIdx) => {
+          if (piece.isDribble) {
+            trails.push(
+              <path
+                key={`mv-${actor.id}-${i}-${partIdx}`}
+                d={wavyPathD(piece.points)}
+                fill="none"
+                stroke={color}
+                strokeWidth="0.7"
+                opacity="0.35"
+              />,
+            );
+          } else if (piece.cp) {
+            trails.push(
+              <path
+                key={`mv-${actor.id}-${i}-${partIdx}`}
+                d={`M ${piece.start[0]} ${piece.start[1]} Q ${piece.cp[0]} ${piece.cp[1]} ${piece.end[0]} ${piece.end[1]}`}
+                fill="none"
+                stroke={color}
+                strokeWidth="0.6"
+                opacity="0.3"
+              />,
+            );
+          } else {
+            trails.push(
+              <line
+                key={`mv-${actor.id}-${i}-${partIdx}`}
+                x1={piece.start[0]} y1={piece.start[1]} x2={piece.end[0]} y2={piece.end[1]}
+                stroke={color}
+                strokeWidth="0.6"
+                opacity="0.3"
+              />,
+            );
+          }
+        });
       }
     }
     return trails.length > 0 ? <g className="preview-trails">{trails}</g> : null;
