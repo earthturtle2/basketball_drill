@@ -36,12 +36,24 @@ type Account = {
   id: string;
   email: string;
   name: string | null;
-  role: string;
   avatarUrl?: string | null;
 };
 type PlayShare = { shareId: string; token: string; viewUrl: string; expiresAt: string | null; createdAt: string };
 
 type SaveStatus = "saved" | "saving" | "unsaved";
+type SavePayload = {
+  name: string;
+  description: string;
+  category: string;
+  assignedTeamIds: string[];
+  libraryScope: "all_coaches" | "partial" | "hidden";
+  sharedWithUserIds: string[];
+  doc: TacticDocumentV1;
+};
+
+function snapshotSavePayload(payload: SavePayload) {
+  return JSON.stringify(payload);
+}
 
 export function PlayEditPage() {
   const { id } = useParams();
@@ -77,7 +89,33 @@ export function PlayEditPage() {
     [category, defaultCategories, tacticCategories, doc],
   );
 
+  const savePayload = useMemo<SavePayload | null>(
+    () =>
+      doc
+        ? {
+            name,
+            description,
+            category,
+            assignedTeamIds,
+            libraryScope,
+            sharedWithUserIds,
+            doc,
+          }
+        : null,
+    [name, description, category, assignedTeamIds, libraryScope, sharedWithUserIds, doc],
+  );
+  const currentSnapshot = useMemo(
+    () => (savePayload ? snapshotSavePayload(savePayload) : ""),
+    [savePayload],
+  );
+
   const savedSnapshotRef = useRef<string>("");
+  const currentSnapshotRef = useRef("");
+  currentSnapshotRef.current = currentSnapshot;
+  const savePayloadRef = useRef<SavePayload | null>(null);
+  savePayloadRef.current = savePayload;
+  const saveInFlightRef = useRef(false);
+  const saveQueuedRef = useRef(false);
   const tMsRef = useRef(0);
   tMsRef.current = tMs;
   const speedRef = useRef(playbackSpeed);
@@ -91,10 +129,8 @@ export function PlayEditPage() {
   const [historyVersion, setHistoryVersion] = useState(0);
 
   const isDirty = useCallback(() => {
-    if (!doc) return false;
-    const current = JSON.stringify({ name, description, category, assignedTeamIds, libraryScope, sharedWithUserIds, doc });
-    return current !== savedSnapshotRef.current;
-  }, [name, description, category, assignedTeamIds, libraryScope, sharedWithUserIds, doc]);
+    return Boolean(doc) && currentSnapshot !== savedSnapshotRef.current;
+  }, [doc, currentSnapshot]);
 
   useEffect(() => {
     const handler = (e: BeforeUnloadEvent) => {
@@ -105,11 +141,6 @@ export function PlayEditPage() {
     window.addEventListener("beforeunload", handler);
     return () => window.removeEventListener("beforeunload", handler);
   }, [isDirty]);
-
-  const markSaved = useCallback((savedDoc: TacticDocumentV1 | null = doc, savedCategory = category) => {
-    setSaveStatus("saved");
-    savedSnapshotRef.current = JSON.stringify({ name, description, category: savedCategory, assignedTeamIds, libraryScope, sharedWithUserIds, doc: savedDoc });
-  }, [name, description, category, assignedTeamIds, libraryScope, sharedWithUserIds, doc]);
 
   const syncJsonText = useCallback(
     (nextDoc: TacticDocumentV1) => {
@@ -191,34 +222,63 @@ export function PlayEditPage() {
   }, [undo, redo]);
 
   const doSave = useCallback(async () => {
-    if (!id || !doc) return;
+    if (!id) return;
+    if (saveInFlightRef.current) {
+      saveQueuedRef.current = true;
+      return;
+    }
+    const payload = savePayloadRef.current;
+    if (!payload) return;
+    const payloadSnapshot = snapshotSavePayload(payload);
+    const nextCategory = cleanTacticCategory(payload.category);
+    const nextDoc = withDocumentCategory(payload.doc, nextCategory);
+    const savedSnapshot = snapshotSavePayload({
+      ...payload,
+      category: nextCategory,
+      doc: nextDoc,
+    });
+    saveInFlightRef.current = true;
     setSaveStatus("saving");
     setErr(null);
     try {
-      const nextCategory = cleanTacticCategory(category);
-      const nextDoc = withDocumentCategory(doc, nextCategory);
       await api<Play>(`/api/v1/plays/${id}`, {
         method: "PATCH",
         body: JSON.stringify({
-          name,
-          description,
+          name: payload.name,
+          description: payload.description,
           category: nextCategory,
-          teamId: assignedTeamIds[0] ?? null,
-          teamIds: assignedTeamIds,
-          libraryScope,
-          sharedWithUserIds: libraryScope === "partial" ? sharedWithUserIds : [],
+          teamId: payload.assignedTeamIds[0] ?? null,
+          teamIds: payload.assignedTeamIds,
+          libraryScope: payload.libraryScope,
+          sharedWithUserIds:
+            payload.libraryScope === "partial" ? payload.sharedWithUserIds : [],
           document: nextDoc,
         }),
       });
-      setCategory(nextCategory);
-      setDoc(nextDoc);
-      syncJsonText(nextDoc);
-      markSaved(nextDoc, nextCategory);
+      if (currentSnapshotRef.current === payloadSnapshot) {
+        setCategory(nextCategory);
+        setDoc(nextDoc);
+        syncJsonText(nextDoc);
+        savedSnapshotRef.current = savedSnapshot;
+        saveQueuedRef.current = false;
+        setSaveStatus("saved");
+      } else if (savedSnapshotRef.current !== currentSnapshotRef.current) {
+        saveQueuedRef.current = true;
+        setSaveStatus("unsaved");
+      } else {
+        setSaveStatus("saved");
+      }
     } catch (e) {
       setErr(e instanceof ApiError ? e.message : t("edit.saveFailed"));
       setSaveStatus("unsaved");
+    } finally {
+      saveInFlightRef.current = false;
+      if (saveQueuedRef.current && savedSnapshotRef.current !== currentSnapshotRef.current) {
+        saveQueuedRef.current = false;
+        void doSave();
+      }
     }
-  }, [id, name, description, category, assignedTeamIds, libraryScope, sharedWithUserIds, doc, syncJsonText, markSaved, t]);
+  }, [id, syncJsonText, t]);
 
   useEffect(() => {
     if (!doc || saveStatus === "saved" || saveStatus === "saving") return;
@@ -229,7 +289,7 @@ export function PlayEditPage() {
     return () => {
       if (autoSaveTimer.current) clearTimeout(autoSaveTimer.current);
     };
-  }, [doc, name, description, saveStatus, doSave]);
+  }, [doc, currentSnapshot, saveStatus, doSave]);
 
   const load = useCallback(async () => {
     if (!id) return;
@@ -305,7 +365,7 @@ export function PlayEditPage() {
 
   const loadAccounts = useCallback(async () => {
     try {
-      const res = await api<Account[]>("/api/v1/accounts");
+      const res = await api<Account[]>("/api/v1/accounts?pageSize=50");
       setAccounts(res);
     } catch {
       /* Sharing can still be set to all/hidden without account data. */

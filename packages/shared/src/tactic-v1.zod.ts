@@ -40,6 +40,14 @@ const actor = z.discriminatedUnion("type", [
   }),
 ]);
 
+function addCustomIssue(
+  ctx: z.RefinementCtx,
+  path: Array<string | number>,
+  message: string,
+) {
+  ctx.addIssue({ code: z.ZodIssueCode.custom, path, message });
+}
+
 export const TacticDocumentV1Schema = z
   .object({
     schemaVersion: z.literal(1),
@@ -97,7 +105,104 @@ export const TacticDocumentV1Schema = z
       .passthrough()
       .optional(),
   })
-  .strict();
+  .strict()
+  .superRefine((doc, ctx) => {
+    const actorIds = new Set<string>();
+    const playerIds = new Set<string>();
+    const teamCounts = { offense: 0, defense: 0 };
+    let ballCount = 0;
+
+    doc.actors.forEach((a, i) => {
+      if (actorIds.has(a.id)) {
+        addCustomIssue(ctx, ["actors", i, "id"], `actor id 重复: ${a.id}`);
+      }
+      actorIds.add(a.id);
+      if (a.type === "player") {
+        playerIds.add(a.id);
+        teamCounts[a.team] += 1;
+      } else {
+        ballCount += 1;
+      }
+    });
+
+    if (teamCounts.offense > 5) {
+      addCustomIssue(ctx, ["actors"], "进攻球员不能超过 5 人");
+    }
+    if (teamCounts.defense > 5) {
+      addCustomIssue(ctx, ["actors"], "防守球员不能超过 5 人");
+    }
+    if (ballCount > 1) {
+      addCustomIssue(ctx, ["actors"], "ball actor 只能有一个");
+    }
+
+    doc.actors.forEach((a, i) => {
+      if (a.type === "ball" && a.heldBy && !playerIds.has(a.heldBy)) {
+        addCustomIssue(ctx, ["actors", i, "heldBy"], `持球人不存在: ${a.heldBy}`);
+      }
+    });
+
+    const durationMs = doc.meta.durationMs;
+    let prevT = -1;
+    doc.keyframes.forEach((kf, i) => {
+      if (kf.t <= prevT) {
+        addCustomIssue(ctx, ["keyframes", i, "t"], "关键帧时间必须严格递增");
+      }
+      prevT = kf.t;
+      if (durationMs !== undefined && kf.t > durationMs) {
+        addCustomIssue(ctx, ["keyframes", i, "t"], "关键帧时间不能超过 durationMs");
+      }
+      Object.keys(kf.poses).forEach((actorId) => {
+        if (!actorIds.has(actorId)) {
+          addCustomIssue(ctx, ["keyframes", i, "poses", actorId], `pose 引用了不存在的 actor: ${actorId}`);
+        }
+      });
+    });
+
+    const lastKeyframeT = doc.keyframes.at(-1)?.t ?? 0;
+    const timelineEnd = durationMs ?? lastKeyframeT;
+    const requirePlayerRef = (
+      value: string | undefined,
+      path: Array<string | number>,
+      label: string,
+    ) => {
+      if (!value) {
+        addCustomIssue(ctx, path, `${label} 不能为空`);
+        return;
+      }
+      if (!playerIds.has(value)) {
+        addCustomIssue(ctx, path, `${label} 不存在: ${value}`);
+      }
+    };
+
+    doc.events?.forEach((ev, i) => {
+      if (ev.t > timelineEnd) {
+        addCustomIssue(ctx, ["events", i, "t"], "事件时间不能超过战术时长");
+      }
+
+      if (ev.kind === "pass") {
+        requirePlayerRef(ev.from, ["events", i, "from"], "传球发起人");
+        requirePlayerRef(ev.to, ["events", i, "to"], "传球接收人");
+        return;
+      }
+
+      if (ev.kind === "possess") {
+        requirePlayerRef(ev.to, ["events", i, "to"], "持球人");
+        return;
+      }
+
+      if (ev.kind === "screen" || ev.kind === "screen_end") {
+        requirePlayerRef(ev.from, ["events", i, "from"], "掩护球员");
+        return;
+      }
+
+      if (ev.from && !playerIds.has(ev.from)) {
+        addCustomIssue(ctx, ["events", i, "from"], `from 不存在: ${ev.from}`);
+      }
+      if (ev.to && !playerIds.has(ev.to)) {
+        addCustomIssue(ctx, ["events", i, "to"], `to 不存在: ${ev.to}`);
+      }
+    });
+  });
 
 export type TacticDocumentV1 = z.infer<typeof TacticDocumentV1Schema>;
 

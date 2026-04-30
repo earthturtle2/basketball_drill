@@ -1,9 +1,10 @@
 import type { FastifyInstance } from "fastify";
 import { z } from "zod";
-import { count, eq, lt } from "drizzle-orm";
+import { randomUUID } from "node:crypto";
+import { eq, lt } from "drizzle-orm";
 import bcrypt from "bcryptjs";
-import { db } from "../../db/index.js";
-import { inviteCodes, users, refreshTokens } from "../../db/schema.js";
+import { db, sqliteDb } from "../../db/index.js";
+import { users, refreshTokens } from "../../db/schema.js";
 import {
   signAccessToken,
   createRefreshTokenRaw,
@@ -11,7 +12,7 @@ import {
   refreshExpiresAt,
   getAccessTtlSeconds,
 } from "../../lib/tokens.js";
-import { sendError } from "../../lib/errors.js";
+import { HttpError, sendError } from "../../lib/errors.js";
 
 const registerBody = z.object({
   email: z.string().email().max(255),
@@ -29,6 +30,69 @@ const refreshBody = z.object({
   refreshToken: z.string().min(1),
 });
 
+type RegisterTxInput = {
+  email: string;
+  passwordHash: string;
+  name?: string | null;
+  inviteCode?: string;
+};
+
+type RegisteredUser = { id: string; email: string; role: string };
+
+const registerUserTx = sqliteDb.transaction((input: RegisterTxInput): RegisteredUser => {
+  const now = Date.now();
+  const duplicate = sqliteDb
+    .prepare("select id from users where email = ? limit 1")
+    .get(input.email);
+  if (duplicate) {
+    throw new HttpError(409, "EMAIL_TAKEN", "该邮箱已注册");
+  }
+
+  const countRow = sqliteDb.prepare("select count(*) as n from users").get() as
+    | { n: number | bigint }
+    | undefined;
+  const isFirstUser = Number(countRow?.n ?? 0) === 0;
+  let invite:
+    | { id: string; used_at: number | null; expires_at: number | null }
+    | undefined;
+
+  if (input.inviteCode) {
+    invite = sqliteDb
+      .prepare("select id, used_at, expires_at from invite_codes where code = ? limit 1")
+      .get(input.inviteCode) as
+      | { id: string; used_at: number | null; expires_at: number | null }
+      | undefined;
+  }
+
+  if (!isFirstUser) {
+    if (!invite) throw new HttpError(400, "INVITE_REQUIRED", "需要有效邀请码才能注册");
+    if (invite.used_at) throw new HttpError(400, "INVITE_USED", "邀请码已被使用");
+    if (invite.expires_at && invite.expires_at < now) {
+      throw new HttpError(400, "INVITE_EXPIRED", "邀请码已过期");
+    }
+  }
+
+  const userId = randomUUID();
+  const role = isFirstUser ? "admin" : "coach";
+  sqliteDb
+    .prepare(
+      `insert into users (id, email, password_hash, name, role, created_at)
+       values (?, ?, ?, ?, ?, ?)`,
+    )
+    .run(userId, input.email, input.passwordHash, input.name ?? null, role, now);
+
+  if (!isFirstUser && invite) {
+    const updated = sqliteDb
+      .prepare("update invite_codes set used_by = ?, used_at = ? where id = ? and used_at is null")
+      .run(userId, now, invite.id);
+    if (updated.changes !== 1) {
+      throw new HttpError(400, "INVITE_USED", "邀请码已被使用");
+    }
+  }
+
+  return { id: userId, email: input.email, role };
+});
+
 async function issueTokens(user: { id: string; email: string; role: string }) {
   const accessToken = signAccessToken(user);
   const raw = createRefreshTokenRaw();
@@ -41,41 +105,13 @@ async function issueTokens(user: { id: string; email: string; role: string }) {
 export async function authRoutes(fastify: FastifyInstance) {
   fastify.post("/auth/register", async (request, reply) => {
     const b = registerBody.parse(request.body);
-    const exists = (await db.select().from(users).where(eq(users.email, b.email)).limit(1))[0];
-    if (exists) return sendError(reply, 409, "EMAIL_TAKEN", "该邮箱已注册");
-    const userCount = (await db.select({ n: count() }).from(users))[0]?.n ?? 0;
-    const isFirstUser = Number(userCount) === 0;
-    const invite = b.inviteCode
-      ? (await db.select().from(inviteCodes).where(eq(inviteCodes.code, b.inviteCode)).limit(1))[0]
-      : undefined;
-    if (!isFirstUser) {
-      if (!invite) return sendError(reply, 400, "INVITE_REQUIRED", "需要有效邀请码才能注册");
-      if (invite.usedAt) return sendError(reply, 400, "INVITE_USED", "邀请码已被使用");
-      if (invite.expiresAt && invite.expiresAt < new Date()) {
-        return sendError(reply, 400, "INVITE_EXPIRED", "邀请码已过期");
-      }
-    }
     const passwordHash = await bcrypt.hash(b.password, 10);
-    const u = db.transaction((tx) => {
-      const created = tx
-        .insert(users)
-        .values({
-          email: b.email,
-          passwordHash,
-          name: b.name ?? null,
-          role: isFirstUser ? "admin" : "coach",
-        })
-        .returning()
-        .get();
-      if (created && invite) {
-        tx.update(inviteCodes)
-          .set({ usedBy: created.id, usedAt: new Date() })
-          .where(eq(inviteCodes.id, invite.id))
-          .run();
-      }
-      return created;
+    const u = registerUserTx.immediate({
+      email: b.email,
+      passwordHash,
+      name: b.name ?? null,
+      inviteCode: b.inviteCode,
     });
-    if (!u) return sendError(reply, 500, "INTERNAL", "创建用户失败");
     return reply.send(await issueTokens(u));
   });
 

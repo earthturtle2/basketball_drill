@@ -33,6 +33,7 @@ export function clearTokens() {
 }
 
 let _onAuthFailure: (() => void) | null = null;
+let refreshPromise: Promise<string | null> | null = null;
 
 /** Register a callback for when token refresh fails. Returns a cleanup function. */
 export function onAuthFailure(handler: () => void): () => void {
@@ -42,7 +43,7 @@ export function onAuthFailure(handler: () => void): () => void {
   };
 }
 
-async function tryRefresh() {
+async function performRefresh() {
   const r = getRefreshToken();
   if (!r) return null;
   const res = await fetch(`${base()}/api/v1/auth/refresh`, {
@@ -63,10 +64,8 @@ async function tryRefresh() {
   return data.accessToken;
 }
 
-let refreshPromise: Promise<string | null> | null = null;
-
 function refreshOnce() {
-  refreshPromise ??= tryRefresh().finally(() => {
+  refreshPromise ??= performRefresh().finally(() => {
     refreshPromise = null;
   });
   return refreshPromise;

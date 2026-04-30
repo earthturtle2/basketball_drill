@@ -1,6 +1,6 @@
 import type { FastifyInstance } from "fastify";
 import { z } from "zod";
-import { eq } from "drizzle-orm";
+import { and, eq, ne, sql, type SQL } from "drizzle-orm";
 import bcrypt from "bcryptjs";
 import { authenticate, requireAdmin, requireAuth } from "./middleware.js";
 import { authRoutes } from "./auth.js";
@@ -24,6 +24,11 @@ const mePatchBody = z.object({
   name: z.union([z.string().max(100), z.null()]).optional(),
   avatarUrl: z.union([z.string().max(120_000), z.null()]).optional(),
   bio: z.union([z.string().max(1000), z.null()]).optional(),
+});
+
+const accountsQuery = z.object({
+  q: z.string().trim().max(100).optional(),
+  pageSize: z.coerce.number().int().min(1).max(50).default(20),
 });
 
 function serializeMeUser(row: UserRow) {
@@ -90,17 +95,26 @@ export async function registerV1(fastify: FastifyInstance) {
       return reply.send(serializeMeUser(full));
     });
 
-    f.get("/accounts", async (_request, reply) => {
+    f.get("/accounts", async (request, reply) => {
+      const q = accountsQuery.parse((request as { query: Record<string, string> }).query);
+      const conditions: [SQL, ...SQL[]] = [ne(users.id, request.user!.id)];
+      if (q.q) {
+        const pattern = `%${q.q.replace(/[\\%_]/g, (c) => `\\${c}`)}%`;
+        conditions.push(
+          sql`(lower(${users.email}) like lower(${pattern}) or lower(coalesce(${users.name}, '')) like lower(${pattern}))`,
+        );
+      }
       const rows = await db
         .select({
           id: users.id,
           email: users.email,
           name: users.name,
-          role: users.role,
           avatarUrl: users.avatarUrl,
-          bio: users.bio,
         })
-        .from(users);
+        .from(users)
+        .where(and(...conditions))
+        .orderBy(users.email)
+        .limit(q.pageSize);
       return reply.send(rows);
     });
 
