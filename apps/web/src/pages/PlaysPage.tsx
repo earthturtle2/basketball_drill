@@ -1,11 +1,16 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { Link, Navigate, useNavigate } from "react-router-dom";
 import { api, ApiError } from "../api";
 import { useAuth } from "../auth";
 import { useT } from "../i18n";
 import { DEFAULT_TACTIC_DOCUMENT } from "@basketball/shared";
+import {
+  TACTIC_CATEGORY_KEYS,
+  uniqueCategoryOptions,
+  withDocumentCategory,
+} from "../tactic/categories";
 
-type PlayListItem = { id: string; name: string; teamId: string | null; teamIds: string[]; updatedAt: string };
+type PlayListItem = { id: string; name: string; category?: string; teamId: string | null; teamIds: string[]; updatedAt: string };
 type TeamPlayer = { id: string; name: string; number: number };
 type Team = { id: string; name: string; color: string; players: TeamPlayer[] };
 
@@ -15,8 +20,15 @@ export function PlaysPage() {
   const { t } = useT();
   const [items, setItems] = useState<PlayListItem[]>([]);
   const [teams, setTeams] = useState<Team[]>([]);
+  const [tacticCategories, setTacticCategories] = useState<string[]>([]);
   const [filterTeamId, setFilterTeamId] = useState<string>("");
+  const [filterCategory, setFilterCategory] = useState<string>("");
   const [err, setErr] = useState<string | null>(null);
+  const defaultCategories = useMemo(() => TACTIC_CATEGORY_KEYS.map((key) => t(key)), [t]);
+  const categoryOptions = useMemo(
+    () => uniqueCategoryOptions([...defaultCategories, ...tacticCategories, ...items.map((item) => item.category)]),
+    [defaultCategories, tacticCategories, items],
+  );
 
   const loadTeams = useCallback(async () => {
     try {
@@ -27,41 +39,52 @@ export function PlaysPage() {
     }
   }, []);
 
-  const load = useCallback(
-    async (teamId?: string) => {
-      setErr(null);
-      try {
-        const qs = teamId ? `?teamId=${teamId}` : "";
-        const res = await api<{ items: PlayListItem[] }>(`/api/v1/plays${qs}`);
-        setItems(res.items);
-      } catch {
-        setErr(t("plays.loadFailed"));
-      }
-    },
-    [t],
-  );
+  const loadCategories = useCallback(async () => {
+    try {
+      const res = await api<{ items: string[] }>("/api/v1/tactic-categories");
+      setTacticCategories(res.items);
+    } catch {
+      /* Category presets still keep the page usable. */
+    }
+  }, []);
+
+  const load = useCallback(async () => {
+    setErr(null);
+    try {
+      const params = new URLSearchParams();
+      if (filterTeamId) params.set("teamId", filterTeamId);
+      if (filterCategory) params.set("category", filterCategory);
+      const qs = params.toString() ? `?${params.toString()}` : "";
+      const res = await api<{ items: PlayListItem[] }>(`/api/v1/plays${qs}`);
+      setItems(res.items);
+    } catch {
+      setErr(t("plays.loadFailed"));
+    }
+  }, [filterCategory, filterTeamId, t]);
 
   useEffect(() => {
     if (user) {
       void loadTeams();
-      void load();
+      void loadCategories();
     }
-  }, [user, load, loadTeams]);
+  }, [user, loadCategories, loadTeams]);
 
   useEffect(() => {
-    if (user) void load(filterTeamId || undefined);
-  }, [user, filterTeamId, load]);
+    if (user) void load();
+  }, [user, load]);
 
   if (!user) return <Navigate to="/login" replace />;
 
   async function create() {
     setErr(null);
+    const category = defaultCategories[0] ?? "";
     try {
       const body = {
         name: t("plays.defaultName"),
         description: "",
+        category,
         tags: [] as string[],
-        document: DEFAULT_TACTIC_DOCUMENT,
+        document: withDocumentCategory(DEFAULT_TACTIC_DOCUMENT, category),
         teamIds: [] as string[],
       };
       const res = await api<{ id: string }>("/api/v1/plays", {
@@ -100,6 +123,21 @@ export function PlaysPage() {
             ))}
           </select>
         )}
+        {categoryOptions.length > 0 && (
+          <select
+            className="btn"
+            value={filterCategory}
+            onChange={(e) => setFilterCategory(e.target.value)}
+            style={{ minWidth: 140 }}
+          >
+            <option value="">{t("plays.allCategories")}</option>
+            {categoryOptions.map((category) => (
+              <option key={category} value={category}>
+                {category}
+              </option>
+            ))}
+          </select>
+        )}
       </div>
       <div className="list">
         {items.map((p) => {
@@ -110,6 +148,11 @@ export function PlaysPage() {
               <div>
                 <h3>
                   <span className="list-item__title">{p.name}</span>
+                  {p.category ? (
+                    <span className="status-pill" style={{ marginLeft: "0.5rem" }}>
+                      {p.category}
+                    </span>
+                  ) : null}
                 </h3>
                 <div className="muted">
                   {assignedTeams.length ? (

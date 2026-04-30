@@ -38,6 +38,7 @@ type InviteCode = {
 type AdminPlayRow = {
   id: string;
   name: string;
+  category?: string;
   userId: string;
   author: { name: string; email: string };
   libraryScope: "all_coaches" | "partial" | "hidden";
@@ -265,7 +266,10 @@ export function AdminPage() {
               <div>
                 <h3 style={{ margin: 0, fontSize: "1.05rem" }}>{p.name}</h3>
                 <p className="muted">
-                  {p.author.name} · {p.author.email} · {formatTime(p.updatedAt)}
+                  {p.author.name} · {p.author.email}
+                  {p.category ? ` · ${p.category}` : ""}
+                  {" "}
+                  · {formatTime(p.updatedAt)}
                 </p>
               </div>
               <div className="row-actions" style={{ alignItems: "center" }}>

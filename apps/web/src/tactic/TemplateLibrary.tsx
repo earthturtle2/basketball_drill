@@ -7,6 +7,7 @@ import { api, ApiError } from "../api";
 type SharedRow = {
   id: string;
   name: string;
+  category?: string;
   tags?: string[];
   author: { name: string; email?: string; avatarUrl?: string | null };
 };
@@ -137,6 +138,7 @@ export function TemplateLibrary({ onSelect, onClose }: Props) {
                     {p.author.email && p.author.email !== p.author.name ? ` · ${p.author.email}` : null}
                     {" "}
                     · #{playIdSuffix(p.id)}
+                    {p.category ? ` · ${p.category}` : null}
                     {p.tags?.length ? ` · ${p.tags.slice(0, 3).join(", ")}${p.tags.length > 3 ? "…" : ""}` : null}
                   </span>
                 </button>

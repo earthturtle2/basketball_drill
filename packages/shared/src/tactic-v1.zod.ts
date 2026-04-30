@@ -47,6 +47,7 @@ export const TacticDocumentV1Schema = z
       .object({
         name: z.string().min(1).max(200).optional(),
         description: z.string().max(2000).optional(),
+        category: z.string().max(64).optional(),
         tags: z.array(z.string().max(64)).max(32).optional(),
         court: z
           .object({

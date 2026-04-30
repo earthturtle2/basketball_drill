@@ -5,10 +5,11 @@ import { api, ApiError } from "../api";
 import { useAuth } from "../auth";
 import { useT } from "../i18n";
 import { PlaybackPreviewSection } from "../tactic/PlaybackPreviewSection";
+import { TACTIC_CATEGORY_KEYS, uniqueCategoryOptions } from "../tactic/categories";
 
 type TeamPlayer = { id: string; name: string; number: number };
 type Team = { id: string; name: string; color: string; players: TeamPlayer[] };
-type PlayListItem = { id: string; name: string; teamId: string | null; teamIds: string[]; updatedAt: string };
+type PlayListItem = { id: string; name: string; category?: string; teamId: string | null; teamIds: string[]; updatedAt: string };
 type PrepListItem = {
   id: string;
   title: string;
@@ -25,6 +26,7 @@ type PrepEntryPlay = {
   id: string;
   name: string;
   description: string | null;
+  category?: string;
   tags: string[];
   teamId: string | null;
   teamIds: string[];
@@ -255,22 +257,11 @@ function MatchPrepDetailPage({ prepId }: { prepId: string }) {
   const nav = useNavigate();
   const { user } = useAuth();
   const { t } = useT();
-  const categoryPresets = useMemo(
-    () => [
-      t("matchPrep.catSideline"),
-      t("matchPrep.catBaseline"),
-      t("matchPrep.catTrap"),
-      t("matchPrep.catAto"),
-      t("matchPrep.catEndGame"),
-      t("matchPrep.catZone"),
-      t("matchPrep.catTransition"),
-      t("matchPrep.catPress"),
-    ],
-    [t],
-  );
+  const defaultCategories = useMemo(() => TACTIC_CATEGORY_KEYS.map((key) => t(key)), [t]);
   const [prep, setPrep] = useState<PrepDetail | null>(null);
   const [teams, setTeams] = useState<Team[]>([]);
   const [plays, setPlays] = useState<PlayListItem[]>([]);
+  const [tacticCategories, setTacticCategories] = useState<string[]>([]);
   const [title, setTitle] = useState("");
   const [opponent, setOpponent] = useState("");
   const [gameDate, setGameDate] = useState("");
@@ -280,7 +271,7 @@ function MatchPrepDetailPage({ prepId }: { prepId: string }) {
   const [selectedEntryId, setSelectedEntryId] = useState<string | null>(null);
   const [newPlayId, setNewPlayId] = useState("");
   const [newCode, setNewCode] = useState("");
-  const [newCategory, setNewCategory] = useState(categoryPresets[0] ?? "");
+  const [newCategory, setNewCategory] = useState(defaultCategories[0] ?? "");
   const [newCue, setNewCue] = useState("");
   const [categoryFilter, setCategoryFilter] = useState("");
   const [search, setSearch] = useState("");
@@ -298,15 +289,30 @@ function MatchPrepDetailPage({ prepId }: { prepId: string }) {
     }
   }, []);
 
+  const loadCategories = useCallback(async () => {
+    try {
+      const res = await api<{ items: string[] }>("/api/v1/tactic-categories");
+      setTacticCategories(res.items);
+    } catch {
+      /* Built-in category options are enough to keep editing available. */
+    }
+  }, []);
+
   const loadPlays = useCallback(async () => {
     try {
       const res = await api<{ items: PlayListItem[] }>("/api/v1/plays?pageSize=100");
       setPlays(res.items);
-      setNewPlayId((current) => current || res.items[0]?.id || "");
+      const firstPlay = res.items[0];
+      setNewPlayId((current) => current || firstPlay?.id || "");
+      setNewCategory((current) =>
+        !current || defaultCategories.includes(current)
+          ? firstPlay?.category || defaultCategories[0] || ""
+          : current,
+      );
     } catch {
       /* The detail page still loads; adding entries needs this list. */
     }
-  }, []);
+  }, [defaultCategories]);
 
   const applyPrep = useCallback((next: PrepDetail) => {
     setPrep(next);
@@ -334,14 +340,15 @@ function MatchPrepDetailPage({ prepId }: { prepId: string }) {
   useEffect(() => {
     if (user) {
       void loadTeams();
+      void loadCategories();
       void loadPlays();
       void load();
     }
-  }, [user, load, loadTeams, loadPlays]);
+  }, [user, load, loadTeams, loadCategories, loadPlays]);
 
   useEffect(() => {
-    if (!newCategory && categoryPresets[0]) setNewCategory(categoryPresets[0]);
-  }, [categoryPresets, newCategory]);
+    if (!newCategory && defaultCategories[0]) setNewCategory(defaultCategories[0]);
+  }, [defaultCategories, newCategory]);
 
   if (!user) return <Navigate to="/login" replace />;
 
@@ -388,7 +395,9 @@ function MatchPrepDetailPage({ prepId }: { prepId: string }) {
   }
 
   function addEntry() {
-    if (!newPlayId || !newCode.trim() || !newCategory.trim()) return;
+    const selectedPlay = plays.find((play) => play.id === newPlayId);
+    const entryCategory = (newCategory.trim() || selectedPlay?.category || "").trim();
+    if (!newPlayId || !newCode.trim() || !entryCategory) return;
     if (entries.some((entry) => entry.code.toLocaleLowerCase() === newCode.trim().toLocaleLowerCase())) {
       setErr(t("matchPrep.duplicateCode"));
       return;
@@ -398,7 +407,7 @@ function MatchPrepDetailPage({ prepId }: { prepId: string }) {
       id: makeLocalEntryId(),
       playId: newPlayId,
       code: newCode.trim(),
-      category: newCategory.trim(),
+      category: entryCategory,
       cue: newCue.trim() || undefined,
       notes: undefined,
       sortOrder: entries.length,
@@ -451,6 +460,13 @@ function MatchPrepDetailPage({ prepId }: { prepId: string }) {
 
   const sortedEntries = sortEntries(entries);
   const categories = [...new Set(sortedEntries.map((entry) => entry.category).filter(Boolean))];
+  const categoryOptions = uniqueCategoryOptions([
+    ...defaultCategories,
+    ...tacticCategories,
+    ...plays.map((play) => play.category),
+    ...categories,
+    newCategory,
+  ]);
   const playOptions = teamId ? plays.filter((play) => playAssignedToTeam(play, teamId)) : plays;
   const selectedEntry = sortedEntries.find((entry) => entry.id === selectedEntryId) ?? sortedEntries[0];
   const normalizedSearch = search.trim().toLocaleLowerCase();
@@ -604,11 +620,19 @@ function MatchPrepDetailPage({ prepId }: { prepId: string }) {
             <div className="match-prep-entry-add">
               <div className="field">
                 <label>{t("matchPrep.play")}</label>
-                <select value={newPlayId} onChange={(e) => setNewPlayId(e.target.value)}>
+                <select
+                  value={newPlayId}
+                  onChange={(e) => {
+                    const nextPlayId = e.target.value;
+                    const nextPlay = plays.find((play) => play.id === nextPlayId);
+                    setNewPlayId(nextPlayId);
+                    if (nextPlay?.category) setNewCategory(nextPlay.category);
+                  }}
+                >
                   <option value="">{t("matchPrep.choosePlay")}</option>
                   {playOptions.map((play) => (
                     <option key={play.id} value={play.id}>
-                      {play.name}
+                      {play.category ? `${play.name} · ${play.category}` : play.name}
                     </option>
                   ))}
                 </select>
@@ -630,11 +654,8 @@ function MatchPrepDetailPage({ prepId }: { prepId: string }) {
               </button>
             </div>
             <datalist id="match-prep-categories">
-              {categoryPresets.map((category) => (
-                <option key={category} value={category} />
-              ))}
-              {categories.map((category) => (
-                <option key={`used-${category}`} value={category} />
+              {categoryOptions.map((categoryOption) => (
+                <option key={categoryOption} value={categoryOption} />
               ))}
             </datalist>
             {plays.length === 0 ? (
@@ -660,10 +681,21 @@ function MatchPrepDetailPage({ prepId }: { prepId: string }) {
                     aria-label={t("matchPrep.category")}
                     onChange={(e) => updateEntry(entry.id, { category: e.target.value })}
                   />
-                  <select value={entry.playId} aria-label={t("matchPrep.play")} onChange={(e) => updateEntry(entry.id, { playId: e.target.value })}>
+                  <select
+                    value={entry.playId}
+                    aria-label={t("matchPrep.play")}
+                    onChange={(e) => {
+                      const nextPlayId = e.target.value;
+                      const nextPlay = plays.find((play) => play.id === nextPlayId);
+                      updateEntry(entry.id, {
+                        playId: nextPlayId,
+                        ...(nextPlay?.category ? { category: nextPlay.category } : {}),
+                      });
+                    }}
+                  >
                     {plays.map((play) => (
                       <option key={play.id} value={play.id}>
-                        {play.name}
+                        {play.category ? `${play.name} · ${play.category}` : play.name}
                       </option>
                     ))}
                     {!plays.some((play) => play.id === entry.playId) ? (

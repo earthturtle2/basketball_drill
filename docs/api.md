@@ -34,7 +34,7 @@
 
 | 方法 | 路径 | 说明 |
 |------|------|------|
-| `GET` | `/plays` | 查询列表。Query：`page`, `pageSize`, `q`（名称模糊）, `tag`, `teamId`；`items` 中每条含 `libraryScope`（`all_coaches` 或 `hidden`） |
+| `GET` | `/plays` | 查询列表。Query：`page`, `pageSize`, `q`（名称模糊）, `tag`, `category`, `teamId`；`items` 中每条含 `category` 与 `libraryScope`（`all_coaches` 或 `hidden`） |
 | `POST` | `/plays` | 创建。body：见下方「创建/更新 body」 |
 | `GET` | `/plays/{playId}` | 详情（含完整 `document` 与 `libraryScope`） |
 | `PATCH` | `/plays/{playId}` | 部分更新元数据或 `document`（若支持字段级，可拆 `metadata` / `document`） |
@@ -43,6 +43,8 @@
 | `GET` | `/plays/library` | **全员模版库**（分页、搜索与 `/plays` 同 query）。只返回 `libraryScope=all_coaches` 且未删除的战术；条目含 `author` |
 | `GET` | `/plays/library/{playId}` | 从模版库取详情（自己战术始终可读；他人战术需未隐藏）。响应含 `isOwner`, `author`, 以及与普通详情相同的 `document` 等 |
 | `POST` | `/plays/library/{playId}/duplicate` | 复制为当前用户的新战术。他人战术须仍在模版库中；自己战术等效于从「我的」复制 |
+| `GET` | `/tactic-categories` | 当前教练的全局战术类别列表（包含已保存的自定义类别、战术与比赛准备中使用过的类别） |
+| `POST` | `/tactic-categories` | 手动加入全局战术类别。body: `{ "name": "半场进攻" }` |
 
 新建战术的 **`libraryScope` 默认 `all_coaches`**：进入全员「战术模版库」；`hidden` 表示不在库中列出（**仅**管理员可改为 `hidden`，非作者不可见于共享库）。
 
@@ -57,12 +59,13 @@
 {
   "name": "高位挡拆-示例",
   "description": "5号提上，1号借掩护突破",
+  "category": "半场进攻",
   "tags": ["pick_and_roll", "U12"],
   "document": { }
 }
 ```
 
-其中 `document` 为 **战术 JSON v1 根对象**（与示例文件同结构）；服务端应校验 `document.schemaVersion` 与内嵌规则（球员数量、时间轴范围等）。
+其中 `category` 为战术类别；传入新类别时服务端会自动加入该教练的全局类别列表，后续比赛准备可直接复用。`document` 为 **战术 JSON v1 根对象**（与示例文件同结构）；服务端应校验 `document.schemaVersion` 与内嵌规则（球员数量、时间轴范围等）。为保持兼容，旧数据缺少 `category` 或 `document.meta.category` 时仍可读取。
 
 ---
 

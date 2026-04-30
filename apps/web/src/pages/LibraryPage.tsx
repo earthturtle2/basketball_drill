@@ -12,6 +12,7 @@ type LibraryListItem = {
   id: string;
   name: string;
   description: string | null;
+  category?: string;
   tags: string[];
   userId: string;
   author: { name: string; email: string; avatarUrl?: string | null };
@@ -26,6 +27,7 @@ function playIdSuffix(id: string) {
 type LibraryDetail = {
   id: string;
   name: string;
+  category?: string;
   document: TacticDocumentV1;
   isOwner: boolean;
   author: {
@@ -94,6 +96,7 @@ function LibraryList() {
                   <img src={p.author.avatarUrl} alt="" className="avatar-thumb" width={36} height={36} />
                 ) : null}
                 <span className="list-item__title">{p.name}</span>
+                {p.category ? <span className="status-pill">{p.category}</span> : null}
                 {p.userId === user.id ? <span className="status-pill">{t("lib.mine")}</span> : null}
               </h3>
               <p className="muted">
@@ -196,6 +199,11 @@ function LibraryDetail({ playId }: { playId: string }) {
                 · #{playIdSuffix(row.id)}
                 {row.isOwner ? ` · ${t("lib.mine")}` : null}
               </p>
+              {row.category ? (
+                <p className="muted" style={{ margin: "0.35rem 0 0" }}>
+                  {t("edit.tacticCategory")}: {row.category}
+                </p>
+              ) : null}
               {row.author.bio ? (
                 <p className="muted" style={{ margin: "0.5rem 0 0", whiteSpace: "pre-wrap" }}>
                   {row.author.bio}

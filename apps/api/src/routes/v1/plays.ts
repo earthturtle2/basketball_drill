@@ -10,10 +10,16 @@ import {
 } from "../../lib/tactic.js";
 import { sendError, zodToMessage } from "../../lib/errors.js";
 import { tryParseTacticDocumentV1 } from "@basketball/shared";
+import {
+  cleanTacticCategory,
+  ensureTacticCategory,
+  listTacticCategories,
+} from "../../lib/tactic-categories.js";
 
 const playCreateBody = z.object({
   name: z.string().min(1).max(200),
   description: z.string().max(2000).optional(),
+  category: z.string().max(64).optional(),
   tags: z.array(z.string().max(64)).max(32).optional(),
   document: z.unknown().optional(),
   teamId: z.string().optional(),
@@ -25,6 +31,7 @@ const playCreateBody = z.object({
 const playPatchBody = z.object({
   name: z.string().min(1).max(200).optional(),
   description: z.string().max(2000).nullable().optional(),
+  category: z.string().max(64).optional(),
   tags: z.array(z.string().max(64)).max(32).optional(),
   document: z.unknown().optional(),
   teamId: z.string().nullable().optional(),
@@ -38,11 +45,16 @@ const listQuery = z.object({
   pageSize: z.coerce.number().int().min(1).max(100).default(20),
   q: z.string().max(200).optional(),
   tag: z.string().max(64).optional(),
+  category: z.string().max(64).optional(),
   teamId: z.string().optional(),
 });
 
 const duplicateBody = z.object({
   name: z.string().min(1).max(200).optional(),
+});
+
+const tacticCategoryBody = z.object({
+  name: z.string().min(1).max(64),
 });
 
 const libraryScopes = z.enum(["all_coaches", "partial", "hidden"]);
@@ -107,10 +119,12 @@ function libraryVisibilitySql(userId: string) {
 }
 
 function serializePlay(row: typeof plays.$inferSelect) {
+  const category = cleanTacticCategory(row.category || row.document.meta.category);
   return {
     id: row.id,
     name: row.name,
     description: row.description,
+    category,
     tags: row.tags,
     teamId: row.teamId,
     teamIds: uniqueTeamIds(row.teamIds, row.teamId),
@@ -123,6 +137,19 @@ function serializePlay(row: typeof plays.$inferSelect) {
 }
 
 export async function playRoutes(fastify: FastifyInstance) {
+  fastify.get("/tactic-categories", async (request, reply) => {
+    const items = await listTacticCategories(request.user!.id);
+    return reply.send({ items });
+  });
+
+  fastify.post("/tactic-categories", async (request, reply) => {
+    const b = tacticCategoryBody.parse(request.body ?? {});
+    const input = cleanTacticCategory(b.name);
+    if (!input) return sendError(reply, 400, "VALIDATION", "战术类别不能为空");
+    const name = await ensureTacticCategory(request.user!.id, input);
+    return reply.status(201).send({ name });
+  });
+
   /** 共享模版库：全部「未删且对全员开放」的战术。路由必须在 `/plays/:playId` 之前。 */
   fastify.get("/plays/library", async (request, reply) => {
     const q = listQuery.parse((request as { query: Record<string, string> }).query);
@@ -142,6 +169,9 @@ export async function playRoutes(fastify: FastifyInstance) {
         sql`exists (select 1 from json_each(${plays.tags}) as j where j.value = ${q.tag})`,
       );
     }
+    if (q.category) {
+      conditions.push(eq(plays.category, cleanTacticCategory(q.category)));
+    }
     if (q.teamId) {
       conditions.push(
         sql`(${plays.teamId} = ${q.teamId} or json_array_length(${plays.teamIds}) = 0 or exists (select 1 from json_each(${plays.teamIds}) as j where j.value = ${q.teamId}))`,
@@ -160,6 +190,7 @@ export async function playRoutes(fastify: FastifyInstance) {
         id: plays.id,
         name: plays.name,
         description: plays.description,
+        category: plays.category,
         tags: plays.tags,
         userId: plays.userId,
         teamId: plays.teamId,
@@ -180,6 +211,7 @@ export async function playRoutes(fastify: FastifyInstance) {
         id: r.id,
         name: r.name,
         description: r.description,
+        category: cleanTacticCategory(r.category),
         tags: r.tags,
         userId: r.userId,
         teamId: r.teamId,
@@ -255,16 +287,21 @@ export async function playRoutes(fastify: FastifyInstance) {
         ? await ownedTeamIdsOrError(reply, request.user!.id, uniqueTeamIds(row.teamIds, row.teamId))
         : [];
     if (!copiedTeamIds) return;
+    const category = await ensureTacticCategory(
+      request.user!.id,
+      row.category || row.document.meta.category,
+    );
     const [created] = await db
       .insert(plays)
       .values({
         userId: request.user!.id,
         name: newName,
         description: row.description,
+        category,
         tags: row.tags,
         teamId: copiedTeamIds[0] ?? null,
         teamIds: copiedTeamIds,
-        document: buildDocumentOnUpdate(row.document, row.name, { name: newName }),
+        document: buildDocumentOnUpdate(row.document, row.name, { name: newName, category }),
         libraryScope: "all_coaches" satisfies LibraryScope,
         sharedWithUserIds: [],
       })
@@ -286,6 +323,9 @@ export async function playRoutes(fastify: FastifyInstance) {
         sql`exists (select 1 from json_each(${plays.tags}) as j where j.value = ${q.tag})`,
       );
     }
+    if (q.category) {
+      conditions.push(eq(plays.category, cleanTacticCategory(q.category)));
+    }
     if (q.teamId) {
       conditions.push(
         sql`(${plays.teamId} = ${q.teamId} or json_array_length(${plays.teamIds}) = 0 or exists (select 1 from json_each(${plays.teamIds}) as j where j.value = ${q.teamId}))`,
@@ -300,6 +340,7 @@ export async function playRoutes(fastify: FastifyInstance) {
         id: plays.id,
         name: plays.name,
         description: plays.description,
+        category: plays.category,
         tags: plays.tags,
         teamId: plays.teamId,
         teamIds: plays.teamIds,
@@ -314,6 +355,7 @@ export async function playRoutes(fastify: FastifyInstance) {
     return reply.send({
       items: rows.map((r) => ({
         ...r,
+        category: cleanTacticCategory(r.category),
         teamIds: uniqueTeamIds(r.teamIds, r.teamId),
         libraryScope: r.libraryScope as LibraryScope,
         updatedAt: r.updatedAt.toISOString(),
@@ -331,9 +373,14 @@ export async function playRoutes(fastify: FastifyInstance) {
     if (!r.success) {
       return reply.status(400).send({ code: "VALIDATION", message: zodToMessage(r.error) });
     }
+    const category = await ensureTacticCategory(
+      request.user!.id,
+      b.category ?? r.data.meta.category,
+    );
     const document = buildDocumentFromInput({
       name: b.name,
       description: b.description,
+      category,
       tags: b.tags,
       document: r.data,
     });
@@ -351,6 +398,7 @@ export async function playRoutes(fastify: FastifyInstance) {
         teamIds: assignedTeamIds,
         name: b.name,
         description: b.description ?? null,
+        category,
         tags: b.tags ?? [],
         document,
         libraryScope: b.libraryScope ?? "all_coaches",
@@ -377,13 +425,20 @@ export async function playRoutes(fastify: FastifyInstance) {
     if (!row || row.deletedAt || row.userId !== request.user!.id) {
       return sendError(reply, 404, "NOT_FOUND", "未找到");
     }
+    let documentCategory: string | undefined;
     if (b.document !== undefined) {
       const r = tryParseTacticDocumentV1(b.document);
       if (!r.success) {
         return reply.status(400).send({ code: "VALIDATION", message: zodToMessage(r.error) });
       }
+      documentCategory = r.data.meta.category;
     }
-    const document = buildDocumentOnUpdate(row.document, row.name, b);
+    const categoryInput =
+      b.category !== undefined
+        ? b.category
+        : (documentCategory ?? (row.category || row.document.meta.category));
+    const category = await ensureTacticCategory(request.user!.id, categoryInput);
+    const document = buildDocumentOnUpdate(row.document, row.name, { ...b, category });
     const nextLibraryScope = b.libraryScope === undefined ? row.libraryScope : b.libraryScope;
     const nextSharedWithUserIds =
       nextLibraryScope === "partial"
@@ -399,6 +454,7 @@ export async function playRoutes(fastify: FastifyInstance) {
       .set({
         name: b.name !== undefined ? b.name : row.name,
         description: b.description === undefined ? row.description : b.description,
+        category,
         tags: b.tags !== undefined ? b.tags : row.tags,
         teamId: teamAssignmentChanged ? (nextTeamIds[0] ?? null) : row.teamId,
         teamIds: nextTeamIds,
@@ -437,16 +493,21 @@ export async function playRoutes(fastify: FastifyInstance) {
       uniqueTeamIds(row.teamIds, row.teamId),
     );
     if (!copiedTeamIds) return;
+    const category = await ensureTacticCategory(
+      request.user!.id,
+      row.category || row.document.meta.category,
+    );
     const [created] = await db
       .insert(plays)
       .values({
         userId: request.user!.id,
         name: newName,
         description: row.description,
+        category,
         tags: row.tags,
         teamId: copiedTeamIds[0] ?? null,
         teamIds: copiedTeamIds,
-        document: buildDocumentOnUpdate(row.document, row.name, { name: newName }),
+        document: buildDocumentOnUpdate(row.document, row.name, { name: newName, category }),
         libraryScope: "all_coaches" satisfies LibraryScope,
         sharedWithUserIds: [],
       })

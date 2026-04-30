@@ -8,6 +8,7 @@ type SharePayload = {
   play: {
     name: string;
     description: string | null;
+    category?: string;
     tags: string[];
     document: TacticDocumentV1;
     updatedAt: string;
@@ -54,6 +55,7 @@ export function ViewPage() {
   return (
     <div className="view-page">
       <h1 style={{ margin: "0 0 0.25rem" }}>{data.play.name}</h1>
+      {data.play.category ? <p className="muted" style={{ margin: "0 0 0.35rem" }}>{data.play.category}</p> : null}
       {data.play.description ? <p className="hint">{data.play.description}</p> : null}
       <PlaybackPreviewSection document={doc} resetPlaybackKey={token} rangeInputId="v" />
     </div>

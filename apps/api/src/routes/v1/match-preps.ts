@@ -5,6 +5,7 @@ import { and, count, desc, eq, inArray, isNull, sql, type SQL } from "drizzle-or
 import { db } from "../../db/index.js";
 import { matchPreparations, plays, teams, type MatchPrepEntry } from "../../db/schema.js";
 import { sendError } from "../../lib/errors.js";
+import { ensureTacticCategories } from "../../lib/tactic-categories.js";
 
 const prepEntryBody = z.object({
   id: z.string().max(80).optional(),
@@ -115,6 +116,8 @@ async function normalizeEntriesOrError(
     }
   }
 
+  await ensureTacticCategories(userId, normalized.map((entry) => entry.category));
+
   return normalized.sort((a, b) => a.sortOrder - b.sortOrder || a.code.localeCompare(b.code));
 }
 
@@ -143,6 +146,7 @@ async function serializePrepDetail(row: typeof matchPreparations.$inferSelect) {
         id: plays.id,
         name: plays.name,
         description: plays.description,
+        category: plays.category,
         tags: plays.tags,
         teamId: plays.teamId,
         teamIds: plays.teamIds,

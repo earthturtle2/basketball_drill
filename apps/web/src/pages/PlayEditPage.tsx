@@ -9,11 +9,18 @@ import { PlayPreview } from "../tactic/PlayPreview";
 import { TemplateLibrary } from "../tactic/TemplateLibrary";
 import { playbackEndMs } from "../tactic/viewer-math";
 import { courtModeFromDocument, type CourtMode } from "../tactic/court-geometry";
+import {
+  cleanTacticCategory,
+  TACTIC_CATEGORY_KEYS,
+  uniqueCategoryOptions,
+  withDocumentCategory,
+} from "../tactic/categories";
 
 type Play = {
   id: string;
   name: string;
   description: string | null;
+  category?: string;
   tags: string[];
   teamId: string | null;
   teamIds: string[];
@@ -43,9 +50,11 @@ export function PlayEditPage() {
   const { t } = useT();
   const [name, setName] = useState("");
   const [description, setDescription] = useState("");
+  const [category, setCategory] = useState("");
   const [rosterTeamId, setRosterTeamId] = useState("");
   const [assignedTeamIds, setAssignedTeamIds] = useState<string[]>([]);
   const [teams, setTeams] = useState<Team[]>([]);
+  const [tacticCategories, setTacticCategories] = useState<string[]>([]);
   const [accounts, setAccounts] = useState<Account[]>([]);
   const [doc, setDoc] = useState<TacticDocumentV1 | null>(null);
   const [jsonText, setJsonText] = useState("");
@@ -62,6 +71,11 @@ export function PlayEditPage() {
   const [playbackSpeed, setPlaybackSpeed] = useState<0.5 | 1 | 2>(0.5);
   const [libraryScope, setLibraryScope] = useState<"all_coaches" | "partial" | "hidden">("all_coaches");
   const [sharedWithUserIds, setSharedWithUserIds] = useState<string[]>([]);
+  const defaultCategories = useMemo(() => TACTIC_CATEGORY_KEYS.map((key) => t(key)), [t]);
+  const categoryOptions = useMemo(
+    () => uniqueCategoryOptions([...defaultCategories, ...tacticCategories, category, doc?.meta.category]),
+    [category, defaultCategories, tacticCategories, doc],
+  );
 
   const savedSnapshotRef = useRef<string>("");
   const tMsRef = useRef(0);
@@ -78,9 +92,9 @@ export function PlayEditPage() {
 
   const isDirty = useCallback(() => {
     if (!doc) return false;
-    const current = JSON.stringify({ name, description, assignedTeamIds, libraryScope, sharedWithUserIds, doc });
+    const current = JSON.stringify({ name, description, category, assignedTeamIds, libraryScope, sharedWithUserIds, doc });
     return current !== savedSnapshotRef.current;
-  }, [name, description, assignedTeamIds, libraryScope, sharedWithUserIds, doc]);
+  }, [name, description, category, assignedTeamIds, libraryScope, sharedWithUserIds, doc]);
 
   useEffect(() => {
     const handler = (e: BeforeUnloadEvent) => {
@@ -92,10 +106,10 @@ export function PlayEditPage() {
     return () => window.removeEventListener("beforeunload", handler);
   }, [isDirty]);
 
-  const markSaved = useCallback(() => {
+  const markSaved = useCallback((savedDoc: TacticDocumentV1 | null = doc, savedCategory = category) => {
     setSaveStatus("saved");
-    savedSnapshotRef.current = JSON.stringify({ name, description, assignedTeamIds, libraryScope, sharedWithUserIds, doc });
-  }, [name, description, assignedTeamIds, libraryScope, sharedWithUserIds, doc]);
+    savedSnapshotRef.current = JSON.stringify({ name, description, category: savedCategory, assignedTeamIds, libraryScope, sharedWithUserIds, doc: savedDoc });
+  }, [name, description, category, assignedTeamIds, libraryScope, sharedWithUserIds, doc]);
 
   const syncJsonText = useCallback(
     (nextDoc: TacticDocumentV1) => {
@@ -145,6 +159,21 @@ export function PlayEditPage() {
     setTms(nextT);
   }, []);
 
+  const handleCategoryChange = useCallback(
+    (value: string) => {
+      const nextCategory = value.slice(0, 64);
+      setCategory(nextCategory);
+      setDoc((prev) => {
+        if (!prev) return prev;
+        const nextDoc = withDocumentCategory(prev, nextCategory);
+        syncJsonText(nextDoc);
+        return nextDoc;
+      });
+      setSaveStatus("unsaved");
+    },
+    [syncJsonText],
+  );
+
   useEffect(() => {
     const onKeyDown = (e: KeyboardEvent) => {
       if (!(e.metaKey || e.ctrlKey)) return;
@@ -166,24 +195,30 @@ export function PlayEditPage() {
     setSaveStatus("saving");
     setErr(null);
     try {
+      const nextCategory = cleanTacticCategory(category);
+      const nextDoc = withDocumentCategory(doc, nextCategory);
       await api<Play>(`/api/v1/plays/${id}`, {
         method: "PATCH",
         body: JSON.stringify({
           name,
           description,
+          category: nextCategory,
           teamId: assignedTeamIds[0] ?? null,
           teamIds: assignedTeamIds,
           libraryScope,
           sharedWithUserIds: libraryScope === "partial" ? sharedWithUserIds : [],
-          document: doc,
+          document: nextDoc,
         }),
       });
-      markSaved();
+      setCategory(nextCategory);
+      setDoc(nextDoc);
+      syncJsonText(nextDoc);
+      markSaved(nextDoc, nextCategory);
     } catch (e) {
       setErr(e instanceof ApiError ? e.message : t("edit.saveFailed"));
       setSaveStatus("unsaved");
     }
-  }, [id, name, description, assignedTeamIds, libraryScope, sharedWithUserIds, doc, markSaved, t]);
+  }, [id, name, description, category, assignedTeamIds, libraryScope, sharedWithUserIds, doc, syncJsonText, markSaved, t]);
 
   useEffect(() => {
     if (!doc || saveStatus === "saved" || saveStatus === "saving") return;
@@ -204,6 +239,8 @@ export function PlayEditPage() {
       const shares = await api<PlayShare[]>(`/api/v1/plays/${id}/shares`);
       setName(p.name);
       setDescription(p.description ?? "");
+      const nextCategory = cleanTacticCategory(p.category ?? p.document.meta.category);
+      setCategory(nextCategory);
       const nextAssignedTeamIds = p.teamIds?.length ? p.teamIds : p.teamId ? [p.teamId] : [];
       setAssignedTeamIds(nextAssignedTeamIds);
       const nextLibraryScope = p.libraryScope ?? "all_coaches";
@@ -211,8 +248,9 @@ export function PlayEditPage() {
       setLibraryScope(nextLibraryScope);
       setSharedWithUserIds(nextLibraryScope === "partial" ? nextSharedWithUserIds : []);
       setRosterTeamId("");
-      setDoc(p.document);
-      setJsonText(JSON.stringify(p.document, null, 2));
+      const nextDoc = withDocumentCategory(p.document, nextCategory);
+      setDoc(nextDoc);
+      setJsonText(JSON.stringify(nextDoc, null, 2));
       undoStackRef.current = [];
       redoStackRef.current = [];
       setHistoryVersion((v) => v + 1);
@@ -220,10 +258,11 @@ export function PlayEditPage() {
       savedSnapshotRef.current = JSON.stringify({
         name: p.name,
         description: p.description ?? "",
+        category: nextCategory,
         assignedTeamIds: nextAssignedTeamIds,
         libraryScope: nextLibraryScope,
         sharedWithUserIds: nextLibraryScope === "partial" ? nextSharedWithUserIds : [],
-        doc: p.document,
+        doc: nextDoc,
       });
       setViewUrl(shares[0]?.viewUrl ?? null);
       setSaveStatus("saved");
@@ -238,6 +277,15 @@ export function PlayEditPage() {
       setTeams(res);
     } catch {
       /* Editing still works without team data. */
+    }
+  }, []);
+
+  const loadCategories = useCallback(async () => {
+    try {
+      const res = await api<{ items: string[] }>("/api/v1/tactic-categories");
+      setTacticCategories(res.items);
+    } catch {
+      /* Category defaults and the current play category remain available. */
     }
   }, []);
 
@@ -267,10 +315,11 @@ export function PlayEditPage() {
   useEffect(() => {
     if (user) {
       void loadTeams();
+      void loadCategories();
       void loadAccounts();
       void load();
     }
-  }, [user, load, loadTeams, loadAccounts]);
+  }, [user, load, loadTeams, loadCategories, loadAccounts]);
 
   const startRef = useRef(0);
   useEffect(() => {
@@ -375,8 +424,9 @@ export function PlayEditPage() {
 
   function handleDocChange(newDoc: TacticDocumentV1) {
     if (doc) pushUndoSnapshot(doc);
-    setDoc(newDoc);
-    syncJsonText(newDoc);
+    const nextDoc = withDocumentCategory(newDoc, category);
+    setDoc(nextDoc);
+    syncJsonText(nextDoc);
     setSaveStatus("unsaved");
   }
 
@@ -389,8 +439,11 @@ export function PlayEditPage() {
         return;
       }
       if (doc) pushUndoSnapshot(doc);
-      setDoc(parsed.data);
-      setJsonText(JSON.stringify(parsed.data, null, 2));
+      const nextCategory = cleanTacticCategory(parsed.data.meta.category || category);
+      const nextDoc = withDocumentCategory(parsed.data, nextCategory);
+      setCategory(nextCategory);
+      setDoc(nextDoc);
+      setJsonText(JSON.stringify(nextDoc, null, 2));
       setSaveStatus("unsaved");
     } catch {
       setErr(t("edit.jsonInvalid"));
@@ -524,6 +577,25 @@ export function PlayEditPage() {
             setSaveStatus("unsaved");
           }}
         />
+      </div>
+      <div className="field">
+        <label htmlFor="playCategory">{t("edit.tacticCategory")}</label>
+        <input
+          id="playCategory"
+          list="play-category-options"
+          value={category}
+          maxLength={64}
+          placeholder={t("edit.tacticCategoryPlaceholder")}
+          onChange={(e) => handleCategoryChange(e.target.value)}
+        />
+        <datalist id="play-category-options">
+          {categoryOptions.map((option) => (
+            <option key={option} value={option} />
+          ))}
+        </datalist>
+        <p className="muted" style={{ margin: "0.35rem 0 0" }}>
+          {t("edit.tacticCategoryHint")}
+        </p>
       </div>
       <div className="field">
         <label htmlFor="d">{t("edit.description")}</label>

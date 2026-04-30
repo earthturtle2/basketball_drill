@@ -79,6 +79,10 @@ if (hasTable("plays") && !hasColumn("plays", "team_ids")) {
   sqlite.exec("ALTER TABLE plays ADD COLUMN team_ids TEXT NOT NULL DEFAULT '[]'");
 }
 
+if (hasTable("plays") && !hasColumn("plays", "category")) {
+  sqlite.exec("ALTER TABLE plays ADD COLUMN category TEXT NOT NULL DEFAULT ''");
+}
+
 if (hasTable("plays") && !hasColumn("plays", "library_scope")) {
   sqlite.exec("ALTER TABLE plays ADD COLUMN library_scope TEXT NOT NULL DEFAULT 'all_coaches'");
 }
@@ -93,6 +97,17 @@ if (hasTable("users") && !hasColumn("users", "avatar_url")) {
 if (hasTable("users") && !hasColumn("users", "bio")) {
   sqlite.exec("ALTER TABLE users ADD COLUMN bio TEXT");
 }
+
+sqlite.exec(`
+CREATE TABLE IF NOT EXISTS tactic_categories (
+  id TEXT PRIMARY KEY NOT NULL,
+  user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  name TEXT NOT NULL,
+  created_at INTEGER NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_tactic_categories_user ON tactic_categories(user_id);
+CREATE UNIQUE INDEX IF NOT EXISTS uniq_tactic_categories_user_name ON tactic_categories(user_id, name);
+`);
 
 sqlite.exec(`
 CREATE TABLE IF NOT EXISTS invite_codes (

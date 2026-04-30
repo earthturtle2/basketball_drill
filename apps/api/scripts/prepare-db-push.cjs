@@ -32,15 +32,17 @@ if (!existsSync(dir)) {
 
 const db = new Database(dbPath);
 
-// These are non-unique performance indexes. Older deployments may have created
-// them before drizzle-kit tracked the schema, so dropping them before `push`
-// avoids "index already exists"; drizzle-kit recreates the current definitions.
+// Older deployments may have created these before drizzle-kit tracked the
+// schema, so dropping them before `push` avoids "index already exists";
+// drizzle-kit recreates the current definitions.
 const managedIndexes = [
   "idx_refresh_user",
   "idx_invite_codes_created_by",
   "idx_teams_user",
   "idx_plays_user",
   "idx_plays_user_updated",
+  "idx_tactic_categories_user",
+  "uniq_tactic_categories_user_name",
   "idx_shares_play",
 ];
 

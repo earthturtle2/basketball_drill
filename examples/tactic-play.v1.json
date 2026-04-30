@@ -3,6 +3,7 @@
   "meta": {
     "name": "高位挡拆 - 左弧启动",
     "description": "1号在左弧控球，5号上提掩护后下顺。",
+    "category": "半场进攻",
     "tags": ["pick_and_roll", "half_court", "U12"],
     "court": {
       "preset": "half",

@@ -40,6 +40,7 @@ export async function publicShareRoutes(fastify: FastifyInstance) {
         id: p.id,
         name: p.name,
         description: p.description,
+        category: p.category,
         tags: p.tags,
         document: p.document,
         updatedAt: p.updatedAt.toISOString(),

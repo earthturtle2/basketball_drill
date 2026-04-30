@@ -187,6 +187,7 @@ export async function adminRoutes(fastify: FastifyInstance) {
       .select({
         id: plays.id,
         name: plays.name,
+        category: plays.category,
         userId: plays.userId,
         userEmail: users.email,
         userName: users.name,
@@ -203,6 +204,7 @@ export async function adminRoutes(fastify: FastifyInstance) {
       items: rows.map((r) => ({
         id: r.id,
         name: r.name,
+        category: r.category,
         userId: r.userId,
         author: { name: r.userName ?? r.userEmail, email: r.userEmail },
         libraryScope: r.libraryScope,

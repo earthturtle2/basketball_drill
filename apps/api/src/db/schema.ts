@@ -1,4 +1,4 @@
-import { index, integer, sqliteTable, text } from "drizzle-orm/sqlite-core";
+import { index, integer, sqliteTable, text, uniqueIndex } from "drizzle-orm/sqlite-core";
 import type { TacticDocumentV1 } from "@basketball/shared";
 
 export type TeamPlayer = {
@@ -110,6 +110,7 @@ export const plays = sqliteTable(
       .$defaultFn(() => []),
     name: text("name").notNull(),
     description: text("description"),
+    category: text("category").notNull().default(""),
     tags: text("tags", { mode: "json" })
       .$type<string[]>()
       .notNull()
@@ -130,6 +131,26 @@ export const plays = sqliteTable(
       .$defaultFn(() => []),
   },
   (t) => [index("idx_plays_user").on(t.userId), index("idx_plays_user_updated").on(t.userId, t.updatedAt)],
+);
+
+export const tacticCategories = sqliteTable(
+  "tactic_categories",
+  {
+    id: text("id")
+      .primaryKey()
+      .$defaultFn(() => crypto.randomUUID()),
+    userId: text("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    name: text("name").notNull(),
+    createdAt: integer("created_at", { mode: "timestamp_ms" })
+      .notNull()
+      .$defaultFn(() => new Date()),
+  },
+  (t) => [
+    index("idx_tactic_categories_user").on(t.userId),
+    uniqueIndex("uniq_tactic_categories_user_name").on(t.userId, t.name),
+  ],
 );
 
 export const playShares = sqliteTable(
@@ -185,5 +206,6 @@ export type UserRow = typeof users.$inferSelect;
 export type InviteCodeRow = typeof inviteCodes.$inferSelect;
 export type TeamRow = typeof teams.$inferSelect;
 export type PlayRow = typeof plays.$inferSelect;
+export type TacticCategoryRow = typeof tacticCategories.$inferSelect;
 export type PlayShareRow = typeof playShares.$inferSelect;
 export type MatchPreparationRow = typeof matchPreparations.$inferSelect;
