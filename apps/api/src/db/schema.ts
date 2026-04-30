@@ -202,6 +202,24 @@ export const matchPreparations = sqliteTable(
   ],
 );
 
+export const matchPrepShares = sqliteTable(
+  "match_prep_shares",
+  {
+    id: text("id")
+      .primaryKey()
+      .$defaultFn(() => crypto.randomUUID()),
+    prepId: text("prep_id")
+      .notNull()
+      .references(() => matchPreparations.id, { onDelete: "cascade" }),
+    token: text("token").notNull().unique(),
+    expiresAt: integer("expires_at", { mode: "timestamp_ms" }),
+    createdAt: integer("created_at", { mode: "timestamp_ms" })
+      .notNull()
+      .$defaultFn(() => new Date()),
+  },
+  (t) => [index("idx_match_prep_shares_prep").on(t.prepId)],
+);
+
 export type UserRow = typeof users.$inferSelect;
 export type InviteCodeRow = typeof inviteCodes.$inferSelect;
 export type TeamRow = typeof teams.$inferSelect;
@@ -209,3 +227,4 @@ export type PlayRow = typeof plays.$inferSelect;
 export type TacticCategoryRow = typeof tacticCategories.$inferSelect;
 export type PlayShareRow = typeof playShares.$inferSelect;
 export type MatchPreparationRow = typeof matchPreparations.$inferSelect;
+export type MatchPrepShareRow = typeof matchPrepShares.$inferSelect;

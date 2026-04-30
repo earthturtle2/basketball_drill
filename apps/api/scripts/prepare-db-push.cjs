@@ -44,6 +44,7 @@ const managedIndexes = [
   "idx_tactic_categories_user",
   "uniq_tactic_categories_user_name",
   "idx_shares_play",
+  "idx_match_prep_shares_prep",
 ];
 
 for (const indexName of managedIndexes) {

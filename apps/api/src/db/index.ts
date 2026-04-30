@@ -139,5 +139,16 @@ CREATE INDEX IF NOT EXISTS idx_match_preps_user ON match_preparations(user_id);
 CREATE INDEX IF NOT EXISTS idx_match_preps_user_updated ON match_preparations(user_id, updated_at);
 `);
 
+sqlite.exec(`
+CREATE TABLE IF NOT EXISTS match_prep_shares (
+  id TEXT PRIMARY KEY NOT NULL,
+  prep_id TEXT NOT NULL REFERENCES match_preparations(id) ON DELETE CASCADE,
+  token TEXT NOT NULL UNIQUE,
+  expires_at INTEGER,
+  created_at INTEGER NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_match_prep_shares_prep ON match_prep_shares(prep_id);
+`);
+
 export const db = drizzle(sqlite, { schema });
 export { schema, sqlite as sqliteDb };

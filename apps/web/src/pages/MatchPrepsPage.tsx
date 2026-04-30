@@ -44,6 +44,7 @@ type PrepEntry = {
   play: PrepEntryPlay | null;
 };
 type PrepDetail = PrepListItem & { entries: PrepEntry[] };
+type PrepShare = { shareId: string; token: string; viewUrl: string; expiresAt: string | null; createdAt: string };
 type SaveStatus = "saved" | "saving" | "unsaved";
 
 function localDateInputValue(value: string | null) {
@@ -277,6 +278,9 @@ function MatchPrepDetailPage({ prepId }: { prepId: string }) {
   const [search, setSearch] = useState("");
   const [err, setErr] = useState<string | null>(null);
   const [saveStatus, setSaveStatus] = useState<SaveStatus>("saved");
+  const [shareUrl, setShareUrl] = useState<string | null>(null);
+  const [sharing, setSharing] = useState(false);
+  const [shareCopied, setShareCopied] = useState(false);
 
   const markUnsaved = useCallback(() => setSaveStatus("unsaved"), []);
 
@@ -332,6 +336,9 @@ function MatchPrepDetailPage({ prepId }: { prepId: string }) {
     try {
       const res = await api<PrepDetail>(`/api/v1/match-preps/${prepId}`);
       applyPrep(res);
+      const shares = await api<PrepShare[]>(`/api/v1/match-preps/${prepId}/shares`);
+      setShareUrl(shares[0]?.viewUrl ?? null);
+      setShareCopied(false);
     } catch (e) {
       setErr(e instanceof ApiError ? e.message : t("matchPrep.loadFailed"));
     }
@@ -353,14 +360,14 @@ function MatchPrepDetailPage({ prepId }: { prepId: string }) {
   if (!user) return <Navigate to="/login" replace />;
 
   const save = async () => {
-    if (!title.trim() || saveStatus === "saving") return;
+    if (!title.trim() || saveStatus === "saving") return false;
     const normalizedEntries = entryPayload(entries);
     const duplicateCode = normalizedEntries.find((entry, index) =>
       normalizedEntries.some((other, otherIndex) => otherIndex !== index && other.code.toLocaleLowerCase() === entry.code.toLocaleLowerCase()),
     );
     if (duplicateCode) {
       setErr(t("matchPrep.duplicateCode"));
-      return;
+      return false;
     }
     setSaveStatus("saving");
     setErr(null);
@@ -377,9 +384,11 @@ function MatchPrepDetailPage({ prepId }: { prepId: string }) {
         }),
       });
       applyPrep(res);
+      return true;
     } catch (e) {
       setErr(e instanceof ApiError ? e.message : t("matchPrep.saveFailed"));
       setSaveStatus("unsaved");
+      return false;
     }
   };
 
@@ -391,6 +400,43 @@ function MatchPrepDetailPage({ prepId }: { prepId: string }) {
       nav("/match-preps", { replace: true });
     } catch (e) {
       setErr(e instanceof ApiError ? e.message : t("matchPrep.deleteFailed"));
+    }
+  }
+
+  async function sharePrep() {
+    if (sharing) return;
+    setSharing(true);
+    setErr(null);
+    setShareCopied(false);
+    try {
+      if (saveStatus === "unsaved") {
+        const saved = await save();
+        if (!saved) return;
+      }
+      const existing = await api<PrepShare[]>(`/api/v1/match-preps/${prepId}/shares`);
+      if (existing[0]) {
+        setShareUrl(existing[0].viewUrl);
+        return;
+      }
+      const share = await api<PrepShare>(`/api/v1/match-preps/${prepId}/shares`, {
+        method: "POST",
+        body: "{}",
+      });
+      setShareUrl(share.viewUrl);
+    } catch (e) {
+      setErr(e instanceof ApiError ? e.message : t("matchPrep.shareFailed"));
+    } finally {
+      setSharing(false);
+    }
+  }
+
+  async function copyShareUrl() {
+    if (!shareUrl) return;
+    try {
+      await navigator.clipboard.writeText(shareUrl);
+      setShareCopied(true);
+    } catch {
+      setShareCopied(false);
     }
   }
 
@@ -503,6 +549,33 @@ function MatchPrepDetailPage({ prepId }: { prepId: string }) {
 
       {prep ? (
         <>
+          <div className="match-prep-share-panel card">
+            <div>
+              <p className="match-prep-kicker">{t("matchPrep.shareTitle")}</p>
+              <h2>{t("matchPrep.shareHeading")}</h2>
+              <p className="muted">{t("matchPrep.shareHint")}</p>
+            </div>
+            <div className="match-prep-share-panel__actions">
+              <button type="button" className="btn btn-primary" onClick={() => void sharePrep()} disabled={sharing}>
+                {sharing ? t("matchPrep.shareSaving") : t("matchPrep.share")}
+              </button>
+              {shareUrl ? (
+                <a className="btn btn-ghost" href={shareUrl} target="_blank" rel="noreferrer">
+                  {t("matchPrep.shareOpen")}
+                </a>
+              ) : null}
+            </div>
+            {shareUrl ? (
+              <div className="match-prep-share-link">
+                <span>{t("matchPrep.viewHint")}</span>
+                <a href={shareUrl} target="_blank" rel="noreferrer">{shareUrl}</a>
+                <button type="button" className="btn btn-sm" onClick={() => void copyShareUrl()}>
+                  {shareCopied ? t("matchPrep.shareCopied") : t("matchPrep.shareCopy")}
+                </button>
+              </div>
+            ) : null}
+          </div>
+
           <div className="match-prep-console">
             <section className="match-prep-stage card">
               <div className="match-prep-stage__header">

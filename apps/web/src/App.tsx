@@ -9,6 +9,7 @@ import { PlayEditPage } from "./pages/PlayEditPage";
 import { LibraryPage } from "./pages/LibraryPage";
 import { TeamsPage } from "./pages/TeamsPage";
 import { MatchPrepsPage } from "./pages/MatchPrepsPage";
+import { MatchPrepViewPage } from "./pages/MatchPrepViewPage";
 import { ViewPage } from "./pages/ViewPage";
 import { AdminPage } from "./pages/AdminPage";
 import { ChangePasswordPage } from "./pages/ChangePasswordPage";
@@ -247,6 +248,7 @@ export function App() {
           path="/password"
           element={<RequireAuth><ChangePasswordPage /></RequireAuth>}
         />
+        <Route path="/view/prep/:token" element={<MatchPrepViewPage />} />
         <Route path="/view/:token" element={<ViewPage />} />
         <Route path="*" element={<NotFound />} />
       </Routes>

@@ -4,7 +4,7 @@ import { and, count, desc, eq, isNotNull, isNull, or, sql, type SQL } from "driz
 import { z } from "zod";
 import bcrypt from "bcryptjs";
 import { db } from "../../db/index.js";
-import { inviteCodes, playShares, plays, refreshTokens, teams, users } from "../../db/schema.js";
+import { inviteCodes, matchPrepShares, playShares, plays, refreshTokens, teams, users } from "../../db/schema.js";
 import { sendError } from "../../lib/errors.js";
 
 const inviteBody = z.object({
@@ -71,7 +71,8 @@ export async function adminRoutes(fastify: FastifyInstance) {
       teamCount,
       activePlayCount,
       deletedPlayCount,
-      shareCount,
+      playShareCount,
+      matchPrepShareCount,
       refreshTokenCount,
       inviteCount,
       usedInviteCount,
@@ -85,6 +86,7 @@ export async function adminRoutes(fastify: FastifyInstance) {
       db.select({ n: count() }).from(plays).where(isNull(plays.deletedAt)),
       db.select({ n: count() }).from(plays).where(isNotNull(plays.deletedAt)),
       db.select({ n: count() }).from(playShares),
+      db.select({ n: count() }).from(matchPrepShares),
       db.select({ n: count() }).from(refreshTokens),
       db.select({ n: count() }).from(inviteCodes),
       db.select({ n: count() }).from(inviteCodes).where(isNotNull(inviteCodes.usedAt)),
@@ -107,7 +109,7 @@ export async function adminRoutes(fastify: FastifyInstance) {
       teams: Number(teamCount[0]?.n ?? 0),
       activePlays: Number(activePlayCount[0]?.n ?? 0),
       deletedPlays: Number(deletedPlayCount[0]?.n ?? 0),
-      shares: Number(shareCount[0]?.n ?? 0),
+      shares: Number(playShareCount[0]?.n ?? 0) + Number(matchPrepShareCount[0]?.n ?? 0),
       activeSessions: Number(refreshTokenCount[0]?.n ?? 0),
       inviteCodes: Number(inviteCount[0]?.n ?? 0),
       usedInviteCodes: Number(usedInviteCount[0]?.n ?? 0),

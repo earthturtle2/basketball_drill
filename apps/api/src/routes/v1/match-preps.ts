@@ -137,7 +137,7 @@ function serializePrepList(row: typeof matchPreparations.$inferSelect) {
   };
 }
 
-async function serializePrepDetail(row: typeof matchPreparations.$inferSelect) {
+export async function serializePrepDetail(row: typeof matchPreparations.$inferSelect) {
   const entries = [...row.entries].sort((a, b) => a.sortOrder - b.sortOrder || a.code.localeCompare(b.code));
   const playIds = [...new Set(entries.map((entry) => entry.playId))];
   const playRows = playIds.length

@@ -761,6 +761,43 @@ pre.doc {
   gap: 0.65rem;
   margin: 0 0 1rem;
 }
+.match-prep-share-panel {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 0.9rem;
+  align-items: center;
+  margin-bottom: 1rem;
+}
+.match-prep-share-panel h2 {
+  margin: 0 0 0.35rem;
+  font-size: 1.12rem;
+}
+.match-prep-share-panel__actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+}
+.match-prep-share-link {
+  grid-column: 1 / -1;
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  gap: 0.55rem;
+  align-items: center;
+  padding: 0.62rem 0.72rem;
+  border: 1px solid rgba(61, 220, 85, 0.14);
+  border-radius: 16px;
+  background: rgba(5, 17, 9, 0.5);
+}
+.match-prep-share-link span {
+  color: var(--muted);
+  font-size: 0.84rem;
+}
+.match-prep-share-link a {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
 .match-prep-list-card__chips {
   display: flex;
   justify-content: flex-end;
@@ -776,6 +813,62 @@ pre.doc {
 .match-prep-stage,
 .match-prep-call-sheet {
   min-width: 0;
+}
+.match-prep-public-hero {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 0.8rem 1rem;
+  align-items: start;
+  margin-bottom: 1rem;
+}
+.match-prep-public-hero h1 {
+  margin: 0 0 0.35rem;
+}
+.match-prep-public-meta {
+  display: flex;
+  justify-content: flex-end;
+  flex-wrap: wrap;
+  gap: 0.45rem;
+}
+.match-prep-public-meta span {
+  display: inline-flex;
+  align-items: center;
+  min-height: 32px;
+  padding: 0.24rem 0.68rem;
+  border: 1px solid rgba(61, 220, 85, 0.16);
+  border-radius: 999px;
+  background: rgba(5, 17, 9, 0.48);
+  color: #cbead0;
+  font-size: 0.86rem;
+  font-weight: 720;
+}
+.match-prep-public-notes {
+  grid-column: 1 / -1;
+  padding: 0.75rem 0.85rem;
+  border-left: 3px solid var(--accent-warm);
+  border-radius: 14px;
+  background: rgba(255, 179, 71, 0.08);
+}
+.match-prep-public-notes strong {
+  color: #ffe0a6;
+}
+.match-prep-public-notes p {
+  margin: 0.2rem 0 0;
+  color: #f1e7d3;
+}
+.match-prep-public-layout {
+  display: grid;
+  grid-template-columns: minmax(280px, 0.78fr) minmax(0, 1.45fr);
+  gap: 1rem;
+  align-items: start;
+}
+.match-prep-public-picker {
+  position: sticky;
+  top: 6.5rem;
+}
+.match-prep-public-stage {
+  min-width: 0;
+  scroll-margin-top: 1rem;
 }
 .match-prep-stage__header,
 .match-prep-call-sheet__top {
@@ -1868,9 +1961,34 @@ input[type="radio"] {
   .match-prep-console,
   .match-prep-form-grid,
   .match-prep-toolbar,
+  .match-prep-share-panel,
+  .match-prep-share-link,
+  .match-prep-public-hero,
+  .match-prep-public-layout,
   .match-prep-entry-add,
   .match-prep-entry-row {
     grid-template-columns: 1fr;
+  }
+  .match-prep-share-panel__actions {
+    justify-content: stretch;
+  }
+  .match-prep-share-panel__actions .btn,
+  .match-prep-share-link .btn {
+    width: 100%;
+  }
+  .match-prep-public-hero {
+    gap: 0.55rem;
+  }
+  .match-prep-public-meta {
+    justify-content: flex-start;
+  }
+  .match-prep-public-picker {
+    position: sticky;
+    top: 0.5rem;
+    z-index: 8;
+  }
+  .match-prep-public-stage {
+    scroll-margin-top: 17.5rem;
   }
   .match-prep-call-sheet {
     position: static;
@@ -1881,9 +1999,29 @@ input[type="radio"] {
   }
   .match-prep-call-sheet__top input {
     max-width: none;
+    width: 100%;
   }
   .match-prep-card-grid {
     max-height: none;
+  }
+  .match-prep-card-grid--public {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    max-height: 28vh;
+    overflow: auto;
+    padding-right: 0;
+    -webkit-overflow-scrolling: touch;
+  }
+  .match-prep-card-grid--public .match-prep-call-card {
+    grid-template-columns: 1fr;
+    min-height: 118px;
+  }
+  .match-prep-card-grid--public .match-prep-call-card__code {
+    grid-row: auto;
+    min-width: 0;
+    min-height: 34px;
+  }
+  .match-prep-card-grid--public .match-prep-call-card strong {
+    white-space: normal;
   }
   .match-prep-list-card__chips,
   .match-prep-entry-row .row-actions {
@@ -1923,5 +2061,9 @@ input[type="radio"] {
   .invite-code {
     align-items: stretch;
     flex-direction: column;
+  }
+  .match-prep-card-grid--public {
+    grid-template-columns: 1fr;
+    max-height: 24vh;
   }
 }
