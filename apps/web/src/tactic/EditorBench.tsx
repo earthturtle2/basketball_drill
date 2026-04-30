@@ -42,8 +42,8 @@ interface Props {
   availablePlayers: BenchPlayerOption[];
   pendingPlayer: BenchPlayerOption | null;
   onRosterPlayerSelect: (player: BenchPlayerOption) => void;
-  canAddOffense: boolean;
-  canAddDefense: boolean;
+  canUseOffenseTool: boolean;
+  canUseDefenseTool: boolean;
   canUseRosterPlayers: boolean;
 }
 
@@ -68,8 +68,8 @@ export function EditorBench({
   availablePlayers,
   pendingPlayer,
   onRosterPlayerSelect,
-  canAddOffense,
-  canAddDefense,
+  canUseOffenseTool,
+  canUseDefenseTool,
   canUseRosterPlayers,
 }: Props) {
   const { t } = useT();
@@ -217,7 +217,7 @@ export function EditorBench({
           <button
             type="button"
             className={`bench-token bench-token--offense ${tool === "addOffense" ? "bench-token--active" : ""}`}
-            disabled={!canAddOffense}
+            disabled={!canUseOffenseTool}
             onClick={() => onToolChange(tool === "addOffense" ? "select" : "addOffense")}
             title={t("bench.addOffenseTitle")}
           >
@@ -227,7 +227,7 @@ export function EditorBench({
           <button
             type="button"
             className={`bench-token bench-token--defense ${tool === "addDefense" ? "bench-token--active" : ""}`}
-            disabled={!canAddDefense}
+            disabled={!canUseDefenseTool}
             onClick={() => onToolChange(tool === "addDefense" ? "select" : "addDefense")}
             title={t("bench.addDefenseTitle")}
           >
@@ -257,8 +257,8 @@ export function EditorBench({
           <p className="bench-tip">{t("bench.tipAddOffense")}</p>
         ) : null}
         {tool === "addDefense" && <p className="bench-tip">{t("bench.tipAddDefense")}</p>}
-        {!canAddOffense && !pendingPlayer && <p className="bench-hint">{t("bench.maxOffense")}</p>}
-        {!canAddDefense && <p className="bench-hint">{t("bench.maxDefense")}</p>}
+        {!canUseOffenseTool && !pendingPlayer && <p className="bench-hint">{t("bench.maxOffense")}</p>}
+        {!canUseDefenseTool && <p className="bench-hint">{t("bench.maxDefense")}</p>}
       </div>
 
       <div className="bench-section">

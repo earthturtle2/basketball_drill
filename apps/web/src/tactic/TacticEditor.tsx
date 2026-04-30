@@ -53,6 +53,14 @@ function actorMatchesRosterPlayer(actor: PlayerActor, player: { id: string; name
   return !actor.rosterPlayerId && !!name && actor.number === player.number && actor.label === name;
 }
 
+function hasReplaceablePlayerName(actor: PlayerActor): boolean {
+  return !!actor.rosterPlayerId || actor.label.trim() !== `${actor.number}`;
+}
+
+function genericReplacementNumber(actor: PlayerActor, existing: PlayerActor[]): number {
+  return nextAvailableNumber(existing.filter((p) => p.team === actor.team && p.id !== actor.id));
+}
+
 function remapEventsAtTime(
   events: TacticDocumentV1["events"],
   oldT: number,
@@ -237,6 +245,10 @@ export function TacticEditor({
   const defensePlayers = doc.actors.filter((a): a is PlayerActor => isPlayerActor(a) && a.team === "defense");
   const canAddOffense = offensePlayers.length < 5;
   const canAddDefense = defensePlayers.length < 5;
+  const canReplaceOffenseName = offensePlayers.some(hasReplaceablePlayerName);
+  const canReplaceDefenseName = defensePlayers.some(hasReplaceablePlayerName);
+  const canUseOffenseTool = canAddOffense || canReplaceOffenseName;
+  const canUseDefenseTool = canAddDefense || canReplaceDefenseName;
   const canUseRosterPlayers = canAddOffense || offensePlayers.length > 0;
 
   const availablePlayers = useMemo<BenchPlayerOption[]>(() => {
@@ -279,11 +291,11 @@ export function TacticEditor({
     selectedPlayer?.type === "player" ? selectedPlayer : null;
 
   const handleToolChange = useCallback((t: EditorTool) => {
-    if ((t === "addOffense" && !canAddOffense) || (t === "addDefense" && !canAddDefense)) return;
+    if ((t === "addOffense" && !canUseOffenseTool) || (t === "addDefense" && !canUseDefenseTool)) return;
     setTool(t);
     setPendingPlayer(null);
     setPassSource(null);
-  }, [canAddOffense, canAddDefense]);
+  }, [canUseOffenseTool, canUseDefenseTool]);
 
   const handleRosterPlayerSelect = useCallback((player: BenchPlayerOption) => {
     if (!canUseRosterPlayers || player.disabled) return;
@@ -306,20 +318,43 @@ export function TacticEditor({
 
   const handleActorClick = useCallback(
     (actorId: string) => {
-      if (tool === "addOffense" && pendingPlayer) {
+      if (tool === "addOffense" || tool === "addDefense") {
+        const team: "offense" | "defense" = tool === "addOffense" ? "offense" : "defense";
         const target = doc.actors.find((a): a is PlayerActor => isPlayerActor(a) && a.id === actorId);
-        if (!target || target.team !== "offense") {
+        if (!target || target.team !== team) {
           setSelectedActorId(actorId);
           return;
         }
+
+        if (pendingPlayer) {
+          if (team !== "offense") return;
+          const newActors = doc.actors.map((a) => {
+            if (a.id !== actorId || a.type !== "player") return a;
+            return {
+              ...a,
+              rosterPlayerId: pendingPlayer.id,
+              number: pendingPlayer.number,
+              label: rosterPlayerLabel(pendingPlayer),
+            };
+          });
+          onChange({ ...doc, actors: newActors });
+          setSelectedActorId(actorId);
+          setPendingPlayer(null);
+          setPassSource(null);
+          setTool("select");
+          return;
+        }
+
+        if (!hasReplaceablePlayerName(target)) {
+          setSelectedActorId(actorId);
+          return;
+        }
+        const num = genericReplacementNumber(target, doc.actors.filter(isPlayerActor));
         const newActors = doc.actors.map((a) => {
           if (a.id !== actorId || a.type !== "player") return a;
-          return {
-            ...a,
-            rosterPlayerId: pendingPlayer.id,
-            number: pendingPlayer.number,
-            label: rosterPlayerLabel(pendingPlayer),
-          };
+          const nextActor = { ...a, number: num, label: `${num}` };
+          delete nextActor.rosterPlayerId;
+          return nextActor;
         });
         onChange({ ...doc, actors: newActors });
         setSelectedActorId(actorId);
@@ -730,8 +765,8 @@ export function TacticEditor({
         availablePlayers={availablePlayers}
         pendingPlayer={pendingPlayer}
         onRosterPlayerSelect={handleRosterPlayerSelect}
-        canAddOffense={canAddOffense}
-        canAddDefense={canAddDefense}
+        canUseOffenseTool={canUseOffenseTool}
+        canUseDefenseTool={canUseDefenseTool}
         canUseRosterPlayers={canUseRosterPlayers}
       />
 
@@ -834,8 +869,8 @@ export function TacticEditor({
         availablePlayers={availablePlayers}
         pendingPlayer={pendingPlayer}
         onRosterPlayerSelect={handleRosterPlayerSelect}
-        canAddOffense={canAddOffense}
-        canAddDefense={canAddDefense}
+        canUseOffenseTool={canUseOffenseTool}
+        canUseDefenseTool={canUseDefenseTool}
         canUseRosterPlayers={canUseRosterPlayers}
       />
 
