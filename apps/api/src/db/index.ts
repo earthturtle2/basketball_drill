@@ -107,5 +107,22 @@ CREATE TABLE IF NOT EXISTS invite_codes (
 CREATE INDEX IF NOT EXISTS idx_invite_codes_created_by ON invite_codes(created_by);
 `);
 
+sqlite.exec(`
+CREATE TABLE IF NOT EXISTS match_preparations (
+  id TEXT PRIMARY KEY NOT NULL,
+  user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  team_id TEXT REFERENCES teams(id) ON DELETE SET NULL,
+  title TEXT NOT NULL,
+  opponent TEXT,
+  game_date INTEGER,
+  notes TEXT,
+  entries TEXT NOT NULL DEFAULT '[]',
+  created_at INTEGER NOT NULL,
+  updated_at INTEGER NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_match_preps_user ON match_preparations(user_id);
+CREATE INDEX IF NOT EXISTS idx_match_preps_user_updated ON match_preparations(user_id, updated_at);
+`);
+
 export const db = drizzle(sqlite, { schema });
 export { schema, sqlite as sqliteDb };

@@ -7,6 +7,16 @@ export type TeamPlayer = {
   number: number;
 };
 
+export type MatchPrepEntry = {
+  id: string;
+  playId: string;
+  code: string;
+  category: string;
+  cue?: string;
+  notes?: string;
+  sortOrder: number;
+};
+
 export const users = sqliteTable("users", {
   id: text("id")
     .primaryKey()
@@ -140,8 +150,40 @@ export const playShares = sqliteTable(
   (t) => [index("idx_shares_play").on(t.playId)],
 );
 
+export const matchPreparations = sqliteTable(
+  "match_preparations",
+  {
+    id: text("id")
+      .primaryKey()
+      .$defaultFn(() => crypto.randomUUID()),
+    userId: text("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    teamId: text("team_id").references(() => teams.id, { onDelete: "set null" }),
+    title: text("title").notNull(),
+    opponent: text("opponent"),
+    gameDate: integer("game_date", { mode: "timestamp_ms" }),
+    notes: text("notes"),
+    entries: text("entries", { mode: "json" })
+      .$type<MatchPrepEntry[]>()
+      .notNull()
+      .$defaultFn(() => []),
+    createdAt: integer("created_at", { mode: "timestamp_ms" })
+      .notNull()
+      .$defaultFn(() => new Date()),
+    updatedAt: integer("updated_at", { mode: "timestamp_ms" })
+      .notNull()
+      .$defaultFn(() => new Date()),
+  },
+  (t) => [
+    index("idx_match_preps_user").on(t.userId),
+    index("idx_match_preps_user_updated").on(t.userId, t.updatedAt),
+  ],
+);
+
 export type UserRow = typeof users.$inferSelect;
 export type InviteCodeRow = typeof inviteCodes.$inferSelect;
 export type TeamRow = typeof teams.$inferSelect;
 export type PlayRow = typeof plays.$inferSelect;
 export type PlayShareRow = typeof playShares.$inferSelect;
+export type MatchPreparationRow = typeof matchPreparations.$inferSelect;

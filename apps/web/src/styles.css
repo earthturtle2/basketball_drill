@@ -545,6 +545,224 @@ pre.doc {
   border-radius: 999px;
 }
 
+/* Match preparation */
+.match-prep-hero {
+  display: grid;
+  grid-template-columns: minmax(0, 1.3fr) minmax(220px, 0.7fr);
+  gap: 1rem;
+  align-items: center;
+  margin-bottom: 1rem;
+  overflow: hidden;
+}
+.match-prep-hero::after {
+  content: "";
+  position: absolute;
+  right: -60px;
+  top: -70px;
+  width: 220px;
+  height: 220px;
+  border-radius: 50%;
+  background:
+    repeating-linear-gradient(90deg, rgba(11, 30, 16, 0.42) 0 8px, transparent 8px 17px),
+    radial-gradient(circle, rgba(61, 220, 85, 0.26), transparent 62%);
+  opacity: 0.72;
+  pointer-events: none;
+}
+.match-prep-kicker {
+  margin: 0 0 0.35rem;
+  color: #9cffaa;
+  font-size: 0.72rem;
+  font-weight: 860;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+.match-prep-hero h2,
+.match-prep-stage h2 {
+  margin: 0 0 0.45rem;
+}
+.match-prep-hero__steps {
+  display: grid;
+  gap: 0.5rem;
+  position: relative;
+  z-index: 1;
+}
+.match-prep-hero__steps span {
+  padding: 0.7rem 0.85rem;
+  border-radius: 16px;
+  border: 1px solid rgba(61, 220, 85, 0.18);
+  background: rgba(5, 17, 9, 0.58);
+  color: var(--text);
+  font-weight: 780;
+}
+.match-prep-form-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(120px, 1fr));
+  gap: 0.7rem;
+  align-items: end;
+}
+.match-prep-toolbar {
+  display: grid;
+  grid-template-columns: minmax(180px, 1fr) minmax(140px, 220px);
+  gap: 0.65rem;
+  margin: 0 0 1rem;
+}
+.match-prep-list-card__chips {
+  display: flex;
+  justify-content: flex-end;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+}
+.match-prep-console {
+  display: grid;
+  grid-template-columns: minmax(0, 1.45fr) minmax(300px, 0.82fr);
+  gap: 1rem;
+  align-items: start;
+}
+.match-prep-stage,
+.match-prep-call-sheet {
+  min-width: 0;
+}
+.match-prep-stage__header,
+.match-prep-call-sheet__top {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 0.8rem;
+  margin-bottom: 0.8rem;
+}
+.match-prep-stage__header .status-pill {
+  flex-shrink: 0;
+}
+.match-code {
+  display: inline-flex;
+  align-items: center;
+  min-height: 28px;
+  padding: 0.18rem 0.55rem;
+  border-radius: 999px;
+  background: rgba(61, 220, 85, 0.14);
+  color: #9cffaa;
+  border: 1px solid rgba(61, 220, 85, 0.24);
+  font-weight: 900;
+  letter-spacing: 0.04em;
+}
+.match-prep-empty-stage {
+  min-height: 360px;
+  display: grid;
+  place-items: center;
+  border-radius: 18px;
+  border: 1px dashed rgba(61, 220, 85, 0.28);
+  background: rgba(5, 17, 9, 0.42);
+  color: var(--muted);
+  text-align: center;
+}
+.match-prep-call-sheet {
+  position: sticky;
+  top: 6.5rem;
+}
+.match-prep-call-sheet__top {
+  align-items: end;
+}
+.match-prep-call-sheet__top input {
+  max-width: 220px;
+}
+.match-prep-category-tabs {
+  display: flex;
+  gap: 0.4rem;
+  flex-wrap: wrap;
+  margin-bottom: 0.8rem;
+}
+.match-prep-card-grid {
+  display: grid;
+  gap: 0.55rem;
+  max-height: 70vh;
+  overflow: auto;
+  padding-right: 0.15rem;
+}
+.match-prep-call-card {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: 0.15rem 0.65rem;
+  align-items: center;
+  width: 100%;
+  padding: 0.75rem;
+  border-radius: 16px;
+  border: 1px solid rgba(61, 220, 85, 0.14);
+  background:
+    linear-gradient(135deg, rgba(255, 255, 255, 0.035), transparent 52%),
+    rgba(5, 17, 9, 0.58);
+  color: var(--text);
+  text-align: left;
+  cursor: pointer;
+  transition:
+    border-color 0.18s ease,
+    transform 0.18s ease,
+    background 0.18s ease,
+    box-shadow 0.18s ease;
+}
+.match-prep-call-card:hover,
+.match-prep-call-card--active {
+  border-color: rgba(61, 220, 85, 0.52);
+  background:
+    linear-gradient(135deg, rgba(61, 220, 85, 0.12), transparent 52%),
+    rgba(9, 31, 15, 0.88);
+  transform: translateY(-1px);
+  box-shadow: 0 12px 26px rgba(0, 0, 0, 0.18);
+}
+.match-prep-call-card__code {
+  grid-row: span 3;
+  min-width: 4.2rem;
+  align-self: stretch;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 14px;
+  background: rgba(61, 220, 85, 0.13);
+  color: #9cffaa;
+  font-weight: 920;
+}
+.match-prep-call-card strong {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 0.96rem;
+}
+.match-prep-call-card small {
+  color: var(--muted);
+  font-weight: 720;
+}
+.match-prep-call-card span:not(.match-prep-call-card__code) {
+  color: #cbead0;
+  font-size: 0.82rem;
+}
+.match-prep-entry-add {
+  display: grid;
+  grid-template-columns: minmax(180px, 1.2fr) minmax(92px, 0.5fr) minmax(140px, 0.8fr) minmax(180px, 1fr) auto;
+  gap: 0.65rem;
+  align-items: end;
+}
+.match-prep-entry-add .field,
+.match-prep-form-grid .field {
+  margin-bottom: 0;
+}
+.match-prep-entry-editor {
+  display: grid;
+  gap: 0.55rem;
+}
+.match-prep-entry-row {
+  display: grid;
+  grid-template-columns: 92px minmax(130px, 0.8fr) minmax(180px, 1.2fr) minmax(180px, 1fr) auto;
+  gap: 0.5rem;
+  align-items: center;
+  padding: 0.55rem;
+  border-radius: 16px;
+  border: 1px solid rgba(61, 220, 85, 0.12);
+  background: rgba(5, 17, 9, 0.38);
+}
+.match-prep-entry-row input,
+.match-prep-entry-row select {
+  padding: 0.52rem 0.64rem;
+}
+
 /* Court SVG */
 .court-svg {
   width: 100%;
@@ -1458,6 +1676,35 @@ input[type="color"] {
   .list-item {
     flex-direction: column;
     align-items: flex-start;
+  }
+  .match-prep-hero,
+  .match-prep-console,
+  .match-prep-form-grid,
+  .match-prep-toolbar,
+  .match-prep-entry-add,
+  .match-prep-entry-row {
+    grid-template-columns: 1fr;
+  }
+  .match-prep-call-sheet {
+    position: static;
+  }
+  .match-prep-call-sheet__top,
+  .match-prep-stage__header {
+    flex-direction: column;
+  }
+  .match-prep-call-sheet__top input {
+    max-width: none;
+  }
+  .match-prep-card-grid {
+    max-height: none;
+  }
+  .match-prep-list-card__chips,
+  .match-prep-entry-row .row-actions {
+    justify-content: flex-start;
+    width: 100%;
+  }
+  .match-prep-entry-row .row-actions .btn {
+    flex: 1;
   }
   .team-roster__row {
     grid-template-columns: 64px minmax(100px, 1fr);

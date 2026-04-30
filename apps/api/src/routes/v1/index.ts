@@ -7,6 +7,7 @@ import { authRoutes } from "./auth.js";
 import { publicShareRoutes, protectedShareRoutes } from "./shares.js";
 import { playRoutes } from "./plays.js";
 import { teamRoutes } from "./teams.js";
+import { matchPrepRoutes } from "./match-preps.js";
 import { adminRoutes } from "./admin.js";
 import { db } from "../../db/index.js";
 import { refreshTokens, users, type UserRow } from "../../db/schema.js";
@@ -117,6 +118,7 @@ export async function registerV1(fastify: FastifyInstance) {
 
     await f.register(playRoutes);
     await f.register(teamRoutes);
+    await f.register(matchPrepRoutes);
     await f.register(protectedShareRoutes);
     await f.register(async (admin) => {
       admin.addHook("preHandler", requireAdmin);

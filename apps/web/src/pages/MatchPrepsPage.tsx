@@ -1,0 +1,707 @@
+import { useCallback, useEffect, useMemo, useState } from "react";
+import { Link, Navigate, useNavigate, useParams } from "react-router-dom";
+import type { TacticDocumentV1 } from "@basketball/shared";
+import { api, ApiError } from "../api";
+import { useAuth } from "../auth";
+import { useT } from "../i18n";
+import { PlaybackPreviewSection } from "../tactic/PlaybackPreviewSection";
+
+type TeamPlayer = { id: string; name: string; number: number };
+type Team = { id: string; name: string; color: string; players: TeamPlayer[] };
+type PlayListItem = { id: string; name: string; teamId: string | null; teamIds: string[]; updatedAt: string };
+type PrepListItem = {
+  id: string;
+  title: string;
+  opponent: string | null;
+  gameDate: string | null;
+  notes: string | null;
+  teamId: string | null;
+  entryCount: number;
+  categories: string[];
+  updatedAt: string;
+  createdAt: string;
+};
+type PrepEntryPlay = {
+  id: string;
+  name: string;
+  description: string | null;
+  tags: string[];
+  teamId: string | null;
+  teamIds: string[];
+  document: TacticDocumentV1;
+  updatedAt: string;
+};
+type PrepEntry = {
+  id: string;
+  playId: string;
+  code: string;
+  category: string;
+  cue?: string;
+  notes?: string;
+  sortOrder: number;
+  play: PrepEntryPlay | null;
+};
+type PrepDetail = PrepListItem & { entries: PrepEntry[] };
+type SaveStatus = "saved" | "saving" | "unsaved";
+
+function localDateInputValue(value: string | null) {
+  if (!value) return "";
+  return value.slice(0, 10);
+}
+
+function formatDate(value: string | null) {
+  if (!value) return "";
+  return new Date(value).toLocaleDateString();
+}
+
+function makeLocalEntryId() {
+  return `entry-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`;
+}
+
+function sortEntries(entries: PrepEntry[]) {
+  return [...entries].sort((a, b) => a.sortOrder - b.sortOrder || a.code.localeCompare(b.code));
+}
+
+function entryPayload(entries: PrepEntry[]) {
+  return entries.map((entry, index) => ({
+    id: entry.id,
+    playId: entry.playId,
+    code: entry.code.trim(),
+    category: entry.category.trim(),
+    cue: entry.cue?.trim() || null,
+    notes: entry.notes?.trim() || null,
+    sortOrder: index,
+  }));
+}
+
+function playAssignedToTeam(play: PlayListItem, teamId: string) {
+  const ids = play.teamIds?.length ? play.teamIds : play.teamId ? [play.teamId] : [];
+  return ids.length === 0 || ids.includes(teamId);
+}
+
+function MatchPrepListPage() {
+  const nav = useNavigate();
+  const { user } = useAuth();
+  const { t } = useT();
+  const [items, setItems] = useState<PrepListItem[]>([]);
+  const [teams, setTeams] = useState<Team[]>([]);
+  const [err, setErr] = useState<string | null>(null);
+  const [q, setQ] = useState("");
+  const [filterTeamId, setFilterTeamId] = useState("");
+  const [title, setTitle] = useState(t("matchPrep.defaultTitle"));
+  const [opponent, setOpponent] = useState("");
+  const [gameDate, setGameDate] = useState("");
+  const [teamId, setTeamId] = useState("");
+  const [creating, setCreating] = useState(false);
+
+  const loadTeams = useCallback(async () => {
+    try {
+      const res = await api<Team[]>("/api/v1/teams");
+      setTeams(res);
+    } catch {
+      /* Match preparation can still work without team filters. */
+    }
+  }, []);
+
+  const load = useCallback(async () => {
+    setErr(null);
+    try {
+      const params = new URLSearchParams();
+      if (q.trim()) params.set("q", q.trim());
+      if (filterTeamId) params.set("teamId", filterTeamId);
+      const qs = params.toString() ? `?${params.toString()}` : "";
+      const res = await api<{ items: PrepListItem[] }>(`/api/v1/match-preps${qs}`);
+      setItems(res.items);
+    } catch (e) {
+      setErr(e instanceof ApiError ? e.message : t("matchPrep.loadFailed"));
+    }
+  }, [filterTeamId, q, t]);
+
+  useEffect(() => {
+    if (user) {
+      void loadTeams();
+    }
+  }, [user, loadTeams]);
+
+  useEffect(() => {
+    if (user) void load();
+  }, [user, load]);
+
+  if (!user) return <Navigate to="/login" replace />;
+
+  async function create() {
+    if (!title.trim() || creating) return;
+    setCreating(true);
+    setErr(null);
+    try {
+      const res = await api<PrepDetail>("/api/v1/match-preps", {
+        method: "POST",
+        body: JSON.stringify({
+          title: title.trim(),
+          opponent: opponent.trim() || null,
+          gameDate: gameDate || null,
+          teamId: teamId || null,
+          entries: [],
+        }),
+      });
+      nav(`/match-preps/${res.id}`);
+    } catch (e) {
+      setErr(e instanceof ApiError ? e.message : t("matchPrep.createFailed"));
+    } finally {
+      setCreating(false);
+    }
+  }
+
+  const teamMap = new Map(teams.map((tm) => [tm.id, tm]));
+
+  return (
+    <div>
+      <h1 style={{ margin: "0 0 0.5rem" }}>{t("matchPrep.title")}</h1>
+      <p className="hint">{t("matchPrep.hint")}</p>
+      {err ? <p className="error">{err}</p> : null}
+
+      <div className="match-prep-hero card">
+        <div>
+          <p className="match-prep-kicker">{t("matchPrep.workflow")}</p>
+          <h2>{t("matchPrep.heroTitle")}</h2>
+          <p className="muted">{t("matchPrep.heroHint")}</p>
+        </div>
+        <div className="match-prep-hero__steps">
+          <span>{t("matchPrep.stepPick")}</span>
+          <span>{t("matchPrep.stepCode")}</span>
+          <span>{t("matchPrep.stepPlay")}</span>
+        </div>
+      </div>
+
+      <div className="card" style={{ marginBottom: "1.25rem" }}>
+        <h2 style={{ margin: "0 0 0.8rem", fontSize: "1.1rem" }}>{t("matchPrep.newPlan")}</h2>
+        <div className="match-prep-form-grid">
+          <div className="field">
+            <label>{t("matchPrep.planTitle")}</label>
+            <input value={title} onChange={(e) => setTitle(e.target.value)} />
+          </div>
+          <div className="field">
+            <label>{t("matchPrep.opponent")}</label>
+            <input value={opponent} onChange={(e) => setOpponent(e.target.value)} placeholder={t("matchPrep.opponentPlaceholder")} />
+          </div>
+          <div className="field">
+            <label>{t("matchPrep.gameDate")}</label>
+            <input type="date" value={gameDate} onChange={(e) => setGameDate(e.target.value)} />
+          </div>
+          <div className="field">
+            <label>{t("matchPrep.team")}</label>
+            <select value={teamId} onChange={(e) => setTeamId(e.target.value)}>
+              <option value="">{t("matchPrep.noTeam")}</option>
+              {teams.map((tm) => (
+                <option key={tm.id} value={tm.id}>
+                  {tm.name}
+                </option>
+              ))}
+            </select>
+          </div>
+        </div>
+        <button type="button" className="btn btn-primary" onClick={() => void create()} disabled={creating || !title.trim()}>
+          {creating ? t("matchPrep.creating") : t("matchPrep.create")}
+        </button>
+      </div>
+
+      <div className="match-prep-toolbar">
+        <input value={q} onChange={(e) => setQ(e.target.value)} placeholder={t("matchPrep.searchPlaceholder")} />
+        {teams.length > 0 ? (
+          <select value={filterTeamId} onChange={(e) => setFilterTeamId(e.target.value)}>
+            <option value="">{t("plays.allTeams")}</option>
+            {teams.map((tm) => (
+              <option key={tm.id} value={tm.id}>
+                {tm.name}
+              </option>
+            ))}
+          </select>
+        ) : null}
+      </div>
+
+      <div className="list">
+        {items.map((prep) => {
+          const team = prep.teamId ? teamMap.get(prep.teamId) : undefined;
+          return (
+            <Link key={prep.id} to={`/match-preps/${prep.id}`} className="list-item list-item--link match-prep-list-card">
+              <div>
+                <h3>
+                  <span className="list-item__title">{prep.title}</span>
+                </h3>
+                <p className="muted" style={{ margin: "0.25rem 0 0" }}>
+                  {prep.opponent ? `${t("matchPrep.vs")} ${prep.opponent} · ` : ""}
+                  {prep.gameDate ? `${formatDate(prep.gameDate)} · ` : ""}
+                  {team ? `${team.name} · ` : ""}
+                  {t("matchPrep.entryCount").replace("{count}", String(prep.entryCount))}
+                </p>
+              </div>
+              <div className="match-prep-list-card__chips">
+                {prep.categories.slice(0, 4).map((category) => (
+                  <span key={category} className="status-pill">
+                    {category}
+                  </span>
+                ))}
+              </div>
+            </Link>
+          );
+        })}
+        {items.length === 0 && !err ? <p className="muted">{t("matchPrep.empty")}</p> : null}
+      </div>
+    </div>
+  );
+}
+
+function MatchPrepDetailPage({ prepId }: { prepId: string }) {
+  const nav = useNavigate();
+  const { user } = useAuth();
+  const { t } = useT();
+  const categoryPresets = useMemo(
+    () => [
+      t("matchPrep.catSideline"),
+      t("matchPrep.catBaseline"),
+      t("matchPrep.catTrap"),
+      t("matchPrep.catAto"),
+      t("matchPrep.catEndGame"),
+      t("matchPrep.catZone"),
+      t("matchPrep.catTransition"),
+      t("matchPrep.catPress"),
+    ],
+    [t],
+  );
+  const [prep, setPrep] = useState<PrepDetail | null>(null);
+  const [teams, setTeams] = useState<Team[]>([]);
+  const [plays, setPlays] = useState<PlayListItem[]>([]);
+  const [title, setTitle] = useState("");
+  const [opponent, setOpponent] = useState("");
+  const [gameDate, setGameDate] = useState("");
+  const [teamId, setTeamId] = useState("");
+  const [notes, setNotes] = useState("");
+  const [entries, setEntries] = useState<PrepEntry[]>([]);
+  const [selectedEntryId, setSelectedEntryId] = useState<string | null>(null);
+  const [newPlayId, setNewPlayId] = useState("");
+  const [newCode, setNewCode] = useState("");
+  const [newCategory, setNewCategory] = useState(categoryPresets[0] ?? "");
+  const [newCue, setNewCue] = useState("");
+  const [categoryFilter, setCategoryFilter] = useState("");
+  const [search, setSearch] = useState("");
+  const [err, setErr] = useState<string | null>(null);
+  const [saveStatus, setSaveStatus] = useState<SaveStatus>("saved");
+
+  const markUnsaved = useCallback(() => setSaveStatus("unsaved"), []);
+
+  const loadTeams = useCallback(async () => {
+    try {
+      const res = await api<Team[]>("/api/v1/teams");
+      setTeams(res);
+    } catch {
+      /* Optional context only. */
+    }
+  }, []);
+
+  const loadPlays = useCallback(async () => {
+    try {
+      const res = await api<{ items: PlayListItem[] }>("/api/v1/plays?pageSize=100");
+      setPlays(res.items);
+      setNewPlayId((current) => current || res.items[0]?.id || "");
+    } catch {
+      /* The detail page still loads; adding entries needs this list. */
+    }
+  }, []);
+
+  const applyPrep = useCallback((next: PrepDetail) => {
+    setPrep(next);
+    setTitle(next.title);
+    setOpponent(next.opponent ?? "");
+    setGameDate(localDateInputValue(next.gameDate));
+    setTeamId(next.teamId ?? "");
+    setNotes(next.notes ?? "");
+    const sorted = sortEntries(next.entries);
+    setEntries(sorted);
+    setSelectedEntryId((current) => (current && sorted.some((entry) => entry.id === current) ? current : sorted[0]?.id ?? null));
+    setSaveStatus("saved");
+  }, []);
+
+  const load = useCallback(async () => {
+    setErr(null);
+    try {
+      const res = await api<PrepDetail>(`/api/v1/match-preps/${prepId}`);
+      applyPrep(res);
+    } catch (e) {
+      setErr(e instanceof ApiError ? e.message : t("matchPrep.loadFailed"));
+    }
+  }, [applyPrep, prepId, t]);
+
+  useEffect(() => {
+    if (user) {
+      void loadTeams();
+      void loadPlays();
+      void load();
+    }
+  }, [user, load, loadTeams, loadPlays]);
+
+  useEffect(() => {
+    if (!newCategory && categoryPresets[0]) setNewCategory(categoryPresets[0]);
+  }, [categoryPresets, newCategory]);
+
+  if (!user) return <Navigate to="/login" replace />;
+
+  const save = async () => {
+    if (!title.trim() || saveStatus === "saving") return;
+    const normalizedEntries = entryPayload(entries);
+    const duplicateCode = normalizedEntries.find((entry, index) =>
+      normalizedEntries.some((other, otherIndex) => otherIndex !== index && other.code.toLocaleLowerCase() === entry.code.toLocaleLowerCase()),
+    );
+    if (duplicateCode) {
+      setErr(t("matchPrep.duplicateCode"));
+      return;
+    }
+    setSaveStatus("saving");
+    setErr(null);
+    try {
+      const res = await api<PrepDetail>(`/api/v1/match-preps/${prepId}`, {
+        method: "PATCH",
+        body: JSON.stringify({
+          title: title.trim(),
+          opponent: opponent.trim() || null,
+          gameDate: gameDate || null,
+          teamId: teamId || null,
+          notes: notes.trim() || null,
+          entries: normalizedEntries,
+        }),
+      });
+      applyPrep(res);
+    } catch (e) {
+      setErr(e instanceof ApiError ? e.message : t("matchPrep.saveFailed"));
+      setSaveStatus("unsaved");
+    }
+  };
+
+  async function removePrep() {
+    if (!confirm(t("matchPrep.confirmDelete"))) return;
+    setErr(null);
+    try {
+      await api(`/api/v1/match-preps/${prepId}`, { method: "DELETE" });
+      nav("/match-preps", { replace: true });
+    } catch (e) {
+      setErr(e instanceof ApiError ? e.message : t("matchPrep.deleteFailed"));
+    }
+  }
+
+  function addEntry() {
+    if (!newPlayId || !newCode.trim() || !newCategory.trim()) return;
+    if (entries.some((entry) => entry.code.toLocaleLowerCase() === newCode.trim().toLocaleLowerCase())) {
+      setErr(t("matchPrep.duplicateCode"));
+      return;
+    }
+    const existingPlay = prep?.entries.find((candidate) => candidate.playId === newPlayId)?.play ?? null;
+    const entry: PrepEntry = {
+      id: makeLocalEntryId(),
+      playId: newPlayId,
+      code: newCode.trim(),
+      category: newCategory.trim(),
+      cue: newCue.trim() || undefined,
+      notes: undefined,
+      sortOrder: entries.length,
+      play: existingPlay,
+    };
+    setEntries((prev) => [...prev, entry]);
+    setSelectedEntryId(entry.id);
+    setNewCode("");
+    setNewCue("");
+    setErr(null);
+    markUnsaved();
+  }
+
+  function updateEntry(id: string, patch: Partial<Pick<PrepEntry, "playId" | "code" | "category" | "cue" | "notes">>) {
+    setEntries((prev) =>
+      prev.map((entry) =>
+        entry.id === id
+          ? {
+            ...entry,
+            ...patch,
+            play: patch.playId && patch.playId !== entry.playId ? null : entry.play,
+          }
+          : entry,
+      ),
+    );
+    markUnsaved();
+  }
+
+  function moveEntry(id: string, dir: -1 | 1) {
+    setEntries((prev) => {
+      const next = sortEntries(prev);
+      const idx = next.findIndex((entry) => entry.id === id);
+      const target = idx + dir;
+      if (idx < 0 || target < 0 || target >= next.length) return prev;
+      const [entry] = next.splice(idx, 1);
+      next.splice(target, 0, entry);
+      return next.map((item, index) => ({ ...item, sortOrder: index }));
+    });
+    markUnsaved();
+  }
+
+  function removeEntry(id: string) {
+    setEntries((prev) => prev.filter((entry) => entry.id !== id).map((entry, index) => ({ ...entry, sortOrder: index })));
+    if (selectedEntryId === id) {
+      const next = entries.find((entry) => entry.id !== id);
+      setSelectedEntryId(next?.id ?? null);
+    }
+    markUnsaved();
+  }
+
+  const sortedEntries = sortEntries(entries);
+  const categories = [...new Set(sortedEntries.map((entry) => entry.category).filter(Boolean))];
+  const playOptions = teamId ? plays.filter((play) => playAssignedToTeam(play, teamId)) : plays;
+  const selectedEntry = sortedEntries.find((entry) => entry.id === selectedEntryId) ?? sortedEntries[0];
+  const normalizedSearch = search.trim().toLocaleLowerCase();
+  const playMap = new Map(plays.map((play) => [play.id, play]));
+  const filteredEntries = sortedEntries.filter((entry) => {
+    if (categoryFilter && entry.category !== categoryFilter) return false;
+    if (!normalizedSearch) return true;
+    const haystack = [entry.code, entry.category, entry.cue ?? "", entry.play?.name ?? playMap.get(entry.playId)?.name ?? ""].join(" ").toLocaleLowerCase();
+    return haystack.includes(normalizedSearch);
+  });
+  const teamMap = new Map(teams.map((tm) => [tm.id, tm]));
+  const activeTeam = teamId ? teamMap.get(teamId) : null;
+
+  const statusLabel = {
+    saved: t("edit.statusSaved"),
+    saving: t("edit.statusSaving"),
+    unsaved: t("edit.statusUnsaved"),
+  }[saveStatus];
+
+  return (
+    <div>
+      <p style={{ margin: "0 0 0.5rem" }}>
+        <Link to="/match-preps" className="muted">
+          {t("matchPrep.back")}
+        </Link>
+      </p>
+      <div style={{ display: "flex", alignItems: "center", gap: "0.75rem", marginBottom: "0.5rem" }}>
+        <h1 style={{ margin: 0 }}>{t("matchPrep.detailTitle")}</h1>
+        <span className={`save-status save-status--${saveStatus}`}>{statusLabel}</span>
+      </div>
+      <p className="hint">{t("matchPrep.detailHint")}</p>
+      {err ? <p className="error">{err}</p> : null}
+      {!prep && !err ? <p className="hint">{t("view.loading")}</p> : null}
+
+      {prep ? (
+        <>
+          <div className="match-prep-console">
+            <section className="match-prep-stage card">
+              <div className="match-prep-stage__header">
+                <div>
+                  <p className="match-prep-kicker">{t("matchPrep.nowPlaying")}</p>
+                  <h2>{selectedEntry ? selectedEntry.play?.name ?? playMap.get(selectedEntry.playId)?.name ?? t("matchPrep.unavailablePlay") : t("matchPrep.noSelected")}</h2>
+                  {selectedEntry ? (
+                    <p className="muted">
+                      <span className="match-code">#{selectedEntry.code}</span>
+                      <span> {selectedEntry.category}</span>
+                      {selectedEntry.cue ? <span> · {selectedEntry.cue}</span> : null}
+                    </p>
+                  ) : null}
+                </div>
+                {activeTeam ? (
+                  <span className="status-pill" style={{ borderColor: activeTeam.color }}>
+                    {activeTeam.name}
+                  </span>
+                ) : null}
+              </div>
+              {selectedEntry?.play ? (
+                <PlaybackPreviewSection document={selectedEntry.play.document} resetPlaybackKey={selectedEntry.id} rangeInputId={`match-prep-${selectedEntry.id}`} />
+              ) : (
+                <div className="match-prep-empty-stage">
+                  <p>{selectedEntry ? t("matchPrep.saveToPreview") : t("matchPrep.addFirst")}</p>
+                </div>
+              )}
+            </section>
+
+            <aside className="match-prep-call-sheet card">
+              <div className="match-prep-call-sheet__top">
+                <p className="match-prep-kicker">{t("matchPrep.callSheet")}</p>
+                <input value={search} onChange={(e) => setSearch(e.target.value)} placeholder={t("matchPrep.quickSearch")} />
+              </div>
+              <div className="match-prep-category-tabs">
+                <button type="button" className={`btn btn-sm ${!categoryFilter ? "btn-active" : ""}`} onClick={() => setCategoryFilter("")}>
+                  {t("matchPrep.allCategories")}
+                </button>
+                {categories.map((category) => (
+                  <button
+                    key={category}
+                    type="button"
+                    className={`btn btn-sm ${categoryFilter === category ? "btn-active" : ""}`}
+                    onClick={() => setCategoryFilter(category)}
+                  >
+                    {category}
+                  </button>
+                ))}
+              </div>
+              <div className="match-prep-card-grid">
+                {filteredEntries.map((entry) => (
+                  <button
+                    key={entry.id}
+                    type="button"
+                    className={`match-prep-call-card${selectedEntry?.id === entry.id ? " match-prep-call-card--active" : ""}`}
+                    onClick={() => setSelectedEntryId(entry.id)}
+                  >
+                    <span className="match-prep-call-card__code">#{entry.code}</span>
+                    <strong>{entry.play?.name ?? playMap.get(entry.playId)?.name ?? t("matchPrep.unavailablePlay")}</strong>
+                    <small>{entry.category}</small>
+                    {entry.cue ? <span>{entry.cue}</span> : null}
+                  </button>
+                ))}
+                {filteredEntries.length === 0 ? <p className="muted">{t("matchPrep.noEntriesMatched")}</p> : null}
+              </div>
+            </aside>
+          </div>
+
+          <div className="card" style={{ marginTop: "1rem" }}>
+            <h2 style={{ margin: "0 0 0.8rem", fontSize: "1.1rem" }}>{t("matchPrep.planInfo")}</h2>
+            <div className="match-prep-form-grid">
+              <div className="field">
+                <label>{t("matchPrep.planTitle")}</label>
+                <input value={title} onChange={(e) => { setTitle(e.target.value); markUnsaved(); }} />
+              </div>
+              <div className="field">
+                <label>{t("matchPrep.opponent")}</label>
+                <input value={opponent} onChange={(e) => { setOpponent(e.target.value); markUnsaved(); }} />
+              </div>
+              <div className="field">
+                <label>{t("matchPrep.gameDate")}</label>
+                <input type="date" value={gameDate} onChange={(e) => { setGameDate(e.target.value); markUnsaved(); }} />
+              </div>
+              <div className="field">
+                <label>{t("matchPrep.team")}</label>
+                <select value={teamId} onChange={(e) => { setTeamId(e.target.value); markUnsaved(); }}>
+                  <option value="">{t("matchPrep.noTeam")}</option>
+                  {teams.map((tm) => (
+                    <option key={tm.id} value={tm.id}>
+                      {tm.name}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            </div>
+            <div className="field">
+              <label>{t("matchPrep.notes")}</label>
+              <textarea rows={2} value={notes} onChange={(e) => { setNotes(e.target.value); markUnsaved(); }} placeholder={t("matchPrep.notesPlaceholder")} />
+            </div>
+            <div className="row-actions">
+              <button type="button" className="btn btn-primary" onClick={() => void save()} disabled={saveStatus === "saving" || !title.trim()}>
+                {saveStatus === "saving" ? t("matchPrep.saving") : t("matchPrep.save")}
+              </button>
+              <button type="button" className="btn btn-ghost" onClick={() => void load()}>
+                {t("matchPrep.reload")}
+              </button>
+              <button type="button" className="btn btn-ghost" onClick={() => void removePrep()}>
+                {t("matchPrep.delete")}
+              </button>
+            </div>
+          </div>
+
+          <div className="card" style={{ marginTop: "1rem" }}>
+            <h2 style={{ margin: "0 0 0.8rem", fontSize: "1.1rem" }}>{t("matchPrep.addTactic")}</h2>
+            <div className="match-prep-entry-add">
+              <div className="field">
+                <label>{t("matchPrep.play")}</label>
+                <select value={newPlayId} onChange={(e) => setNewPlayId(e.target.value)}>
+                  <option value="">{t("matchPrep.choosePlay")}</option>
+                  {playOptions.map((play) => (
+                    <option key={play.id} value={play.id}>
+                      {play.name}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <div className="field">
+                <label>{t("matchPrep.code")}</label>
+                <input value={newCode} onChange={(e) => setNewCode(e.target.value)} placeholder={t("matchPrep.codePlaceholder")} />
+              </div>
+              <div className="field">
+                <label>{t("matchPrep.category")}</label>
+                <input list="match-prep-categories" value={newCategory} onChange={(e) => setNewCategory(e.target.value)} />
+              </div>
+              <div className="field">
+                <label>{t("matchPrep.cue")}</label>
+                <input value={newCue} onChange={(e) => setNewCue(e.target.value)} placeholder={t("matchPrep.cuePlaceholder")} />
+              </div>
+              <button type="button" className="btn btn-primary" onClick={addEntry} disabled={!newPlayId || !newCode.trim() || !newCategory.trim()}>
+                {t("matchPrep.addEntry")}
+              </button>
+            </div>
+            <datalist id="match-prep-categories">
+              {categoryPresets.map((category) => (
+                <option key={category} value={category} />
+              ))}
+              {categories.map((category) => (
+                <option key={`used-${category}`} value={category} />
+              ))}
+            </datalist>
+            {plays.length === 0 ? (
+              <p className="muted" style={{ marginTop: "0.75rem" }}>
+                {t("matchPrep.noPlays")} <Link to="/plays">{t("matchPrep.createPlayFirst")}</Link>
+              </p>
+            ) : null}
+          </div>
+
+          <div className="card" style={{ marginTop: "1rem" }}>
+            <h2 style={{ margin: "0 0 0.8rem", fontSize: "1.1rem" }}>{t("matchPrep.entryEditor")}</h2>
+            <div className="match-prep-entry-editor">
+              {sortedEntries.map((entry, index) => (
+                <div key={entry.id} className="match-prep-entry-row">
+                  <input
+                    value={entry.code}
+                    aria-label={t("matchPrep.code")}
+                    onChange={(e) => updateEntry(entry.id, { code: e.target.value })}
+                  />
+                  <input
+                    list="match-prep-categories"
+                    value={entry.category}
+                    aria-label={t("matchPrep.category")}
+                    onChange={(e) => updateEntry(entry.id, { category: e.target.value })}
+                  />
+                  <select value={entry.playId} aria-label={t("matchPrep.play")} onChange={(e) => updateEntry(entry.id, { playId: e.target.value })}>
+                    {plays.map((play) => (
+                      <option key={play.id} value={play.id}>
+                        {play.name}
+                      </option>
+                    ))}
+                    {!plays.some((play) => play.id === entry.playId) ? (
+                      <option value={entry.playId}>{entry.play?.name ?? t("matchPrep.unavailablePlay")}</option>
+                    ) : null}
+                  </select>
+                  <input
+                    value={entry.cue ?? ""}
+                    aria-label={t("matchPrep.cue")}
+                    onChange={(e) => updateEntry(entry.id, { cue: e.target.value })}
+                    placeholder={t("matchPrep.cuePlaceholder")}
+                  />
+                  <div className="row-actions">
+                    <button type="button" className="btn btn-sm btn-ghost" onClick={() => moveEntry(entry.id, -1)} disabled={index === 0}>
+                      ↑
+                    </button>
+                    <button type="button" className="btn btn-sm btn-ghost" onClick={() => moveEntry(entry.id, 1)} disabled={index === sortedEntries.length - 1}>
+                      ↓
+                    </button>
+                    <button type="button" className="btn btn-sm btn-ghost" onClick={() => removeEntry(entry.id)}>
+                      {t("teams.removePlayer")}
+                    </button>
+                  </div>
+                </div>
+              ))}
+              {sortedEntries.length === 0 ? <p className="muted">{t("matchPrep.noEntries")}</p> : null}
+            </div>
+            <p className="muted" style={{ margin: "0.75rem 0 0" }}>
+              {t("matchPrep.saveAfterEdit")}
+            </p>
+          </div>
+        </>
+      ) : null}
+    </div>
+  );
+}
+
+export function MatchPrepsPage() {
+  const { id } = useParams();
+  return id ? <MatchPrepDetailPage prepId={id} /> : <MatchPrepListPage />;
+}

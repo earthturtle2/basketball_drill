@@ -8,6 +8,7 @@ import { PlaysPage } from "./pages/PlaysPage";
 import { PlayEditPage } from "./pages/PlayEditPage";
 import { LibraryPage } from "./pages/LibraryPage";
 import { TeamsPage } from "./pages/TeamsPage";
+import { MatchPrepsPage } from "./pages/MatchPrepsPage";
 import { ViewPage } from "./pages/ViewPage";
 import { AdminPage } from "./pages/AdminPage";
 import { ChangePasswordPage } from "./pages/ChangePasswordPage";
@@ -81,6 +82,9 @@ function Layout({ children }: { children: ReactNode }) {
               </Link>
               <Link to="/teams" className="btn btn-ghost" onClick={closeNav}>
                 {t("app.teams")}
+              </Link>
+              <Link to="/match-preps" className="btn btn-ghost" onClick={closeNav}>
+                {t("app.matchPreps")}
               </Link>
               {isAdmin(user.role) ? (
                 <Link to="/admin" className="btn btn-ghost" onClick={closeNav}>
@@ -178,6 +182,14 @@ export function App() {
         <Route
           path="/teams"
           element={<RequireAuth><TeamsPage /></RequireAuth>}
+        />
+        <Route
+          path="/match-preps"
+          element={<RequireAuth><MatchPrepsPage /></RequireAuth>}
+        />
+        <Route
+          path="/match-preps/:id"
+          element={<RequireAuth><MatchPrepsPage /></RequireAuth>}
         />
         <Route
           path="/admin"
