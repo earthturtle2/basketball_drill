@@ -1,5 +1,5 @@
-import { useEffect, useState, type ReactNode } from "react";
-import { Link, Navigate, Route, Routes, useLocation, useNavigate } from "react-router-dom";
+import { useEffect, useRef, useState, type ReactNode } from "react";
+import { Link, Navigate, NavLink, Route, Routes, useLocation, useNavigate } from "react-router-dom";
 import { useAuth } from "./auth";
 import { useT, LangToggle } from "./i18n";
 import { LoginPage } from "./pages/LoginPage";
@@ -24,22 +24,37 @@ function Layout({ children }: { children: ReactNode }) {
   const { user, loading, logout } = useAuth();
   const { t } = useT();
   const [topNavOpen, setTopNavOpen] = useState(false);
+  const [accountOpen, setAccountOpen] = useState(false);
+  const accountRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
     setTopNavOpen(false);
+    setAccountOpen(false);
   }, [loc.pathname]);
 
   useEffect(() => {
-    if (!topNavOpen) return;
+    if (!topNavOpen && !accountOpen) return;
     const onKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape") setTopNavOpen(false);
+      if (e.key === "Escape") {
+        setTopNavOpen(false);
+        setAccountOpen(false);
+      }
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [topNavOpen]);
+  }, [topNavOpen, accountOpen]);
 
   useEffect(() => {
-    const mq = window.matchMedia("(min-width: 700px)");
+    if (!accountOpen) return;
+    const onPointerDown = (e: PointerEvent) => {
+      if (!accountRef.current?.contains(e.target as Node)) setAccountOpen(false);
+    };
+    window.addEventListener("pointerdown", onPointerDown);
+    return () => window.removeEventListener("pointerdown", onPointerDown);
+  }, [accountOpen]);
+
+  useEffect(() => {
+    const mq = window.matchMedia("(min-width: 980px)");
     const onWide = () => {
       if (mq.matches) setTopNavOpen(false);
     };
@@ -51,7 +66,13 @@ function Layout({ children }: { children: ReactNode }) {
     return <div className="app-shell">{children}</div>;
   }
 
-  const closeNav = () => setTopNavOpen(false);
+  const closeNav = () => {
+    setTopNavOpen(false);
+    setAccountOpen(false);
+  };
+  const navLinkClass = ({ isActive }: { isActive: boolean }) =>
+    `btn btn-ghost nav-link${isActive ? " nav-link--active" : ""}`;
+  const accountActive = loc.pathname === "/profile" || loc.pathname === "/password";
 
   return (
     <div className="app-shell">
@@ -71,55 +92,78 @@ function Layout({ children }: { children: ReactNode }) {
           <span className="top-menu-toggle__bar" />
           <span className="top-menu-toggle__bar" />
         </button>
-        <nav id="site-nav" className="top-nav row-actions">
+        <nav id="site-nav" className="top-nav">
           {loading ? null : user ? (
             <>
-              <Link to="/plays" className="btn btn-ghost" onClick={closeNav}>
-                {t("app.myPlays")}
-              </Link>
-              <Link to="/library" className="btn btn-ghost" onClick={closeNav}>
-                {t("app.library")}
-              </Link>
-              <Link to="/teams" className="btn btn-ghost" onClick={closeNav}>
-                {t("app.teams")}
-              </Link>
-              <Link to="/match-preps" className="btn btn-ghost" onClick={closeNav}>
-                {t("app.matchPreps")}
-              </Link>
-              {isAdmin(user.role) ? (
-                <Link to="/admin" className="btn btn-ghost" onClick={closeNav}>
-                  {t("app.admin")}
-                </Link>
-              ) : null}
-              <Link to="/profile" className="btn btn-ghost" onClick={closeNav}>
-                {t("app.profile")}
-              </Link>
-              <Link to="/password" className="btn btn-ghost" onClick={closeNav}>
-                {t("app.password")}
-              </Link>
-              <button
-                type="button"
-                className="btn btn-ghost"
-                onClick={() => {
-                  closeNav();
-                  logout();
-                  nav("/login");
-                }}
-              >
-                {t("app.logout")}
-              </button>
+              <div className="top-nav__primary" aria-label={t("app.primaryNav")}>
+                <NavLink to="/plays" className={navLinkClass} onClick={closeNav}>
+                  {t("app.myPlays")}
+                </NavLink>
+                <NavLink to="/library" className={navLinkClass} onClick={closeNav}>
+                  {t("app.library")}
+                </NavLink>
+                <NavLink to="/teams" className={navLinkClass} onClick={closeNav}>
+                  {t("app.teams")}
+                </NavLink>
+                <NavLink to="/match-preps" className={navLinkClass} onClick={closeNav}>
+                  {t("app.matchPreps")}
+                </NavLink>
+                {isAdmin(user.role) ? (
+                  <NavLink to="/admin" className={navLinkClass} onClick={closeNav}>
+                    {t("app.admin")}
+                  </NavLink>
+                ) : null}
+              </div>
+              <div className="top-nav__account" ref={accountRef}>
+                <button
+                  type="button"
+                  className={`btn btn-ghost top-account-trigger${accountOpen || accountActive ? " nav-link--active" : ""}`}
+                  aria-expanded={accountOpen}
+                  aria-haspopup="menu"
+                  onClick={() => setAccountOpen((o) => !o)}
+                >
+                  <span className="top-account-avatar" aria-hidden="true">
+                    {(user.name || user.email || "?").trim().slice(0, 1).toUpperCase()}
+                  </span>
+                  <span className="top-account-label">{user.name?.trim() || t("app.account")}</span>
+                  <span className="top-account-caret" aria-hidden="true">v</span>
+                </button>
+                {accountOpen ? (
+                  <div className="top-account-menu" role="menu">
+                    <NavLink to="/profile" className={navLinkClass} onClick={closeNav} role="menuitem">
+                      {t("app.profile")}
+                    </NavLink>
+                    <NavLink to="/password" className={navLinkClass} onClick={closeNav} role="menuitem">
+                      {t("app.password")}
+                    </NavLink>
+                    <button
+                      type="button"
+                      className="btn btn-ghost"
+                      role="menuitem"
+                      onClick={() => {
+                        closeNav();
+                        logout();
+                        nav("/login");
+                      }}
+                    >
+                      {t("app.logout")}
+                    </button>
+                    <LangToggle />
+                  </div>
+                ) : null}
+              </div>
             </>
           ) : (
-            <>
-              <Link to="/login" className="btn btn-ghost" onClick={closeNav}>
+            <div className="top-nav__primary top-nav__primary--guest">
+              <NavLink to="/login" className={navLinkClass} onClick={closeNav}>
                 {t("app.login")}
-              </Link>
+              </NavLink>
               <Link to="/register" className="btn btn-primary" onClick={closeNav}>
                 {t("app.register")}
               </Link>
-            </>
+              <LangToggle />
+            </div>
           )}
-          <LangToggle />
         </nav>
       </header>
       {topNavOpen ? (

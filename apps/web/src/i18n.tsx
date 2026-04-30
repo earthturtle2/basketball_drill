@@ -19,6 +19,7 @@ const zh: Record<string, string> = {
   "app.teams": "球队",
   "app.matchPreps": "比赛准备",
   "app.admin": "管理",
+  "app.account": "账户",
   "app.profile": "个人资料",
   "app.password": "改密码",
   "app.logout": "退出",
@@ -26,6 +27,7 @@ const zh: Record<string, string> = {
   "app.register": "注册",
   "app.notFound": "未找到页面",
   "app.toggleNav": "展开或收起导航菜单",
+  "app.primaryNav": "主导航",
 
   // ErrorBoundary
   "error.title": "出了点问题",
@@ -395,6 +397,7 @@ const en: Record<string, string> = {
   "app.teams": "Teams",
   "app.matchPreps": "Game Prep",
   "app.admin": "Admin",
+  "app.account": "Account",
   "app.profile": "Profile",
   "app.password": "Password",
   "app.logout": "Logout",
@@ -402,6 +405,7 @@ const en: Record<string, string> = {
   "app.register": "Register",
   "app.notFound": "Page not found",
   "app.toggleNav": "Open or close navigation menu",
+  "app.primaryNav": "Primary navigation",
 
   // ErrorBoundary
   "error.title": "Something went wrong",
