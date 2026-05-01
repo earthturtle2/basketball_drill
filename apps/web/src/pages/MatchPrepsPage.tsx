@@ -523,6 +523,9 @@ function MatchPrepDetailPage({ prepId }: { prepId: string }) {
     const haystack = [entry.code, entry.category, entry.cue ?? "", entry.play?.name ?? playMap.get(entry.playId)?.name ?? ""].join(" ").toLocaleLowerCase();
     return haystack.includes(normalizedSearch);
   });
+  const compactEntries = categoryFilter
+    ? sortedEntries.filter((entry) => entry.category === categoryFilter)
+    : sortedEntries;
   const teamMap = new Map(teams.map((tm) => [tm.id, tm]));
   const activeTeam = teamId ? teamMap.get(teamId) : null;
 
@@ -532,18 +535,25 @@ function MatchPrepDetailPage({ prepId }: { prepId: string }) {
     unsaved: t("edit.statusUnsaved"),
   }[saveStatus];
 
+  function selectCategoryFilter(nextCategory: string) {
+    setCategoryFilter(nextCategory);
+    if (!nextCategory || selectedEntry?.category === nextCategory) return;
+    const firstInCategory = sortedEntries.find((entry) => entry.category === nextCategory);
+    if (firstInCategory) setSelectedEntryId(firstInCategory.id);
+  }
+
   return (
-    <div>
-      <p style={{ margin: "0 0 0.5rem" }}>
+    <div className="match-prep-detail">
+      <p className="match-prep-detail__crumb" style={{ margin: "0 0 0.5rem" }}>
         <Link to="/match-preps" className="muted">
           {t("matchPrep.back")}
         </Link>
       </p>
-      <div style={{ display: "flex", alignItems: "center", gap: "0.75rem", marginBottom: "0.5rem" }}>
+      <div className="match-prep-detail__title" style={{ display: "flex", alignItems: "center", gap: "0.75rem", marginBottom: "0.5rem" }}>
         <h1 style={{ margin: 0 }}>{t("matchPrep.detailTitle")}</h1>
         <span className={`save-status save-status--${saveStatus}`}>{statusLabel}</span>
       </div>
-      <p className="hint">{t("matchPrep.detailHint")}</p>
+      <p className="hint match-prep-detail__hint">{t("matchPrep.detailHint")}</p>
       {err ? <p className="error">{err}</p> : null}
       {!prep && !err ? <p className="hint">{t("view.loading")}</p> : null}
 
@@ -596,6 +606,47 @@ function MatchPrepDetailPage({ prepId }: { prepId: string }) {
                   </span>
                 ) : null}
               </div>
+              <div className="match-prep-mobile-picker" aria-label={t("matchPrep.mobilePicker")}>
+                <div className="match-prep-mobile-picker__filters">
+                  <select
+                    value={categoryFilter}
+                    onChange={(e) => selectCategoryFilter(e.target.value)}
+                    aria-label={t("matchPrep.mobileCategory")}
+                  >
+                    <option value="">{t("matchPrep.allCategories")}</option>
+                    {categories.map((category) => (
+                      <option key={category} value={category}>
+                        {category}
+                      </option>
+                    ))}
+                  </select>
+                  <select
+                    value={selectedEntry?.id ?? ""}
+                    onChange={(e) => setSelectedEntryId(e.target.value || null)}
+                    aria-label={t("matchPrep.mobilePicker")}
+                  >
+                    <option value="">{t("matchPrep.noSelected")}</option>
+                    {compactEntries.map((entry) => (
+                      <option key={entry.id} value={entry.id}>
+                        #{entry.code} · {entry.play?.name ?? playMap.get(entry.playId)?.name ?? t("matchPrep.unavailablePlay")}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                <div className="match-prep-mobile-code-strip">
+                  {compactEntries.map((entry) => (
+                    <button
+                      key={entry.id}
+                      type="button"
+                      className={`match-prep-mobile-code${selectedEntry?.id === entry.id ? " match-prep-mobile-code--active" : ""}`}
+                      onClick={() => setSelectedEntryId(entry.id)}
+                    >
+                      #{entry.code}
+                    </button>
+                  ))}
+                  {compactEntries.length === 0 ? <span className="muted">{t("matchPrep.noEntriesMatched")}</span> : null}
+                </div>
+              </div>
               {selectedEntry?.play ? (
                 <PlaybackPreviewSection document={selectedEntry.play.document} resetPlaybackKey={selectedEntry.id} rangeInputId={`match-prep-${selectedEntry.id}`} />
               ) : (
@@ -611,7 +662,7 @@ function MatchPrepDetailPage({ prepId }: { prepId: string }) {
                 <input value={search} onChange={(e) => setSearch(e.target.value)} placeholder={t("matchPrep.quickSearch")} />
               </div>
               <div className="match-prep-category-tabs">
-                <button type="button" className={`btn btn-sm ${!categoryFilter ? "btn-active" : ""}`} onClick={() => setCategoryFilter("")}>
+                <button type="button" className={`btn btn-sm ${!categoryFilter ? "btn-active" : ""}`} onClick={() => selectCategoryFilter("")}>
                   {t("matchPrep.allCategories")}
                 </button>
                 {categories.map((category) => (
@@ -619,7 +670,7 @@ function MatchPrepDetailPage({ prepId }: { prepId: string }) {
                     key={category}
                     type="button"
                     className={`btn btn-sm ${categoryFilter === category ? "btn-active" : ""}`}
-                    onClick={() => setCategoryFilter(category)}
+                    onClick={() => selectCategoryFilter(category)}
                   >
                     {category}
                   </button>
