@@ -1972,6 +1972,20 @@ input[type="radio"] {
   .match-prep-entry-row {
     grid-template-columns: 1fr;
   }
+  .match-prep-public {
+    display: flex;
+    flex-direction: column;
+  }
+  .match-prep-public-layout {
+    order: 1;
+  }
+  .match-prep-public-stage {
+    order: 1;
+    scroll-margin-top: 0.5rem;
+  }
+  .match-prep-public-picker {
+    display: none;
+  }
   .match-prep-share-panel__actions {
     justify-content: stretch;
   }
@@ -1980,18 +1994,32 @@ input[type="radio"] {
     width: 100%;
   }
   .match-prep-public-hero {
+    order: 2;
     gap: 0.55rem;
+    margin: 0.75rem 0 0;
+    padding: 0.72rem;
+    border-radius: 16px;
+  }
+  .match-prep-public-hero .match-prep-kicker,
+  .match-prep-public-hero .hint {
+    display: none;
+  }
+  .match-prep-public-hero h1 {
+    max-width: none;
+    margin: 0;
+    font-size: 1rem;
   }
   .match-prep-public-meta {
     justify-content: flex-start;
   }
-  .match-prep-public-picker {
-    position: sticky;
-    top: 0.5rem;
-    z-index: 8;
+  .match-prep-public-meta span {
+    min-height: 28px;
+    padding: 0.18rem 0.52rem;
+    font-size: 0.76rem;
   }
-  .match-prep-public-stage {
-    scroll-margin-top: 17.5rem;
+  .match-prep-public-notes {
+    padding: 0.55rem 0.65rem;
+    font-size: 0.82rem;
   }
   .match-prep-detail__crumb {
     margin-bottom: 0.25rem !important;
@@ -2092,15 +2120,15 @@ input[type="radio"] {
     object-fit: contain;
   }
   .match-prep-stage .preview-controls {
-    gap: 0.45rem;
+    gap: 0.62rem;
     margin-top: 0.45rem;
     padding: 0.55rem;
     border-radius: 14px;
   }
   .match-prep-stage .view-controls .preview-controls__timeline-row {
-    margin-bottom: 0;
-    padding-bottom: 0;
-    border-bottom: 0;
+    margin-bottom: 0.12rem;
+    padding-bottom: 0.62rem;
+    border-bottom: 1px solid rgba(61, 220, 85, 0.12);
   }
   .match-prep-stage .view-controls .preview-controls__time {
     align-self: flex-start;
@@ -2108,7 +2136,24 @@ input[type="radio"] {
     font-size: 0.72rem;
   }
   .match-prep-stage .view-controls .preview-controls__timeline {
-    height: 38px;
+    height: 44px;
+  }
+  .match-prep-stage .view-controls .preview-controls__range {
+    top: 50%;
+    bottom: auto;
+    height: 34px;
+    max-height: 34px;
+    transform: translateY(-50%);
+  }
+  .match-prep-stage .view-controls .preview-controls__mark {
+    width: 18px;
+    height: 18px;
+    border-radius: 5px;
+    pointer-events: none;
+  }
+  .match-prep-stage .view-controls__actions {
+    position: relative;
+    z-index: 5;
   }
   .match-prep-stage .preview-controls .view-controls__transport .btn {
     min-height: 38px;
