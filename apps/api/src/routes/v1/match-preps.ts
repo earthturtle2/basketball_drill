@@ -96,9 +96,9 @@ async function normalizeEntriesOrError(
       sendError(reply, 400, "VALIDATION", "战术、编号和分类不能为空");
       return undefined;
     }
-    const codeKey = entry.code.toLocaleLowerCase();
+    const codeKey = `${entry.category.toLocaleLowerCase()}\u0000${entry.code.toLocaleLowerCase()}`;
     if (codeSet.has(codeKey)) {
-      sendError(reply, 400, "DUPLICATE_CODE", "同一个比赛准备中的战术编号不能重复");
+      sendError(reply, 400, "DUPLICATE_CODE", "同一分类中的战术编号不能重复");
       return undefined;
     }
     codeSet.add(codeKey);
