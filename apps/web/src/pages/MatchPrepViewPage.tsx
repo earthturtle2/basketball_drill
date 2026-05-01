@@ -3,6 +3,7 @@ import { useParams } from "react-router-dom";
 import type { TacticDocumentV1 } from "@basketball/shared";
 import { useT } from "../i18n";
 import { PlaybackPreviewSection } from "../tactic/PlaybackPreviewSection";
+import { buildCategoryLetterMap, formatCategoryCode } from "../tactic/categories";
 
 type SharedPrepEntryPlay = {
   id: string;
@@ -49,10 +50,6 @@ function sortEntries(entries: SharedPrepEntry[]) {
   return [...entries].sort((a, b) => a.sortOrder - b.sortOrder || a.code.localeCompare(b.code));
 }
 
-function formatEntryCode(entry: Pick<SharedPrepEntry, "category" | "code">) {
-  return `${entry.category}-${entry.code}`;
-}
-
 export function MatchPrepViewPage() {
   const { token } = useParams();
   const { t } = useT();
@@ -96,12 +93,15 @@ export function MatchPrepViewPage() {
     () => [...new Set(sortedEntries.map((entry) => entry.category).filter(Boolean))],
     [sortedEntries],
   );
+  const categoryLetterMap = useMemo(() => buildCategoryLetterMap(categories), [categories]);
+  const displayEntryCode = (entry: Pick<SharedPrepEntry, "category" | "code">) =>
+    formatCategoryCode(entry, categoryLetterMap);
   const normalizedSearch = search.trim().toLocaleLowerCase();
   const filteredEntries = sortedEntries.filter((entry) => {
     if (categoryFilter && entry.category !== categoryFilter) return false;
     if (!normalizedSearch) return true;
     const haystack = [
-      formatEntryCode(entry),
+      displayEntryCode(entry),
       entry.code,
       entry.category,
       entry.cue ?? "",
@@ -185,7 +185,7 @@ export function MatchPrepViewPage() {
                 className={`match-prep-call-card${selectedEntry?.id === entry.id ? " match-prep-call-card--active" : ""}`}
                 onClick={() => selectEntry(entry.id)}
               >
-                <span className="match-prep-call-card__code">{formatEntryCode(entry)}</span>
+                <span className="match-prep-call-card__code" title={entry.category}>{displayEntryCode(entry)}</span>
                 <strong>{entry.play?.name ?? t("matchPrep.unavailablePlay")}</strong>
                 <small>{entry.category}</small>
                 {entry.cue ? <span>{entry.cue}</span> : null}
@@ -202,7 +202,7 @@ export function MatchPrepViewPage() {
               <h2>{selectedEntry ? selectedEntry.play?.name ?? t("matchPrep.unavailablePlay") : t("matchPrep.noSelected")}</h2>
               {selectedEntry ? (
                 <p className="muted">
-                  <span className="match-code">{formatEntryCode(selectedEntry)}</span>
+                  <span className="match-code" title={selectedEntry.category}>{displayEntryCode(selectedEntry)}</span>
                   {selectedEntry.cue ? <span> · {selectedEntry.cue}</span> : null}
                 </p>
               ) : null}
@@ -230,7 +230,7 @@ export function MatchPrepViewPage() {
                 <option value="">{t("matchPrep.noSelected")}</option>
                 {compactEntries.map((entry) => (
                   <option key={entry.id} value={entry.id}>
-                    {formatEntryCode(entry)} · {entry.play?.name ?? t("matchPrep.unavailablePlay")}
+                    {displayEntryCode(entry)} · {entry.play?.name ?? t("matchPrep.unavailablePlay")}
                   </option>
                 ))}
               </select>
@@ -243,7 +243,7 @@ export function MatchPrepViewPage() {
                   className={`match-prep-mobile-code${selectedEntry?.id === entry.id ? " match-prep-mobile-code--active" : ""}`}
                   onClick={() => setSelectedEntryId(entry.id)}
                 >
-                  {formatEntryCode(entry)}
+                  {displayEntryCode(entry)}
                 </button>
               ))}
               {compactEntries.length === 0 ? <span className="muted">{t("matchPrep.noEntriesMatched")}</span> : null}

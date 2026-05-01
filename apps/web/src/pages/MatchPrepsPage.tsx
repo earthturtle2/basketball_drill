@@ -5,7 +5,12 @@ import { api, ApiError } from "../api";
 import { useAuth } from "../auth";
 import { useT } from "../i18n";
 import { PlaybackPreviewSection } from "../tactic/PlaybackPreviewSection";
-import { TACTIC_CATEGORY_KEYS, uniqueCategoryOptions } from "../tactic/categories";
+import {
+  TACTIC_CATEGORY_KEYS,
+  buildCategoryLetterMap,
+  formatCategoryCode,
+  uniqueCategoryOptions,
+} from "../tactic/categories";
 
 type TeamPlayer = { id: string; name: string; number: number };
 type Team = { id: string; name: string; color: string; players: TeamPlayer[] };
@@ -79,10 +84,6 @@ function entryPayload(entries: PrepEntry[]) {
 
 function entryCodeKey(category: string, code: string) {
   return `${category.trim().toLocaleLowerCase()}\u0000${code.trim().toLocaleLowerCase()}`;
-}
-
-function formatEntryCode(entry: Pick<PrepEntry, "category" | "code">) {
-  return `${entry.category}-${entry.code}`;
 }
 
 function playAssignedToTeam(play: PlayListItem, teamId: string) {
@@ -517,6 +518,9 @@ function MatchPrepDetailPage({ prepId }: { prepId: string }) {
 
   const sortedEntries = sortEntries(entries);
   const categories = [...new Set(sortedEntries.map((entry) => entry.category).filter(Boolean))];
+  const categoryLetterMap = buildCategoryLetterMap(categories);
+  const displayEntryCode = (entry: Pick<PrepEntry, "category" | "code">) =>
+    formatCategoryCode(entry, categoryLetterMap);
   const categoryOptions = uniqueCategoryOptions([
     ...defaultCategories,
     ...tacticCategories,
@@ -531,7 +535,7 @@ function MatchPrepDetailPage({ prepId }: { prepId: string }) {
   const filteredEntries = sortedEntries.filter((entry) => {
     if (categoryFilter && entry.category !== categoryFilter) return false;
     if (!normalizedSearch) return true;
-    const haystack = [formatEntryCode(entry), entry.code, entry.category, entry.cue ?? "", entry.play?.name ?? playMap.get(entry.playId)?.name ?? ""].join(" ").toLocaleLowerCase();
+    const haystack = [displayEntryCode(entry), entry.code, entry.category, entry.cue ?? "", entry.play?.name ?? playMap.get(entry.playId)?.name ?? ""].join(" ").toLocaleLowerCase();
     return haystack.includes(normalizedSearch);
   });
   const compactEntries = categoryFilter
@@ -605,7 +609,7 @@ function MatchPrepDetailPage({ prepId }: { prepId: string }) {
                   <h2>{selectedEntry ? selectedEntry.play?.name ?? playMap.get(selectedEntry.playId)?.name ?? t("matchPrep.unavailablePlay") : t("matchPrep.noSelected")}</h2>
                   {selectedEntry ? (
                     <p className="muted">
-                      <span className="match-code">{formatEntryCode(selectedEntry)}</span>
+                      <span className="match-code" title={selectedEntry.category}>{displayEntryCode(selectedEntry)}</span>
                       {selectedEntry.cue ? <span> · {selectedEntry.cue}</span> : null}
                     </p>
                   ) : null}
@@ -638,7 +642,7 @@ function MatchPrepDetailPage({ prepId }: { prepId: string }) {
                     <option value="">{t("matchPrep.noSelected")}</option>
                     {compactEntries.map((entry) => (
                       <option key={entry.id} value={entry.id}>
-                        {formatEntryCode(entry)} · {entry.play?.name ?? playMap.get(entry.playId)?.name ?? t("matchPrep.unavailablePlay")}
+                        {displayEntryCode(entry)} · {entry.play?.name ?? playMap.get(entry.playId)?.name ?? t("matchPrep.unavailablePlay")}
                       </option>
                     ))}
                   </select>
@@ -651,7 +655,7 @@ function MatchPrepDetailPage({ prepId }: { prepId: string }) {
                       className={`match-prep-mobile-code${selectedEntry?.id === entry.id ? " match-prep-mobile-code--active" : ""}`}
                       onClick={() => setSelectedEntryId(entry.id)}
                     >
-                      {formatEntryCode(entry)}
+                      {displayEntryCode(entry)}
                     </button>
                   ))}
                   {compactEntries.length === 0 ? <span className="muted">{t("matchPrep.noEntriesMatched")}</span> : null}
@@ -694,7 +698,7 @@ function MatchPrepDetailPage({ prepId }: { prepId: string }) {
                     className={`match-prep-call-card${selectedEntry?.id === entry.id ? " match-prep-call-card--active" : ""}`}
                     onClick={() => setSelectedEntryId(entry.id)}
                   >
-                    <span className="match-prep-call-card__code">{formatEntryCode(entry)}</span>
+                    <span className="match-prep-call-card__code" title={entry.category}>{displayEntryCode(entry)}</span>
                     <strong>{entry.play?.name ?? playMap.get(entry.playId)?.name ?? t("matchPrep.unavailablePlay")}</strong>
                     <small>{entry.category}</small>
                     {entry.cue ? <span>{entry.cue}</span> : null}
