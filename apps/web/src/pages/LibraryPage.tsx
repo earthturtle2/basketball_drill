@@ -60,6 +60,7 @@ function LibraryList() {
   const [items, setItems] = useState<LibraryListItem[]>([]);
   const [q, setQ] = useState("");
   const [err, setErr] = useState<string | null>(null);
+  const [activePage, setActivePage] = useState<"builtin" | "user">("builtin");
   const builtIns = useMemo(
     () => TEMPLATES.filter((tmpl) => builtInMatchesQuery(tmpl, q, t)),
     [q, t],
@@ -105,63 +106,76 @@ function LibraryList() {
           {t("lib.search")}
         </button>
       </div>
-      <div className="list">
-        <section>
-          <h2 style={{ margin: "0 0 0.65rem" }}>
-            {t("lib.builtinTitle")} <span className="muted">({builtIns.length})</span>
-          </h2>
-          <div className="list">
-            {builtIns.map((tmpl) => (
-              <Link key={tmpl.id} to={`/library/builtin/${tmpl.id}`} className="list-item list-item--link">
-                <div>
-                  <h3 style={{ display: "flex", alignItems: "center", flexWrap: "wrap", gap: "0.5rem" }}>
-                    <span className="list-item__title">{t(tmpl.nameKey)}</span>
-                    <span className="status-pill">{t("lib.builtinBadge")}</span>
-                  </h3>
-                  <p className="muted">
-                    {t(tmpl.descKey)}
-                    {tmpl.document.meta.tags?.length
-                      ? ` · ${tmpl.document.meta.tags.slice(0, 4).join(", ")}${tmpl.document.meta.tags.length > 4 ? "…" : ""}`
-                      : null}
-                  </p>
-                </div>
-              </Link>
-            ))}
-            {builtIns.length === 0 ? <p className="muted">{t("lib.builtinEmpty")}</p> : null}
-          </div>
-        </section>
-        <section style={{ marginTop: "1.4rem" }}>
-          <h2 style={{ margin: "0 0 0.65rem" }}>
-            {t("lib.userTitle")} <span className="muted">({items.length})</span>
-          </h2>
-          <div className="list">
-            {items.map((p) => (
-              <Link key={p.id} to={`/library/${p.id}`} className="list-item list-item--link">
-                <div>
-                  <h3 style={{ display: "flex", alignItems: "center", flexWrap: "wrap", gap: "0.5rem" }}>
-                    {p.author.avatarUrl ? (
-                      <img src={p.author.avatarUrl} alt="" className="avatar-thumb" width={36} height={36} />
-                    ) : null}
-                    <span className="list-item__title">{p.name}</span>
-                    {p.category ? <span className="status-pill">{p.category}</span> : null}
-                    {p.userId === user.id ? <span className="status-pill">{t("lib.mine")}</span> : null}
-                  </h3>
-                  <p className="muted">
-                    {t("lib.by")} {p.author.name}
-                    {p.author.email && p.author.email !== p.author.name ? ` · ${p.author.email}` : null}
-                    {" "}
-                    · #{playIdSuffix(p.id)}
-                    {p.tags.length ? ` · ${p.tags.slice(0, 4).join(", ")}${p.tags.length > 4 ? "…" : ""}` : null}
-                    {" "}
-                    · {t("plays.updatedAt")} {new Date(p.updatedAt).toLocaleString()}
-                  </p>
-                </div>
-              </Link>
-            ))}
-            {items.length === 0 && !err ? <p className="muted">{t("lib.empty")}</p> : null}
-          </div>
-        </section>
+
+      <div className="row-actions" role="tablist" aria-label={t("lib.title")} style={{ marginBottom: "1rem" }}>
+        <button
+          type="button"
+          role="tab"
+          aria-selected={activePage === "builtin"}
+          className={activePage === "builtin" ? "btn btn-primary" : "btn btn-ghost"}
+          onClick={() => setActivePage("builtin")}
+        >
+          {t("lib.builtinTitle")} ({builtIns.length})
+        </button>
+        <button
+          type="button"
+          role="tab"
+          aria-selected={activePage === "user"}
+          className={activePage === "user" ? "btn btn-primary" : "btn btn-ghost"}
+          onClick={() => setActivePage("user")}
+        >
+          {t("lib.userTitle")} ({items.length})
+        </button>
       </div>
+
+      {activePage === "builtin" ? (
+        <div className="list" role="tabpanel">
+          {builtIns.map((tmpl) => (
+            <Link key={tmpl.id} to={`/library/builtin/${tmpl.id}`} className="list-item list-item--link">
+              <div>
+                <h3 style={{ display: "flex", alignItems: "center", flexWrap: "wrap", gap: "0.5rem" }}>
+                  <span className="list-item__title">{t(tmpl.nameKey)}</span>
+                  <span className="status-pill">{t("lib.builtinBadge")}</span>
+                </h3>
+                <p className="muted">
+                  {t(tmpl.descKey)}
+                  {tmpl.document.meta.tags?.length
+                    ? ` · ${tmpl.document.meta.tags.slice(0, 4).join(", ")}${tmpl.document.meta.tags.length > 4 ? "…" : ""}`
+                    : null}
+                </p>
+              </div>
+            </Link>
+          ))}
+          {builtIns.length === 0 ? <p className="muted">{t("lib.builtinEmpty")}</p> : null}
+        </div>
+      ) : (
+        <div className="list" role="tabpanel">
+          {items.map((p) => (
+            <Link key={p.id} to={`/library/${p.id}`} className="list-item list-item--link">
+              <div>
+                <h3 style={{ display: "flex", alignItems: "center", flexWrap: "wrap", gap: "0.5rem" }}>
+                  {p.author.avatarUrl ? (
+                    <img src={p.author.avatarUrl} alt="" className="avatar-thumb" width={36} height={36} />
+                  ) : null}
+                  <span className="list-item__title">{p.name}</span>
+                  {p.category ? <span className="status-pill">{p.category}</span> : null}
+                  {p.userId === user.id ? <span className="status-pill">{t("lib.mine")}</span> : null}
+                </h3>
+                <p className="muted">
+                  {t("lib.by")} {p.author.name}
+                  {p.author.email && p.author.email !== p.author.name ? ` · ${p.author.email}` : null}
+                  {" "}
+                  · #{playIdSuffix(p.id)}
+                  {p.tags.length ? ` · ${p.tags.slice(0, 4).join(", ")}${p.tags.length > 4 ? "…" : ""}` : null}
+                  {" "}
+                  · {t("plays.updatedAt")} {new Date(p.updatedAt).toLocaleString()}
+                </p>
+              </div>
+            </Link>
+          ))}
+          {items.length === 0 && !err ? <p className="muted">{t("lib.empty")}</p> : null}
+        </div>
+      )}
       {builtIns.length > 0 || items.length > 0 ? (
         <p className="hint" style={{ marginTop: "1rem" }}>
           {t("lib.hintEnd")}

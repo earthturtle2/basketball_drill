@@ -116,6 +116,7 @@ export function PlayEditPage() {
   savePayloadRef.current = savePayload;
   const saveInFlightRef = useRef(false);
   const saveQueuedRef = useRef(false);
+  const categoryInputRef = useRef<HTMLInputElement | null>(null);
   const tMsRef = useRef(0);
   tMsRef.current = tMs;
   const speedRef = useRef(playbackSpeed);
@@ -640,14 +641,21 @@ export function PlayEditPage() {
       </div>
       <div className="field">
         <label htmlFor="playCategory">{t("edit.tacticCategory")}</label>
-        <input
-          id="playCategory"
-          list="play-category-options"
-          value={category}
-          maxLength={64}
-          placeholder={t("edit.tacticCategoryPlaceholder")}
-          onChange={(e) => handleCategoryChange(e.target.value)}
-        />
+        <div
+          className="category-combobox"
+          onClick={() => categoryInputRef.current?.focus()}
+        >
+          <input
+            ref={categoryInputRef}
+            id="playCategory"
+            list="play-category-options"
+            value={category}
+            maxLength={64}
+            placeholder={t("edit.tacticCategoryPlaceholder")}
+            onChange={(e) => handleCategoryChange(e.target.value)}
+          />
+          <span className="category-combobox__chevron" aria-hidden="true">⌄</span>
+        </div>
         <datalist id="play-category-options">
           {categoryOptions.map((option) => (
             <option key={option} value={option} />
