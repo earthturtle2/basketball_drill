@@ -24,10 +24,6 @@ function optionTarget(option: FinishOption, poses: Record<string, Vec>): Vec | n
   return null;
 }
 
-function labelWidth(label: string) {
-  return Math.max(14, label.length * 2.15 + 6);
-}
-
 export function FinishOptions({ document, courtMode = "half", visibleAtTimeMs }: Props) {
   const event = useMemo(() => {
     const optionsEvents = (document.events ?? [])
@@ -37,14 +33,6 @@ export function FinishOptions({ document, courtMode = "half", visibleAtTimeMs }:
       .sort((a, b) => a.t - b.t);
     return optionsEvents.at(-1) ?? null;
   }, [document.events, visibleAtTimeMs]);
-
-  const actorLabels = useMemo(() => {
-    const labels = new Map<string, string>();
-    for (const actor of document.actors) {
-      if (actor.type === "player") labels.set(actor.id, actor.label);
-    }
-    return labels;
-  }, [document.actors]);
 
   if (!event) return null;
 
@@ -59,34 +47,12 @@ export function FinishOptions({ document, courtMode = "half", visibleAtTimeMs }:
         <circle
           cx={fromSvg[0]}
           cy={fromSvg[1]}
-          r={8}
+          r={5.5}
           fill="rgba(255, 213, 79, 0.08)"
           stroke="#ffd54f"
-          strokeWidth="0.75"
+          strokeWidth="0.6"
           strokeDasharray="2 1.6"
         />
-        <rect
-          x={fromSvg[0] - 12}
-          y={fromSvg[1] - 16}
-          width={24}
-          height={6.8}
-          rx={3.4}
-          fill="rgba(20, 24, 28, 0.72)"
-          stroke="rgba(255, 213, 79, 0.7)"
-          strokeWidth="0.35"
-        />
-        <text
-          x={fromSvg[0]}
-          y={fromSvg[1] - 12.4}
-          textAnchor="middle"
-          dominantBaseline="central"
-          fill="#fff8c4"
-          fontSize={3.1}
-          fontWeight="700"
-          letterSpacing="0.25"
-        >
-          FINISH
-        </text>
       </g>,
     );
   }
@@ -100,12 +66,6 @@ export function FinishOptions({ document, courtMode = "half", visibleAtTimeMs }:
     const isPrimary = option.priority === "primary" || isShot;
     const stroke = isShot ? "#ff7043" : "#4dd0e1";
     const fill = isShot ? "rgba(255, 112, 67, 0.16)" : "rgba(77, 208, 225, 0.14)";
-    const label =
-      option.label ??
-      (isShot ? "Shot" : option.to ? `Pass ${actorLabels.get(option.to) ?? option.to}` : "Pass");
-    const width = labelWidth(label);
-    const labelX = isShot ? tx - width / 2 : tx + 5;
-    const labelY = isShot ? ty - 16 : ty + (idx % 2 === 0 ? -14 : 8);
 
     nodes.push(
       <g key={`finish-option-${idx}`}>
@@ -125,39 +85,17 @@ export function FinishOptions({ document, courtMode = "half", visibleAtTimeMs }:
 
         {isShot ? (
           <g transform={`translate(${tx}, ${ty})`}>
-            <circle r={5.6} fill={fill} stroke={stroke} strokeWidth="0.9" />
-            <circle r={2.4} fill="none" stroke={stroke} strokeWidth="0.75" />
-            <line x1={-7} y1={0} x2={7} y2={0} stroke={stroke} strokeWidth="0.55" strokeLinecap="round" />
-            <line x1={0} y1={-7} x2={0} y2={7} stroke={stroke} strokeWidth="0.55" strokeLinecap="round" />
+            <circle r={3.8} fill={fill} stroke={stroke} strokeWidth="0.75" />
+            <circle r={1.6} fill="none" stroke={stroke} strokeWidth="0.6" />
+            <line x1={-4.8} y1={0} x2={4.8} y2={0} stroke={stroke} strokeWidth="0.45" strokeLinecap="round" />
+            <line x1={0} y1={-4.8} x2={0} y2={4.8} stroke={stroke} strokeWidth="0.45" strokeLinecap="round" />
           </g>
         ) : (
           <g transform={`translate(${tx}, ${ty})`}>
-            <circle r={4.4} fill={fill} stroke={stroke} strokeWidth="0.75" />
+            <circle r={3.6} fill={fill} stroke={stroke} strokeWidth="0.65" />
             <path d="M -1.8 -2.1 L 2.3 0 L -1.8 2.1 Z" fill={stroke} opacity="0.95" />
           </g>
         )}
-
-        <g transform={`translate(${labelX}, ${labelY})`}>
-          <rect
-            width={width}
-            height={7}
-            rx={3.5}
-            fill="rgba(13, 20, 24, 0.78)"
-            stroke={stroke}
-            strokeWidth="0.35"
-          />
-          <text
-            x={width / 2}
-            y={3.65}
-            textAnchor="middle"
-            dominantBaseline="central"
-            fill="#ffffff"
-            fontSize={3.2}
-            fontWeight="700"
-          >
-            {label}
-          </text>
-        </g>
       </g>,
     );
   });

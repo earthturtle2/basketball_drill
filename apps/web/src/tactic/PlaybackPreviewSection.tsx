@@ -19,7 +19,7 @@ export function PlaybackPreviewSection({ document: doc, resetPlaybackKey, rangeI
   const [frameByFrame, setFrameByFrame] = useState(false);
   const [frameStepTarget, setFrameStepTarget] = useState<{ from: number; to: number } | null>(null);
   const [loop, setLoop] = useState(false);
-  const [playbackSpeed, setPlaybackSpeed] = useState<0.5 | 1 | 2>(0.5);
+  const [playbackSpeed, setPlaybackSpeed] = useState<0.5 | 1 | 2>(1);
   const tMsRef = useRef(0);
   tMsRef.current = tMs;
   const speedRef = useRef(playbackSpeed);

@@ -80,7 +80,7 @@ export function PlayEditPage() {
   const [frameByFrame, setFrameByFrame] = useState(false);
   const [frameStepTarget, setFrameStepTarget] = useState<{ from: number; to: number } | null>(null);
   const [loop, setLoop] = useState(false);
-  const [playbackSpeed, setPlaybackSpeed] = useState<0.5 | 1 | 2>(0.5);
+  const [playbackSpeed, setPlaybackSpeed] = useState<0.5 | 1 | 2>(1);
   const [libraryScope, setLibraryScope] = useState<"all_coaches" | "partial" | "hidden">("all_coaches");
   const [sharedWithUserIds, setSharedWithUserIds] = useState<string[]>([]);
   const defaultCategories = useMemo(() => TACTIC_CATEGORY_KEYS.map((key) => t(key)), [t]);
