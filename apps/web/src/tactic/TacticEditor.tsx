@@ -10,6 +10,7 @@ import {
 } from "./viewer-math";
 import { MovementTrails } from "./MovementTrails";
 import { PassLines } from "./PassLines";
+import { FinishOptions } from "./FinishOptions";
 import { EditorBench, type BenchPlayerOption, type EditorTool } from "./EditorBench";
 import { KeyframeTimeline } from "./KeyframeTimeline";
 import { tacticToSvg, svgToTactic, type CourtMode } from "./court-geometry";
@@ -844,6 +845,7 @@ export function TacticEditor({
               );
             })}
           </g>
+          <FinishOptions document={doc} courtMode={courtMode} visibleAtTimeMs={currentT} />
         </CourtSVG>
       </div>
 

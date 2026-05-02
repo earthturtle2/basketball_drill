@@ -417,7 +417,7 @@ const zh: Record<string, string> = {
   "tpl.handoff.name": "Chicago 手递手 5v5",
   "tpl.handoff.desc": "下掩护接手递手：射手卷出，防守追防/换防，弱侧协防轮转。",
   "tpl.triangle.name": "公牛三角进攻 5v5",
-  "tpl.triangle.desc": "强侧侧翼、底角、低位成三角；低位接球后强侧 split cut，协防收缩则回传弱侧。",
+  "tpl.triangle.desc": "强侧三角进低位，split cut 后攻筐，并同步标注上篮、底角、高位和弱侧传球选择。",
   "tpl.zone131.name": "1-3-1 vs overload",
   "tpl.zone131.desc": "进攻 overload 传导，联防顶、翼、中、底线随球同步滑动。",
 
@@ -831,7 +831,7 @@ const en: Record<string, string> = {
   "tpl.handoff.name": "Chicago DHO 5v5",
   "tpl.handoff.desc": "Pin-down into DHO with chase/switch coverage and weak-side help rotation.",
   "tpl.triangle.name": "Bulls Triangle Offense 5v5",
-  "tpl.triangle.desc": "Strong-side wing, corner and low post form a triangle; post entry triggers split cut, then kick weak side if help collapses.",
+  "tpl.triangle.desc": "Strong-side triangle into post entry, split cut and rim finish with marked corner, nail and weak-side outlets.",
   "tpl.zone131.name": "1-3-1 vs Overload",
   "tpl.zone131.desc": "Overload ball movement with the chaser, wings, middle and baseline runner sliding together.",
 

@@ -8,6 +8,7 @@ import {
 } from "./viewer-math";
 import { CourtSVG } from "./CourtSVG";
 import { tacticToSvg, type CourtMode } from "./court-geometry";
+import { FinishOptions } from "./FinishOptions";
 import { movementTrailPieces, wavyPathD } from "./movement-trails-path";
 
 function lerp(a: number, b: number, t: number) {
@@ -263,6 +264,8 @@ export function PlayPreview({
           );
         })}
       </g>
+
+      <FinishOptions document={doc} courtMode={courtMode} visibleAtTimeMs={tMs} />
 
       {/* Ball in flight — rendered above player dots so it stays visible */}
       {ballFlight}
