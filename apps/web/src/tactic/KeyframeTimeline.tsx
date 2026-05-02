@@ -16,6 +16,7 @@ interface Props {
   onRemove: (idx: number) => void;
   onMove: (idx: number, t: number) => void;
   onMoveEnd?: (idx: number) => void;
+  onRedistribute: () => void;
   onDurationChange: (ms: number) => void;
 }
 
@@ -29,6 +30,7 @@ export function KeyframeTimeline({
   onRemove,
   onMove,
   onMoveEnd,
+  onRedistribute,
   onDurationChange,
 }: Props) {
   const { t } = useT();
@@ -113,6 +115,15 @@ export function KeyframeTimeline({
           title={t("kf.removeTitle")}
         >
           {t("kf.removeFrame")}
+        </button>
+        <button
+          type="button"
+          className="btn btn-sm"
+          disabled={keyframes.length <= 1}
+          onClick={onRedistribute}
+          title={t("kf.redistributeTitle")}
+        >
+          {t("kf.redistribute")}
         </button>
         <label className="kf-timeline__duration">
           {t("kf.duration")}

@@ -755,6 +755,24 @@ export function TacticEditor({
     [doc, onChange],
   );
 
+  const handleRedistributeKeyframes = useCallback(() => {
+    if (doc.keyframes.length <= 1) return;
+    const duration = timelineDurationMs(doc);
+    const sorted = [...doc.keyframes].sort((a, b) => a.t - b.t);
+    const activeKf = doc.keyframes[activeKfIdx];
+    const activeSortedIdx = activeKf ? sorted.indexOf(activeKf) : activeKfIdx;
+    const newKfs = redistributeKeyframeTimes(sorted, duration);
+
+    manuallyTimedKeyframes.current = false;
+    onChange({
+      ...doc,
+      meta: { ...doc.meta, durationMs: duration },
+      keyframes: newKfs,
+      events: remapEventsAtKeyframeTimes(doc.events, sorted, newKfs),
+    });
+    setActiveKfIdx(Math.max(0, Math.min(activeSortedIdx, newKfs.length - 1)));
+  }, [doc, activeKfIdx, onChange]);
+
   const handleScreenAngleChange = useCallback(
     (angle: number) => {
       if (!selectedActorId) return;
@@ -1036,6 +1054,7 @@ export function TacticEditor({
           onRemove={handleRemoveKeyframe}
           onMove={handleMoveKeyframe}
           onMoveEnd={handleCommitKeyframeMove}
+          onRedistribute={handleRedistributeKeyframes}
           onDurationChange={handleDurationChange}
         />
       </div>

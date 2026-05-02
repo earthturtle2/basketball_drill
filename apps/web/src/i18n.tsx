@@ -412,6 +412,8 @@ const zh: Record<string, string> = {
   "kf.removeFrame": "- 帧",
   "kf.addTitle": "添加关键帧（自动均匀分布在总时长上）",
   "kf.removeTitle": "删除当前关键帧（其余帧自动均匀重排）",
+  "kf.redistribute": "均分",
+  "kf.redistributeTitle": "将所有关键帧按当前总时长重新均匀分布",
   "kf.duration": "时长",
   "kf.frame": "帧",
 
@@ -839,6 +841,8 @@ const en: Record<string, string> = {
   "kf.removeFrame": "- Frame",
   "kf.addTitle": "Add keyframe (evenly spaced across duration)",
   "kf.removeTitle": "Delete keyframe (remaining frames re-spaced evenly)",
+  "kf.redistribute": "Even",
+  "kf.redistributeTitle": "Redistribute all keyframes evenly across the current duration",
   "kf.duration": "Duration",
   "kf.frame": "Frame",
 
