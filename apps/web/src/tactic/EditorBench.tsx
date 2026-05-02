@@ -2,7 +2,7 @@ import type { TacticDocumentV1 } from "@basketball/shared";
 import type { CourtMode } from "./court-geometry";
 import { useT } from "../i18n";
 
-export type EditorTool = "select" | "addOffense" | "addDefense" | "pass" | "screen";
+export type EditorTool = "select" | "addOffense" | "addDefense" | "pass" | "screen" | "finish";
 
 type PlayerActor = {
   id: string;
@@ -20,6 +20,13 @@ export type BenchPlayerOption = {
   disabled?: boolean;
 };
 
+export type BenchFinishOption = {
+  kind: "shot" | "pass";
+  label: string;
+  targetLabel: string;
+  priority?: string;
+};
+
 interface Props {
   side: "left" | "right";
   tool: EditorTool;
@@ -31,6 +38,7 @@ interface Props {
   ballHolderId: string | undefined;
   passSource: string | null;
   screenAngle: number | undefined;
+  finishOptions: BenchFinishOption[];
   onActorUpdate: (id: string, updates: { label?: string; number?: number }) => void;
   onToggleBall: (actorId: string) => void;
   onRemoveActor: () => void;
@@ -39,6 +47,10 @@ interface Props {
   canClearFrameAction: boolean;
   onScreenAngleChange: (angle: number) => void;
   onRemoveScreen: () => void;
+  onFinishOptionLabelChange: (idx: number, label: string) => void;
+  onFinishOptionPriorityChange: (idx: number, priority: string) => void;
+  onRemoveFinishOption: (idx: number) => void;
+  onClearFinishOptions: () => void;
   availablePlayers: BenchPlayerOption[];
   pendingPlayer: BenchPlayerOption | null;
   onRosterPlayerSelect: (player: BenchPlayerOption) => void;
@@ -57,6 +69,7 @@ export function EditorBench({
   ballHolderId,
   passSource,
   screenAngle,
+  finishOptions,
   onActorUpdate,
   onToggleBall,
   onRemoveActor,
@@ -65,6 +78,10 @@ export function EditorBench({
   canClearFrameAction,
   onScreenAngleChange,
   onRemoveScreen,
+  onFinishOptionLabelChange,
+  onFinishOptionPriorityChange,
+  onRemoveFinishOption,
+  onClearFinishOptions,
   availablePlayers,
   pendingPlayer,
   onRosterPlayerSelect,
@@ -97,6 +114,14 @@ export function EditorBench({
             </button>
             <button
               type="button"
+              className={`btn btn-sm ${tool === "finish" ? "btn-active" : ""}`}
+              disabled={!selectedActor}
+              onClick={() => onToolChange(tool === "finish" ? "select" : "finish")}
+            >
+              {t("bench.finish")}
+            </button>
+            <button
+              type="button"
               className="btn btn-sm"
               disabled={!canClearFrameAction}
               onClick={onClearFrameAction}
@@ -108,6 +133,7 @@ export function EditorBench({
           {tool === "pass" && !passSource && <p className="bench-tip">{t("bench.tipPassFrom")}</p>}
           {tool === "pass" && passSource && <p className="bench-tip">{t("bench.tipPassTo")}</p>}
           {tool === "screen" && <p className="bench-tip">{t("bench.tipScreen")}</p>}
+          {tool === "finish" && <p className="bench-tip">{t("bench.tipFinish")}</p>}
         </div>
 
         {selectedActor ? (
@@ -183,6 +209,56 @@ export function EditorBench({
             >
               {t("bench.removeScreen")}
             </button>
+          </div>
+        ) : null}
+
+        {selectedActor && (tool === "finish" || finishOptions.length > 0) ? (
+          <div className="bench-section">
+            <div className="bench-label">{t("bench.finishOptions")}</div>
+            {finishOptions.length === 0 ? (
+              <p className="bench-hint">{t("bench.finishEmpty")}</p>
+            ) : (
+              <div className="bench-finish-list">
+                {finishOptions.map((option, idx) => (
+                  <div key={idx} className="bench-finish-option">
+                    <div className="bench-finish-option__meta">
+                      <span className={`bench-finish-pill bench-finish-pill--${option.kind}`}>
+                        {option.kind === "shot" ? t("bench.finishShot") : t("bench.finishPass")}
+                      </span>
+                      <span className="bench-hint">{option.targetLabel}</span>
+                    </div>
+                    <input
+                      value={option.label}
+                      onChange={(e) => onFinishOptionLabelChange(idx, e.target.value)}
+                      aria-label={t("bench.finishLabel")}
+                    />
+                    <div className="bench-row">
+                      <select
+                        value={option.priority ?? "counter"}
+                        onChange={(e) => onFinishOptionPriorityChange(idx, e.target.value)}
+                        aria-label={t("bench.finishPriority")}
+                      >
+                        <option value="primary">{t("bench.finishPrimary")}</option>
+                        <option value="counter">{t("bench.finishCounter")}</option>
+                        <option value="safety">{t("bench.finishSafety")}</option>
+                      </select>
+                      <button
+                        type="button"
+                        className="btn btn-sm"
+                        onClick={() => onRemoveFinishOption(idx)}
+                      >
+                        {t("bench.finishRemove")}
+                      </button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+            {finishOptions.length > 0 ? (
+              <button type="button" className="btn btn-sm" onClick={onClearFinishOptions}>
+                {t("bench.finishClear")}
+              </button>
+            ) : null}
           </div>
         ) : null}
       </div>

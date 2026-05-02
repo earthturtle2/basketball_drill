@@ -1195,6 +1195,49 @@ pre.doc {
   padding: 0.35rem 0.5rem;
   font-size: 0.85rem;
 }
+.bench-finish-list {
+  display: grid;
+  gap: 0.45rem;
+}
+.bench-finish-option {
+  display: grid;
+  gap: 0.35rem;
+  padding: 0.5rem;
+  border-radius: 14px;
+  border: 1px solid rgba(61, 220, 85, 0.14);
+  background: rgba(4, 16, 8, 0.24);
+}
+.bench-finish-option__meta {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+}
+.bench-finish-option input,
+.bench-finish-option select {
+  min-height: 34px;
+  padding: 0.35rem 0.5rem;
+  font-size: 0.82rem;
+}
+.bench-finish-pill {
+  display: inline-flex;
+  align-items: center;
+  min-height: 22px;
+  padding: 0.1rem 0.45rem;
+  border-radius: 999px;
+  font-size: 0.66rem;
+  font-weight: 900;
+  letter-spacing: 0.04em;
+}
+.bench-finish-pill--shot {
+  color: #fff3e0;
+  background: rgba(255, 112, 67, 0.2);
+  border: 1px solid rgba(255, 112, 67, 0.32);
+}
+.bench-finish-pill--pass {
+  color: #e0f7fa;
+  background: rgba(77, 208, 225, 0.18);
+  border: 1px solid rgba(77, 208, 225, 0.3);
+}
 
 /* Bench player tokens */
 .bench-token {

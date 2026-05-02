@@ -1,25 +1,8 @@
 import type { TacticDocumentV1 } from "@basketball/shared";
 import { useMemo, type ReactNode } from "react";
 import { tacticToSvg, type CourtMode } from "./court-geometry";
+import { parseFinishOptionsEvent, type FinishOption, type FinishOptionsEvent } from "./finish-options-data";
 import { samplePoses } from "./viewer-math";
-
-type EventRow = NonNullable<TacticDocumentV1["events"]>[number];
-type FinishOptionKind = "shot" | "pass";
-
-type FinishOption = {
-  kind: FinishOptionKind;
-  label?: string;
-  to?: string;
-  x?: number;
-  y?: number;
-  priority?: string;
-};
-
-type FinishOptionsEvent = {
-  t: number;
-  from?: string;
-  options: FinishOption[];
-};
 
 type Vec = { x: number; y: number };
 
@@ -27,52 +10,6 @@ interface Props {
   document: TacticDocumentV1;
   courtMode?: CourtMode;
   visibleAtTimeMs: number;
-}
-
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return typeof value === "object" && value !== null && !Array.isArray(value);
-}
-
-function finiteNumber(value: unknown): number | undefined {
-  return typeof value === "number" && Number.isFinite(value) ? value : undefined;
-}
-
-function stringValue(value: unknown): string | undefined {
-  return typeof value === "string" && value.trim() ? value.trim() : undefined;
-}
-
-function parseFinishOption(value: unknown): FinishOption | null {
-  if (!isRecord(value)) return null;
-  const rawKind = value.kind;
-  const kind: FinishOptionKind | null = rawKind === "shot" || rawKind === "pass" ? rawKind : null;
-  if (!kind) return null;
-
-  const option: FinishOption = {
-    kind,
-    label: stringValue(value.label),
-    to: stringValue(value.to),
-    x: finiteNumber(value.x),
-    y: finiteNumber(value.y),
-    priority: stringValue(value.priority),
-  };
-
-  if (option.to || (option.x !== undefined && option.y !== undefined)) return option;
-  return null;
-}
-
-function parseFinishOptionsEvent(event: EventRow): FinishOptionsEvent | null {
-  if (event.kind !== "finish_options") return null;
-  const rawOptions = (event as { options?: unknown }).options;
-  if (!Array.isArray(rawOptions)) return null;
-
-  const options = rawOptions.map(parseFinishOption).filter((option): option is FinishOption => Boolean(option));
-  if (options.length === 0) return null;
-
-  return {
-    t: event.t,
-    from: event.from,
-    options,
-  };
 }
 
 function clamp01(value: number) {

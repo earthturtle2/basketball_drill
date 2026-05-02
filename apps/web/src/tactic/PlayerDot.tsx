@@ -72,6 +72,7 @@ export function PlayerDot({
       onPointerDown={onPointerDown}
       onPointerMove={onPointerMove}
       onPointerUp={onPointerUp}
+      onClick={(e) => e.stopPropagation()}
     >
       {/* Ball halo — yellow ring around the holder */}
       {hasBall && (

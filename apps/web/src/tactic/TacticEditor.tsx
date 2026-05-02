@@ -11,7 +11,13 @@ import {
 import { MovementTrails } from "./MovementTrails";
 import { PassLines } from "./PassLines";
 import { FinishOptions } from "./FinishOptions";
-import { EditorBench, type BenchPlayerOption, type EditorTool } from "./EditorBench";
+import { EditorBench, type BenchFinishOption, type BenchPlayerOption, type EditorTool } from "./EditorBench";
+import {
+  getActiveFinishOptionsEventIndex,
+  makeFinishOptionsEvent,
+  normalizeFinishOptions,
+  type FinishOption,
+} from "./finish-options-data";
 import { KeyframeTimeline } from "./KeyframeTimeline";
 import { tacticToSvg, svgToTactic, type CourtMode } from "./court-geometry";
 
@@ -215,6 +221,50 @@ function clonePosesForNewKeyframe(
   );
 }
 
+function optionDisplayLabel(option: FinishOption) {
+  if (option.label?.trim()) return option.label.trim();
+  return option.kind === "shot" ? "Shot" : "Pass";
+}
+
+function finishOptionTargetLabel(option: FinishOption, actors: TacticDocumentV1["actors"]) {
+  if (option.kind === "pass" && option.to) {
+    const target = actors.find((actor) => actor.type === "player" && actor.id === option.to);
+    return target?.type === "player" ? target.label : option.to;
+  }
+  if (option.x !== undefined && option.y !== undefined) {
+    return `${Math.round(option.x * 100)}%, ${Math.round(option.y * 100)}%`;
+  }
+  return "";
+}
+
+function withFinishOptionUpdate(
+  doc: TacticDocumentV1,
+  eventIndex: number | null,
+  fromId: string,
+  t: number,
+  updater: (options: FinishOption[]) => FinishOption[],
+) {
+  const events = [...(doc.events ?? [])];
+  if (eventIndex === null) {
+    events.push(makeFinishOptionsEvent(t, fromId, updater([])));
+    return { ...doc, events };
+  }
+
+  const event = events[eventIndex];
+  const nextOptions = updater(normalizeFinishOptions(event));
+  if (nextOptions.length === 0) {
+    events.splice(eventIndex, 1);
+  } else {
+    events[eventIndex] = {
+      ...event,
+      kind: "finish_options",
+      from: event.from ?? fromId,
+      options: nextOptions,
+    };
+  }
+  return { ...doc, events };
+}
+
 export function TacticEditor({
   document: doc,
   onChange,
@@ -291,12 +341,32 @@ export function TacticEditor({
   const selectedPlayerData =
     selectedPlayer?.type === "player" ? selectedPlayer : null;
 
+  useEffect(() => {
+    if (tool === "finish" && !selectedPlayerData) setTool("select");
+  }, [tool, selectedPlayerData]);
+
+  const activeFinishEventIndex = useMemo(
+    () => getActiveFinishOptionsEventIndex(doc.events, selectedActorId, currentT),
+    [doc.events, selectedActorId, currentT],
+  );
+
+  const finishOptions = useMemo<BenchFinishOption[]>(() => {
+    const event = activeFinishEventIndex === null ? undefined : doc.events?.[activeFinishEventIndex];
+    return normalizeFinishOptions(event).map((option) => ({
+      kind: option.kind,
+      label: optionDisplayLabel(option),
+      targetLabel: finishOptionTargetLabel(option, doc.actors),
+      priority: option.priority,
+    }));
+  }, [activeFinishEventIndex, doc.events, doc.actors]);
+
   const handleToolChange = useCallback((t: EditorTool) => {
     if ((t === "addOffense" && !canUseOffenseTool) || (t === "addDefense" && !canUseDefenseTool)) return;
+    if (t === "finish" && !selectedPlayerData) return;
     setTool(t);
     setPendingPlayer(null);
     setPassSource(null);
-  }, [canUseOffenseTool, canUseDefenseTool]);
+  }, [canUseOffenseTool, canUseDefenseTool, selectedPlayerData]);
 
   const handleRosterPlayerSelect = useCallback((player: BenchPlayerOption) => {
     if (!canUseRosterPlayers || player.disabled) return;
@@ -385,16 +455,33 @@ export function TacticEditor({
         const events = [...(doc.events ?? []), newEvent];
         onChange({ ...doc, events });
         setTool("select");
+      } else if (tool === "finish") {
+        if (!selectedActorId || selectedActorId === actorId) {
+          setSelectedActorId(actorId);
+          return;
+        }
+        const target = doc.actors.find((a): a is PlayerActor => isPlayerActor(a) && a.id === actorId);
+        if (!target || target.team !== "offense") return;
+        const option: FinishOption = {
+          kind: "pass",
+          to: actorId,
+          label: `Pass ${target.label}`,
+          priority: "counter",
+        };
+        onChange(withFinishOptionUpdate(doc, activeFinishEventIndex, selectedActorId, currentT, (options) => [
+          ...options,
+          option,
+        ]));
       } else {
         setSelectedActorId(actorId);
       }
     },
-    [tool, pendingPlayer, passSource, ballHolderId, currentT, doc, onChange],
+    [tool, pendingPlayer, passSource, ballHolderId, currentT, doc, onChange, selectedActorId, activeFinishEventIndex],
   );
 
   const handleCourtClick = useCallback(
     (e: React.MouseEvent<SVGSVGElement>) => {
-      if (tool !== "addOffense" && tool !== "addDefense") return;
+      if (tool !== "addOffense" && tool !== "addDefense" && tool !== "finish") return;
       const svg = svgRef.current;
       if (!svg) return;
       const ctm = svg.getScreenCTM();
@@ -402,6 +489,22 @@ export function TacticEditor({
       const svgX = (e.clientX - ctm.e) / ctm.a;
       const svgY = (e.clientY - ctm.f) / ctm.d;
       const [tx, ty] = svgToTactic(svgX, svgY, courtMode);
+
+      if (tool === "finish") {
+        if (!selectedActorId) return;
+        const option: FinishOption = {
+          kind: "shot",
+          x: tx,
+          y: ty,
+          label: "Shot",
+          priority: "primary",
+        };
+        onChange(withFinishOptionUpdate(doc, activeFinishEventIndex, selectedActorId, currentT, (options) => [
+          ...options,
+          option,
+        ]));
+        return;
+      }
 
       const team: "offense" | "defense" = tool === "addOffense" ? "offense" : "defense";
       const existing = doc.actors.filter((a): a is PlayerActor => isPlayerActor(a) && a.team === team);
@@ -431,7 +534,7 @@ export function TacticEditor({
       setPendingPlayer(null);
       setTool("select");
     },
-    [tool, doc, onChange, courtMode, pendingPlayer],
+    [tool, doc, onChange, courtMode, pendingPlayer, selectedActorId, activeFinishEventIndex, currentT],
   );
 
   const handleRemoveSelected = useCallback(() => {
@@ -484,6 +587,42 @@ export function TacticEditor({
     },
     [doc, onChange, currentT],
   );
+
+  const handleFinishOptionLabelChange = useCallback(
+    (idx: number, label: string) => {
+      if (!selectedActorId || activeFinishEventIndex === null) return;
+      onChange(withFinishOptionUpdate(doc, activeFinishEventIndex, selectedActorId, currentT, (options) =>
+        options.map((option, optionIdx) => (optionIdx === idx ? { ...option, label } : option)),
+      ));
+    },
+    [selectedActorId, activeFinishEventIndex, doc, currentT, onChange],
+  );
+
+  const handleFinishOptionPriorityChange = useCallback(
+    (idx: number, priority: string) => {
+      if (!selectedActorId || activeFinishEventIndex === null) return;
+      onChange(withFinishOptionUpdate(doc, activeFinishEventIndex, selectedActorId, currentT, (options) =>
+        options.map((option, optionIdx) => (optionIdx === idx ? { ...option, priority } : option)),
+      ));
+    },
+    [selectedActorId, activeFinishEventIndex, doc, currentT, onChange],
+  );
+
+  const handleRemoveFinishOption = useCallback(
+    (idx: number) => {
+      if (!selectedActorId || activeFinishEventIndex === null) return;
+      onChange(withFinishOptionUpdate(doc, activeFinishEventIndex, selectedActorId, currentT, (options) =>
+        options.filter((_, optionIdx) => optionIdx !== idx),
+      ));
+    },
+    [selectedActorId, activeFinishEventIndex, doc, currentT, onChange],
+  );
+
+  const handleClearFinishOptions = useCallback(() => {
+    if (!selectedActorId || activeFinishEventIndex === null) return;
+    onChange(withFinishOptionUpdate(doc, activeFinishEventIndex, selectedActorId, currentT, () => []));
+    if (tool === "finish") setTool("select");
+  }, [selectedActorId, activeFinishEventIndex, doc, currentT, onChange, tool]);
 
   const handleClearSelectedFrameAction = useCallback(() => {
     if (!selectedActorId || activeKfIdx <= 0) return;
@@ -694,7 +833,7 @@ export function TacticEditor({
   const courtCursor =
     tool === "addOffense" || tool === "addDefense"
       ? "crosshair"
-      : tool === "pass" || tool === "screen"
+      : tool === "pass" || tool === "screen" || tool === "finish"
         ? "pointer"
         : undefined;
 
@@ -755,6 +894,7 @@ export function TacticEditor({
         ballHolderId={ballHolderId}
         passSource={passSource}
         screenAngle={selectedActorId ? screenMap.get(selectedActorId) : undefined}
+        finishOptions={finishOptions}
         onActorUpdate={handleActorUpdate}
         onToggleBall={handleToggleBall}
         onRemoveActor={handleRemoveSelected}
@@ -763,6 +903,10 @@ export function TacticEditor({
         canClearFrameAction={!!selectedPlayerData && activeKfIdx > 0}
         onScreenAngleChange={handleScreenAngleChange}
         onRemoveScreen={handleRemoveScreen}
+        onFinishOptionLabelChange={handleFinishOptionLabelChange}
+        onFinishOptionPriorityChange={handleFinishOptionPriorityChange}
+        onRemoveFinishOption={handleRemoveFinishOption}
+        onClearFinishOptions={handleClearFinishOptions}
         availablePlayers={availablePlayers}
         pendingPlayer={pendingPlayer}
         onRosterPlayerSelect={handleRosterPlayerSelect}
@@ -860,6 +1004,7 @@ export function TacticEditor({
         ballHolderId={ballHolderId}
         passSource={passSource}
         screenAngle={selectedActorId ? screenMap.get(selectedActorId) : undefined}
+        finishOptions={finishOptions}
         onActorUpdate={handleActorUpdate}
         onToggleBall={handleToggleBall}
         onRemoveActor={handleRemoveSelected}
@@ -868,6 +1013,10 @@ export function TacticEditor({
         canClearFrameAction={!!selectedPlayerData && activeKfIdx > 0}
         onScreenAngleChange={handleScreenAngleChange}
         onRemoveScreen={handleRemoveScreen}
+        onFinishOptionLabelChange={handleFinishOptionLabelChange}
+        onFinishOptionPriorityChange={handleFinishOptionPriorityChange}
+        onRemoveFinishOption={handleRemoveFinishOption}
+        onClearFinishOptions={handleClearFinishOptions}
         availablePlayers={availablePlayers}
         pendingPlayer={pendingPlayer}
         onRosterPlayerSelect={handleRosterPlayerSelect}
