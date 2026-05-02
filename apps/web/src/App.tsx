@@ -217,6 +217,10 @@ export function App() {
           element={<RequireAuth><LibraryPage /></RequireAuth>}
         />
         <Route
+          path="/library/builtin/:id"
+          element={<RequireAuth><LibraryPage /></RequireAuth>}
+        />
+        <Route
           path="/library/:id"
           element={<RequireAuth><LibraryPage /></RequireAuth>}
         />

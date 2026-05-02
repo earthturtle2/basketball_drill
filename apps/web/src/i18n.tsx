@@ -215,10 +215,14 @@ const zh: Record<string, string> = {
 
   // shared tactic library
   "lib.title": "战术模版库",
-  "lib.hint": "本页列出全部教练的战术中、当前对全员开放的部分。可打开预览或复制到「我的战术」中再编辑。",
-  "lib.hintEnd": "在战术编辑中也可通过「从模版替换」使用内置范例或本共享库。",
+  "lib.hint": "本页分为内置模板和教练共享模板。可打开预览或复制到「我的战术」中再编辑。",
+  "lib.hintEnd": "在战术编辑中也可通过「从模版替换」使用内置模板或用户模板。",
   "lib.loadFailed": "加载模版库失败",
   "lib.empty": "暂无可用的共享战术。",
+  "lib.builtinTitle": "内置模板",
+  "lib.userTitle": "用户模板",
+  "lib.builtinBadge": "内置",
+  "lib.builtinEmpty": "没有匹配的内置模板。",
   "lib.back": "← 返回模版库",
   "lib.by": "来自",
   "lib.mine": "我创建的",
@@ -421,6 +425,7 @@ const zh: Record<string, string> = {
   "tpl.title": "选择模板",
   "tpl.close": "关闭",
   "tpl.hint": "选择一个模板将替换当前战术内容",
+  "tpl.confirmReplace": "选择该模板会覆盖当前战术内容，确定继续吗？",
 
   // Template names & descriptions
   "tpl.highPnr.name": "高位挡拆 5v5",
@@ -644,10 +649,14 @@ const en: Record<string, string> = {
   "edit.libraryPartialHint": "Only selected accounts can see and copy this play in the template library.",
 
   "lib.title": "Template library",
-  "lib.hint": "Plays from all coaches that are set as visible. Preview or copy into your plays to edit.",
-  "lib.hintEnd": "In the editor you can also use “From template” for built-in examples and this shared library.",
+  "lib.hint": "This page separates built-in templates from coach-shared user templates. Preview or copy into your plays to edit.",
+  "lib.hintEnd": "In the editor you can also use “From template” for built-in templates or user templates.",
   "lib.loadFailed": "Failed to load template library",
   "lib.empty": "No shared plays yet.",
+  "lib.builtinTitle": "Built-in Templates",
+  "lib.userTitle": "User Templates",
+  "lib.builtinBadge": "Built-in",
+  "lib.builtinEmpty": "No matching built-in templates.",
   "lib.back": "← Back to template library",
   "lib.by": "By",
   "lib.mine": "Yours",
@@ -850,6 +859,7 @@ const en: Record<string, string> = {
   "tpl.title": "Choose Template",
   "tpl.close": "Close",
   "tpl.hint": "Selecting a template will replace the current play",
+  "tpl.confirmReplace": "Choosing this template will overwrite the current play content. Continue?",
 
   // Template names & descriptions
   "tpl.highPnr.name": "High P&R 5v5",

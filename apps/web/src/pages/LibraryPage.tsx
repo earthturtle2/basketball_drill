@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { Link, Navigate, useNavigate, useParams } from "react-router-dom";
+import { Link, Navigate, useLocation, useNavigate, useParams } from "react-router-dom";
 import { api, ApiError } from "../api";
 import { useAuth } from "../auth";
 import { useT } from "../i18n";
@@ -7,6 +7,7 @@ import type { TacticDocumentV1 } from "@basketball/shared";
 import { tryParseTacticDocumentV1 } from "@basketball/shared";
 import { PlaybackPreviewSection } from "../tactic/PlaybackPreviewSection";
 import { courtModeFromDocument } from "../tactic/court-geometry";
+import { TEMPLATES, type Template } from "../tactic/templates";
 
 type LibraryListItem = {
   id: string;
@@ -22,6 +23,19 @@ type LibraryListItem = {
 function playIdSuffix(id: string) {
   const hex = id.replace(/-/g, "");
   return hex.length >= 8 ? hex.slice(-8) : id.slice(0, 8);
+}
+
+function builtInMatchesQuery(template: Template, q: string, t: (key: string) => string) {
+  const query = q.trim().toLocaleLowerCase();
+  if (!query) return true;
+  const haystack = [
+    t(template.nameKey),
+    t(template.descKey),
+    template.document.meta.name ?? "",
+    template.document.meta.description ?? "",
+    ...(template.document.meta.tags ?? []),
+  ].join(" ").toLocaleLowerCase();
+  return haystack.includes(query);
 }
 
 type LibraryDetail = {
@@ -46,6 +60,10 @@ function LibraryList() {
   const [items, setItems] = useState<LibraryListItem[]>([]);
   const [q, setQ] = useState("");
   const [err, setErr] = useState<string | null>(null);
+  const builtIns = useMemo(
+    () => TEMPLATES.filter((tmpl) => builtInMatchesQuery(tmpl, q, t)),
+    [q, t],
+  );
 
   const load = useCallback(async () => {
     setErr(null);
@@ -88,36 +106,152 @@ function LibraryList() {
         </button>
       </div>
       <div className="list">
-        {items.map((p) => (
-          <Link key={p.id} to={`/library/${p.id}`} className="list-item list-item--link">
-            <div>
-              <h3 style={{ display: "flex", alignItems: "center", flexWrap: "wrap", gap: "0.5rem" }}>
-                {p.author.avatarUrl ? (
-                  <img src={p.author.avatarUrl} alt="" className="avatar-thumb" width={36} height={36} />
-                ) : null}
-                <span className="list-item__title">{p.name}</span>
-                {p.category ? <span className="status-pill">{p.category}</span> : null}
-                {p.userId === user.id ? <span className="status-pill">{t("lib.mine")}</span> : null}
-              </h3>
-              <p className="muted">
-                {t("lib.by")} {p.author.name}
-                {p.author.email && p.author.email !== p.author.name ? ` · ${p.author.email}` : null}
-                {" "}
-                · #{playIdSuffix(p.id)}
-                {p.tags.length ? ` · ${p.tags.slice(0, 4).join(", ")}${p.tags.length > 4 ? "…" : ""}` : null}
-                {" "}
-                · {t("plays.updatedAt")} {new Date(p.updatedAt).toLocaleString()}
-              </p>
-            </div>
-          </Link>
-        ))}
-        {items.length === 0 && !err ? <p className="muted">{t("lib.empty")}</p> : null}
+        <section>
+          <h2 style={{ margin: "0 0 0.65rem" }}>
+            {t("lib.builtinTitle")} <span className="muted">({builtIns.length})</span>
+          </h2>
+          <div className="list">
+            {builtIns.map((tmpl) => (
+              <Link key={tmpl.id} to={`/library/builtin/${tmpl.id}`} className="list-item list-item--link">
+                <div>
+                  <h3 style={{ display: "flex", alignItems: "center", flexWrap: "wrap", gap: "0.5rem" }}>
+                    <span className="list-item__title">{t(tmpl.nameKey)}</span>
+                    <span className="status-pill">{t("lib.builtinBadge")}</span>
+                  </h3>
+                  <p className="muted">
+                    {t(tmpl.descKey)}
+                    {tmpl.document.meta.tags?.length
+                      ? ` · ${tmpl.document.meta.tags.slice(0, 4).join(", ")}${tmpl.document.meta.tags.length > 4 ? "…" : ""}`
+                      : null}
+                  </p>
+                </div>
+              </Link>
+            ))}
+            {builtIns.length === 0 ? <p className="muted">{t("lib.builtinEmpty")}</p> : null}
+          </div>
+        </section>
+        <section style={{ marginTop: "1.4rem" }}>
+          <h2 style={{ margin: "0 0 0.65rem" }}>
+            {t("lib.userTitle")} <span className="muted">({items.length})</span>
+          </h2>
+          <div className="list">
+            {items.map((p) => (
+              <Link key={p.id} to={`/library/${p.id}`} className="list-item list-item--link">
+                <div>
+                  <h3 style={{ display: "flex", alignItems: "center", flexWrap: "wrap", gap: "0.5rem" }}>
+                    {p.author.avatarUrl ? (
+                      <img src={p.author.avatarUrl} alt="" className="avatar-thumb" width={36} height={36} />
+                    ) : null}
+                    <span className="list-item__title">{p.name}</span>
+                    {p.category ? <span className="status-pill">{p.category}</span> : null}
+                    {p.userId === user.id ? <span className="status-pill">{t("lib.mine")}</span> : null}
+                  </h3>
+                  <p className="muted">
+                    {t("lib.by")} {p.author.name}
+                    {p.author.email && p.author.email !== p.author.name ? ` · ${p.author.email}` : null}
+                    {" "}
+                    · #{playIdSuffix(p.id)}
+                    {p.tags.length ? ` · ${p.tags.slice(0, 4).join(", ")}${p.tags.length > 4 ? "…" : ""}` : null}
+                    {" "}
+                    · {t("plays.updatedAt")} {new Date(p.updatedAt).toLocaleString()}
+                  </p>
+                </div>
+              </Link>
+            ))}
+            {items.length === 0 && !err ? <p className="muted">{t("lib.empty")}</p> : null}
+          </div>
+        </section>
       </div>
-      {items.length > 0 ? (
+      {builtIns.length > 0 || items.length > 0 ? (
         <p className="hint" style={{ marginTop: "1rem" }}>
           {t("lib.hintEnd")}
         </p>
       ) : null}
+    </div>
+  );
+}
+
+function BuiltinLibraryDetail({ templateId }: { templateId: string }) {
+  const { t } = useT();
+  const nav = useNavigate();
+  const { user } = useAuth();
+  const [copying, setCopying] = useState(false);
+  const [err, setErr] = useState<string | null>(null);
+  const template = TEMPLATES.find((tmpl) => tmpl.id === templateId);
+
+  if (!user) return <Navigate to="/login" replace />;
+  if (!template) {
+    return (
+      <div>
+        <p style={{ margin: "0 0 0.5rem" }}>
+          <Link to="/library" className="muted">
+            {t("lib.back")}
+          </Link>
+        </p>
+        <p className="error">{t("lib.invalidDoc")}</p>
+      </div>
+    );
+  }
+
+  const tmpl = template;
+  const doc = tmpl.document;
+
+  async function copy() {
+    setCopying(true);
+    setErr(null);
+    try {
+      const document = structuredClone(doc);
+      document.meta = {
+        ...document.meta,
+        name: t(tmpl.nameKey),
+        description: t(tmpl.descKey),
+      };
+      const res = await api<{ id: string }>("/api/v1/plays", {
+        method: "POST",
+        body: JSON.stringify({
+          name: t(tmpl.nameKey),
+          description: t(tmpl.descKey),
+          category: document.meta.category ?? "",
+          tags: document.meta.tags ?? [],
+          document,
+          teamIds: [] as string[],
+        }),
+      });
+      nav(`/plays/${res.id}`);
+    } catch (e) {
+      setErr(e instanceof ApiError ? e.message : t("lib.copyFailed"));
+    } finally {
+      setCopying(false);
+    }
+  }
+
+  return (
+    <div>
+      <p style={{ margin: "0 0 0.5rem" }}>
+        <Link to="/library" className="muted">
+          {t("lib.back")}
+        </Link>
+      </p>
+      {err ? <p className="error">{err}</p> : null}
+      <div style={{ marginBottom: "0.5rem" }}>
+        <h1 style={{ margin: "0 0 0.35rem" }}>{t(tmpl.nameKey)}</h1>
+        <p className="hint" style={{ margin: 0 }}>
+          {t("lib.builtinBadge")}
+          {doc.meta.tags?.length ? ` · ${doc.meta.tags.join(", ")}` : null}
+        </p>
+        <p className="muted" style={{ margin: "0.5rem 0 0" }}>
+          {t(tmpl.descKey)}
+        </p>
+      </div>
+      <div className="row-actions" style={{ margin: "0.75rem 0" }}>
+        <button type="button" className="btn btn-primary" onClick={() => void copy()} disabled={copying}>
+          {copying ? t("lib.copying") : t("lib.copyToMine")}
+        </button>
+      </div>
+      <p className="muted" style={{ margin: "0 0 0.75rem" }}>
+        {t("bench.court")}: {courtModeFromDocument(doc) === "full" ? t("bench.full") : t("bench.half")}
+      </p>
+      <PlaybackPreviewSection document={doc} resetPlaybackKey={`builtin-${tmpl.id}`} rangeInputId="builtin-playback-range" />
     </div>
   );
 }
@@ -237,6 +371,10 @@ function LibraryDetail({ playId }: { playId: string }) {
 
 export function LibraryPage() {
   const { id } = useParams();
+  const location = useLocation();
+  if (id && location.pathname.startsWith("/library/builtin/")) {
+    return <BuiltinLibraryDetail templateId={id} />;
+  }
   if (id) {
     return <LibraryDetail playId={id} />;
   }

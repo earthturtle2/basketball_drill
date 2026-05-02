@@ -20,9 +20,10 @@ function playIdSuffix(id: string) {
 interface Props {
   onSelect: (doc: TacticDocumentV1) => void;
   onClose: () => void;
+  confirmBeforeSelect?: boolean;
 }
 
-export function TemplateLibrary({ onSelect, onClose }: Props) {
+export function TemplateLibrary({ onSelect, onClose, confirmBeforeSelect = false }: Props) {
   const { t } = useT();
   const [tab, setTab] = useState<"builtin" | "shared">("builtin");
   const [shared, setShared] = useState<SharedRow[]>([]);
@@ -47,7 +48,18 @@ export function TemplateLibrary({ onSelect, onClose }: Props) {
     if (tab === "shared") void loadShared();
   }, [tab, loadShared]);
 
+  function canReplaceCurrentPlay() {
+    return !confirmBeforeSelect || window.confirm(t("tpl.confirmReplace"));
+  }
+
+  function applyDocument(doc: TacticDocumentV1, alreadyConfirmed = false) {
+    if (!alreadyConfirmed && !canReplaceCurrentPlay()) return;
+    onSelect(structuredClone(doc));
+    onClose();
+  }
+
   async function applyShared(id: string) {
+    if (!canReplaceCurrentPlay()) return;
     setPicking(true);
     setLoadErr(null);
     try {
@@ -57,8 +69,7 @@ export function TemplateLibrary({ onSelect, onClose }: Props) {
         setLoadErr(t("lib.invalidDoc"));
         return;
       }
-      onSelect(structuredClone(p.data));
-      onClose();
+      applyDocument(p.data, true);
     } catch (e) {
       setLoadErr(e instanceof ApiError ? e.message : t("lib.loadFailed"));
     } finally {
@@ -100,7 +111,7 @@ export function TemplateLibrary({ onSelect, onClose }: Props) {
                   key={tmpl.id}
                   type="button"
                   className="template-card"
-                  onClick={() => onSelect(structuredClone(tmpl.document))}
+                  onClick={() => applyDocument(tmpl.document)}
                 >
                   <strong>{t(tmpl.nameKey)}</strong>
                   <span className="muted">{t(tmpl.descKey)}</span>

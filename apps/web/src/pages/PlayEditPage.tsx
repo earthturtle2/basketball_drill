@@ -955,6 +955,7 @@ export function PlayEditPage() {
 
       {showTemplates && doc ? (
         <TemplateLibrary
+          confirmBeforeSelect={!!doc}
           onSelect={(tmpl) => {
             handleDocChange(tmpl);
             setShowTemplates(false);
