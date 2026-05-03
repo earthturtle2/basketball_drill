@@ -55,13 +55,24 @@ function parseGameDate(value: string | null | undefined, reply: FastifyReply) {
   if (value === undefined) return undefined;
   const text = value?.trim() ?? "";
   if (!text) return null;
-  const raw = /^\d{4}-\d{2}-\d{2}$/.test(text) ? `${text}T00:00:00` : text;
-  const date = new Date(raw);
-  if (Number.isNaN(date.getTime())) {
-    sendError(reply, 400, "INVALID_DATE", "比赛日期无效");
-    return undefined;
+  if (/^\d{4}-\d{2}-\d{2}$/.test(text)) {
+    const [y, m, d] = text.split("-").map(Number);
+    const date = new Date(Date.UTC(y!, m! - 1, d!));
+    if (date.toISOString().slice(0, 10) !== text) {
+      sendError(reply, 400, "INVALID_DATE", "比赛日期无效");
+      return undefined;
+    }
+    return date;
   }
-  return date;
+  sendError(reply, 400, "INVALID_DATE", "比赛日期必须为 YYYY-MM-DD");
+  return undefined;
+}
+
+function serializeGameDate(value: Date | null) {
+  if (!value) return null;
+  // Historical rows may have been saved as local-midnight timestamps; normalize
+  // through UTC noon so date-only values do not display as the previous day.
+  return new Date(value.getTime() + 12 * 60 * 60 * 1000).toISOString().slice(0, 10);
 }
 
 async function ownedTeamIdOrError(reply: FastifyReply, userId: string, teamId: string | null | undefined) {
@@ -127,7 +138,7 @@ function serializePrepList(row: typeof matchPreparations.$inferSelect) {
     id: row.id,
     title: row.title,
     opponent: row.opponent,
-    gameDate: row.gameDate?.toISOString() ?? null,
+    gameDate: serializeGameDate(row.gameDate),
     notes: row.notes,
     teamId: row.teamId,
     entryCount: row.entries.length,

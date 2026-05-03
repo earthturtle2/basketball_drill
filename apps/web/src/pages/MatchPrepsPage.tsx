@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Link, Navigate, useNavigate, useParams } from "react-router-dom";
 import type { TacticDocumentV1 } from "@basketball/shared";
 import { api, ApiError } from "../api";
@@ -59,6 +59,10 @@ function localDateInputValue(value: string | null) {
 
 function formatDate(value: string | null) {
   if (!value) return "";
+  if (/^\d{4}-\d{2}-\d{2}$/.test(value)) {
+    const [year, month, day] = value.split("-").map(Number);
+    return new Date(year!, month! - 1, day!).toLocaleDateString();
+  }
   return new Date(value).toLocaleDateString();
 }
 
@@ -288,8 +292,11 @@ function MatchPrepDetailPage({ prepId }: { prepId: string }) {
   const [err, setErr] = useState<string | null>(null);
   const [saveStatus, setSaveStatus] = useState<SaveStatus>("saved");
   const [shareUrl, setShareUrl] = useState<string | null>(null);
+  const [shares, setShares] = useState<PrepShare[]>([]);
   const [sharing, setSharing] = useState(false);
-  const [shareCopied, setShareCopied] = useState(false);
+  const [shareCopiedId, setShareCopiedId] = useState<string | null>(null);
+  const [revokingShareId, setRevokingShareId] = useState<string | null>(null);
+  const revokingShareRef = useRef(false);
 
   const markUnsaved = useCallback(() => setSaveStatus("unsaved"), []);
 
@@ -347,7 +354,8 @@ function MatchPrepDetailPage({ prepId }: { prepId: string }) {
       applyPrep(res);
       const shares = await api<PrepShare[]>(`/api/v1/match-preps/${prepId}/shares`);
       setShareUrl(shares[0]?.viewUrl ?? null);
-      setShareCopied(false);
+      setShares(shares);
+      setShareCopiedId(null);
     } catch (e) {
       setErr(e instanceof ApiError ? e.message : t("matchPrep.loadFailed"));
     }
@@ -419,7 +427,7 @@ function MatchPrepDetailPage({ prepId }: { prepId: string }) {
     if (sharing) return;
     setSharing(true);
     setErr(null);
-    setShareCopied(false);
+    setShareCopiedId(null);
     try {
       if (saveStatus === "unsaved") {
         const saved = await save();
@@ -427,6 +435,7 @@ function MatchPrepDetailPage({ prepId }: { prepId: string }) {
       }
       const existing = await api<PrepShare[]>(`/api/v1/match-preps/${prepId}/shares`);
       if (existing[0]) {
+        setShares(existing);
         setShareUrl(existing[0].viewUrl);
         return;
       }
@@ -434,6 +443,7 @@ function MatchPrepDetailPage({ prepId }: { prepId: string }) {
         method: "POST",
         body: "{}",
       });
+      setShares([share]);
       setShareUrl(share.viewUrl);
     } catch (e) {
       setErr(e instanceof ApiError ? e.message : t("matchPrep.shareFailed"));
@@ -442,13 +452,31 @@ function MatchPrepDetailPage({ prepId }: { prepId: string }) {
     }
   }
 
-  async function copyShareUrl() {
-    if (!shareUrl) return;
+  async function copyShareUrl(share: PrepShare) {
     try {
-      await navigator.clipboard.writeText(shareUrl);
-      setShareCopied(true);
+      await navigator.clipboard.writeText(share.viewUrl);
+      setShareCopiedId(share.shareId);
     } catch {
-      setShareCopied(false);
+      setShareCopiedId(null);
+    }
+  }
+
+  async function revokePrepShare(shareId: string) {
+    if (revokingShareRef.current) return;
+    revokingShareRef.current = true;
+    setRevokingShareId(shareId);
+    setErr(null);
+    try {
+      await api(`/api/v1/match-prep-shares/${shareId}`, { method: "DELETE" });
+      const nextShares = await api<PrepShare[]>(`/api/v1/match-preps/${prepId}/shares`);
+      setShares(nextShares);
+      setShareUrl(nextShares[0]?.viewUrl ?? null);
+      if (shareCopiedId === shareId) setShareCopiedId(null);
+    } catch (e) {
+      setErr(e instanceof ApiError ? e.message : t("matchPrep.shareRevokeFailed"));
+    } finally {
+      revokingShareRef.current = false;
+      setRevokingShareId(null);
     }
   }
 
@@ -590,13 +618,27 @@ function MatchPrepDetailPage({ prepId }: { prepId: string }) {
                 </a>
               ) : null}
             </div>
-            {shareUrl ? (
+            {shareUrl || shares.length > 0 ? (
               <div className="match-prep-share-link">
                 <span>{t("matchPrep.viewHint")}</span>
-                <a href={shareUrl} target="_blank" rel="noreferrer">{shareUrl}</a>
-                <button type="button" className="btn btn-sm" onClick={() => void copyShareUrl()}>
-                  {shareCopied ? t("matchPrep.shareCopied") : t("matchPrep.shareCopy")}
-                </button>
+                <div className="share-management__list">
+                  {shares.map((share) => (
+                    <div className="share-management__row" key={share.shareId}>
+                      <a href={share.viewUrl} target="_blank" rel="noreferrer">{share.viewUrl}</a>
+                      <span className="muted">
+                        {share.expiresAt ? `${t("edit.shareExpiresAt")} ${new Date(share.expiresAt).toLocaleDateString()}` : t("edit.shareNeverExpires")}
+                      </span>
+                      <div className="row-actions">
+                        <button type="button" className="btn btn-sm" onClick={() => void copyShareUrl(share)}>
+                          {shareCopiedId === share.shareId ? t("matchPrep.shareCopied") : t("matchPrep.shareCopy")}
+                        </button>
+                        <button type="button" className="btn btn-sm btn-ghost" disabled={Boolean(revokingShareId)} onClick={() => void revokePrepShare(share.shareId)}>
+                          {t("edit.shareRevoke")}
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
               </div>
             ) : null}
           </div>

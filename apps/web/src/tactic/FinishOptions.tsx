@@ -66,6 +66,7 @@ export function FinishOptions({ document, courtMode = "half", visibleAtTimeMs }:
     const isPrimary = option.priority === "primary" || isShot;
     const stroke = isShot ? "#ff7043" : "#4dd0e1";
     const fill = isShot ? "rgba(255, 112, 67, 0.16)" : "rgba(77, 208, 225, 0.14)";
+    const label = option.label?.trim() || (option.priority ? option.priority : "");
 
     nodes.push(
       <g key={`finish-option-${idx}`}>
@@ -96,6 +97,21 @@ export function FinishOptions({ document, courtMode = "half", visibleAtTimeMs }:
             <path d="M -1.8 -2.1 L 2.3 0 L -1.8 2.1 Z" fill={stroke} opacity="0.95" />
           </g>
         )}
+        {label ? (
+          <text
+            x={tx}
+            y={ty - 6}
+            textAnchor="middle"
+            fill={stroke}
+            fontSize={3}
+            fontWeight={800}
+            paintOrder="stroke"
+            stroke="rgba(5, 17, 9, 0.85)"
+            strokeWidth={1.4}
+          >
+            {label}
+          </text>
+        ) : null}
       </g>,
     );
   });

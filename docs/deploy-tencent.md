@@ -10,7 +10,7 @@
         │  post-receive hook
         ▼
 工作目录 (/data/node-apps/basketball_drill)
-  npm ci → build → db:push → pm2 restart
+  npm ci → build → SQLite backup → db:push → pm2 restart
         │
         ▼
 Nginx (80/443) ──┬── /api/*  → 127.0.0.1:3002 (Fastify)
@@ -42,7 +42,7 @@ git remote add deploy ssh://root@YOUR_SERVER_IP/data/git/basketball_drill.git
 git push deploy main
 ```
 
-推送后服务器自动执行：`npm ci` → `npm run build` → `db:push` → `pm2 restart`。
+推送后服务器自动执行：`npm ci` → `npm run build` → SQLite 备份 → `db:push` → `pm2 restart`。备份或迁移失败会中止发版，不会重启到不匹配的 schema。
 
 ## 四、HTTPS（推荐）
 

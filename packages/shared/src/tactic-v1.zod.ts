@@ -21,6 +21,31 @@ const event = z
     to: z.string().optional(),
     note: z.string().optional(),
     angle: z.number().optional(),
+    /** v2 teaching semantics; optional so v1 documents stay valid. */
+    teaching: z
+      .object({
+        concept: z.enum(["cut", "handoff", "screen", "spacing", "pass", "finish", "defense"]).optional(),
+        explanation: z.string().max(1200).optional(),
+      })
+      .passthrough()
+      .optional(),
+    cut: z.enum(["basket", "curl", "flare", "backdoor", "pop", "lift", "replace", "split"]).optional(),
+    handoff: z.enum(["dho", "pitch", "handoff_fake", "keep"]).optional(),
+    screenSubtype: z
+      .enum(["ball", "down", "pin_down", "flare", "back", "cross", "ram", "ghost", "drag", "rescreen"])
+      .optional(),
+    screen_subtype: z
+      .enum(["ball", "down", "pin_down", "flare", "back", "cross", "ram", "ghost", "drag", "rescreen"])
+      .optional(),
+    coverage: z
+      .enum(["drop", "show", "hedge", "switch", "ice", "under", "over", "trap", "zone", "help_recover"])
+      .optional(),
+    readTrigger: z.string().max(280).optional(),
+    read_trigger: z.string().max(280).optional(),
+    playerTask: z.string().max(280).optional(),
+    player_task: z.string().max(280).optional(),
+    commonMistake: z.string().max(280).optional(),
+    common_mistake: z.string().max(280).optional(),
   })
   .passthrough();
 
@@ -50,7 +75,7 @@ function addCustomIssue(
 
 export const TacticDocumentV1Schema = z
   .object({
-    schemaVersion: z.literal(1),
+    schemaVersion: z.union([z.literal(1), z.literal(2)]),
     meta: z
       .object({
         name: z.string().min(1).max(200).optional(),
@@ -192,6 +217,17 @@ export const TacticDocumentV1Schema = z
 
       if (ev.kind === "screen" || ev.kind === "screen_end") {
         requirePlayerRef(ev.from, ["events", i, "from"], "掩护球员");
+        return;
+      }
+
+      if (ev.kind === "cut") {
+        requirePlayerRef(ev.from, ["events", i, "from"], "空切球员");
+        return;
+      }
+
+      if (ev.kind === "handoff") {
+        requirePlayerRef(ev.from, ["events", i, "from"], "手递手发起人");
+        requirePlayerRef(ev.to, ["events", i, "to"], "手递手接球人");
         return;
       }
 

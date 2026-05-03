@@ -23,7 +23,7 @@ const adminPlaysListQuery = z.object({
 });
 
 const adminPlayScopeBody = z.object({
-  libraryScope: z.enum(["all_coaches", "partial", "hidden"]),
+  libraryScope: z.enum(["all_coaches", "hidden"]),
 });
 
 function escapeIlike(s: string) {
@@ -227,7 +227,7 @@ export async function adminRoutes(fastify: FastifyInstance) {
     }
     const [u] = await db
       .update(plays)
-      .set({ libraryScope: b.libraryScope, updatedAt: new Date() })
+      .set({ libraryScope: b.libraryScope, sharedWithUserIds: [], updatedAt: new Date() })
       .where(eq(plays.id, playId))
       .returning();
     if (!u) {

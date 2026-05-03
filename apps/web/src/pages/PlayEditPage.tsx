@@ -76,12 +76,15 @@ export function PlayEditPage() {
   const [playing, setPlaying] = useState(false);
   const [err, setErr] = useState<string | null>(null);
   const [viewUrl, setViewUrl] = useState<string | null>(null);
+  const [shares, setShares] = useState<PlayShare[]>([]);
+  const [shareCopiedId, setShareCopiedId] = useState<string | null>(null);
+  const [revokingShareId, setRevokingShareId] = useState<string | null>(null);
   const [saveStatus, setSaveStatus] = useState<SaveStatus>("saved");
   const [frameByFrame, setFrameByFrame] = useState(false);
   const [frameStepTarget, setFrameStepTarget] = useState<{ from: number; to: number } | null>(null);
   const [loop, setLoop] = useState(false);
   const [playbackSpeed, setPlaybackSpeed] = useState<0.5 | 1 | 2>(1);
-  const [libraryScope, setLibraryScope] = useState<"all_coaches" | "partial" | "hidden">("all_coaches");
+  const [libraryScope, setLibraryScope] = useState<"all_coaches" | "partial" | "hidden">("hidden");
   const [sharedWithUserIds, setSharedWithUserIds] = useState<string[]>([]);
   const defaultCategories = useMemo(() => TACTIC_CATEGORY_KEYS.map((key) => t(key)), [t]);
   const categoryOptions = useMemo(
@@ -127,6 +130,7 @@ export function PlayEditPage() {
   const undoStackRef = useRef<TacticDocumentV1[]>([]);
   const redoStackRef = useRef<TacticDocumentV1[]>([]);
   const lastUndoPushAtRef = useRef(0);
+  const revokingShareRef = useRef(false);
   const [historyVersion, setHistoryVersion] = useState(0);
 
   const isDirty = useCallback(() => {
@@ -304,7 +308,7 @@ export function PlayEditPage() {
       setCategory(nextCategory);
       const nextAssignedTeamIds = p.teamIds?.length ? p.teamIds : p.teamId ? [p.teamId] : [];
       setAssignedTeamIds(nextAssignedTeamIds);
-      const nextLibraryScope = p.libraryScope ?? "all_coaches";
+      const nextLibraryScope = p.libraryScope ?? "hidden";
       const nextSharedWithUserIds = p.sharedWithUserIds ?? [];
       setLibraryScope(nextLibraryScope);
       setSharedWithUserIds(nextLibraryScope === "partial" ? nextSharedWithUserIds : []);
@@ -326,6 +330,8 @@ export function PlayEditPage() {
         doc: nextDoc,
       });
       setViewUrl(shares[0]?.viewUrl ?? null);
+      setShares(shares);
+      setShareCopiedId(null);
       setSaveStatus("saved");
     } catch (e) {
       setErr(e instanceof ApiError ? e.message : t("edit.loadFailed"));
@@ -537,19 +543,50 @@ export function PlayEditPage() {
 
   async function share() {
     setErr(null);
+    setShareCopiedId(null);
     try {
       const existing = await api<PlayShare[]>(`/api/v1/plays/${id}/shares`);
       if (existing[0]) {
+        setShares(existing);
         setViewUrl(existing[0].viewUrl);
         return;
       }
-      const s = await api<{ viewUrl: string }>(`/api/v1/plays/${id}/shares`, {
+      const s = await api<PlayShare>(`/api/v1/plays/${id}/shares`, {
         method: "POST",
         body: "{}",
       });
+      setShares([s]);
       setViewUrl(s.viewUrl);
     } catch (e) {
       setErr(e instanceof ApiError ? e.message : t("edit.shareFailed"));
+    }
+  }
+
+  async function revokeShare(shareId: string) {
+    if (revokingShareRef.current) return;
+    revokingShareRef.current = true;
+    setRevokingShareId(shareId);
+    setErr(null);
+    try {
+      await api(`/api/v1/shares/${shareId}`, { method: "DELETE" });
+      const nextShares = await api<PlayShare[]>(`/api/v1/plays/${id}/shares`);
+      setShares(nextShares);
+      setViewUrl(nextShares[0]?.viewUrl ?? null);
+      if (shareCopiedId === shareId) setShareCopiedId(null);
+    } catch (e) {
+      setErr(e instanceof ApiError ? e.message : t("edit.shareRevokeFailed"));
+    } finally {
+      revokingShareRef.current = false;
+      setRevokingShareId(null);
+    }
+  }
+
+  async function copyShareUrl(share: PlayShare) {
+    try {
+      await navigator.clipboard.writeText(share.viewUrl);
+      setShareCopiedId(share.shareId);
+    } catch {
+      setShareCopiedId(null);
     }
   }
 
@@ -586,14 +623,31 @@ export function PlayEditPage() {
         <span className={`save-status save-status--${saveStatus}`}>{statusLabel}</span>
       </div>
       {err ? <p className="error">{err}</p> : null}
-      {viewUrl ? (
-        <div className="card" style={{ marginBottom: "1rem" }}>
+      {viewUrl || shares.length > 0 ? (
+        <div className="card share-management" style={{ marginBottom: "1rem" }}>
           <p className="hint" style={{ marginTop: 0 }}>
             {t("edit.viewHint")}
           </p>
-          <a href={viewUrl} target="_blank" rel="noreferrer">
-            {viewUrl}
-          </a>
+          <div className="share-management__list">
+            {shares.map((shareItem) => (
+              <div className="share-management__row" key={shareItem.shareId}>
+                <a href={shareItem.viewUrl} target="_blank" rel="noreferrer">
+                  {shareItem.viewUrl}
+                </a>
+                <span className="muted">
+                  {shareItem.expiresAt ? `${t("edit.shareExpiresAt")} ${new Date(shareItem.expiresAt).toLocaleDateString()}` : t("edit.shareNeverExpires")}
+                </span>
+                <div className="row-actions">
+                  <button type="button" className="btn btn-sm" onClick={() => void copyShareUrl(shareItem)}>
+                    {shareCopiedId === shareItem.shareId ? t("edit.shareCopied") : t("edit.shareCopy")}
+                  </button>
+                  <button type="button" className="btn btn-sm btn-ghost" disabled={Boolean(revokingShareId)} onClick={() => void revokeShare(shareItem.shareId)}>
+                    {t("edit.shareRevoke")}
+                  </button>
+                </div>
+              </div>
+            ))}
+          </div>
         </div>
       ) : null}
       <div className="row-actions" style={{ marginBottom: "1rem" }}>

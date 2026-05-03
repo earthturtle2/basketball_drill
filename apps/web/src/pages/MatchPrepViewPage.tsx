@@ -4,6 +4,7 @@ import type { TacticDocumentV1 } from "@basketball/shared";
 import { useT } from "../i18n";
 import { PlaybackPreviewSection } from "../tactic/PlaybackPreviewSection";
 import { buildCategoryLetterMap, formatCategoryCode } from "../tactic/categories";
+import { ShareWatermark } from "../components/ShareWatermark";
 
 type SharedPrepEntryPlay = {
   id: string;
@@ -43,6 +44,10 @@ type SharedPrepPayload = {
 
 function formatDate(value: string | null) {
   if (!value) return "";
+  if (/^\d{4}-\d{2}-\d{2}$/.test(value)) {
+    const [year, month, day] = value.split("-").map(Number);
+    return new Date(year!, month! - 1, day!).toLocaleDateString();
+  }
   return new Date(value).toLocaleDateString();
 }
 
@@ -137,11 +142,13 @@ export function MatchPrepViewPage() {
 
   return (
     <div className="match-prep-public">
+      <ShareWatermark label={`${t("view.watermark")} · ${data.share.id.slice(-6)}`} />
       <header className="match-prep-public-hero card">
         <div>
           <p className="match-prep-kicker">{t("matchPrep.publicKicker")}</p>
           <h1>{data.prep.title}</h1>
           <p className="hint">{t("matchPrep.publicHint")}</p>
+          <p className="share-audience">{t("view.audienceHint")}</p>
         </div>
         <div className="match-prep-public-meta">
           {data.prep.opponent ? <span>{`${t("matchPrep.vs")} ${data.prep.opponent}`}</span> : null}

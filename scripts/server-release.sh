@@ -7,7 +7,7 @@ export NVM_DIR="${NVM_DIR:-$HOME/.nvm}"
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 cd "$ROOT"
 
-echo "[1/4] npm ci (skip if lockfile unchanged)"
+echo "[1/5] npm ci (skip if lockfile unchanged)"
 LOCK_HASH=$(sha256sum package-lock.json | cut -d' ' -f1)
 CACHED_HASH=""
 [ -f node_modules/.lockfile-hash ] && CACHED_HASH=$(cat node_modules/.lockfile-hash)
@@ -18,14 +18,14 @@ else
   echo "$LOCK_HASH" > node_modules/.lockfile-hash
 fi
 
-echo "[2/4] build"
+echo "[2/5] build"
 NODE_ENV=production npm run build
 
-echo "[3/5] migrate (manual SQL for SQLite compatibility)"
-node scripts/migrate-add-teams.cjs || true
+echo "[3/5] backup SQLite database"
+node scripts/backup-sqlite.cjs
 
-echo "[4/5] db:push"
-npm run db:push -w @basketball/api || echo "  db:push had warnings (non-fatal)"
+echo "[4/5] db:push (abort on migration failure)"
+npm run db:push -w @basketball/api
 
 echo "[5/5] pm2 restart"
 if command -v pm2 >/dev/null 2>&1; then

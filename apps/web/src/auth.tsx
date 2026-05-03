@@ -8,11 +8,11 @@ import {
 } from "react";
 import {
   api,
-  setTokens,
+  setAccessToken,
   clearTokens,
   getAccessToken,
-  getRefreshToken,
   onAuthFailure,
+  LOGOUT_MARKER,
 } from "./api";
 
 export type AuthUser = {
@@ -46,10 +46,23 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [loading, setLoading] = useState(true);
 
   const fetchUser = useCallback(async () => {
-    if (!getAccessToken()) {
+    if (localStorage.getItem(LOGOUT_MARKER)) {
       setUser(null);
       setLoading(false);
       return;
+    }
+    if (!getAccessToken()) {
+      try {
+        const refreshed = await api<{ accessToken: string }>("/api/v1/auth/refresh", {
+          method: "POST",
+          body: "{}",
+        });
+        setAccessToken(refreshed.accessToken);
+      } catch {
+        setUser(null);
+        setLoading(false);
+        return;
+      }
     }
     try {
       const u = await api<AuthUser>("/api/v1/me");
@@ -70,11 +83,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const login = useCallback(
     async (email: string, password: string) => {
-      const data = await api<{ accessToken: string; refreshToken: string }>(
+      const data = await api<{ accessToken: string }>(
         "/api/v1/auth/login",
         { method: "POST", body: JSON.stringify({ email, password }) },
       );
-      setTokens(data.accessToken, data.refreshToken);
+      setAccessToken(data.accessToken);
+      localStorage.removeItem(LOGOUT_MARKER);
       await fetchUser();
     },
     [fetchUser],
@@ -82,30 +96,34 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const register = useCallback(
     async (email: string, password: string, inviteCode: string, name?: string) => {
-      const data = await api<{ accessToken: string; refreshToken: string }>(
+      const data = await api<{ accessToken: string }>(
         "/api/v1/auth/register",
         {
           method: "POST",
           body: JSON.stringify({ email, password, inviteCode: inviteCode.trim() || undefined, name }),
         },
       );
-      setTokens(data.accessToken, data.refreshToken);
+      setAccessToken(data.accessToken);
+      localStorage.removeItem(LOGOUT_MARKER);
       await fetchUser();
     },
     [fetchUser],
   );
 
   const logout = useCallback(() => {
-    const refreshToken = getRefreshToken();
+    localStorage.setItem(LOGOUT_MARKER, "1");
     clearTokens();
     setUser(null);
-    if (refreshToken) {
-      void fetch("/api/v1/auth/logout", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ refreshToken }),
-      }).catch(() => {});
-    }
+    void fetch("/api/v1/auth/logout", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      credentials: "same-origin",
+      body: "{}",
+    })
+      .then((res) => {
+        if (res.ok) localStorage.removeItem(LOGOUT_MARKER);
+      })
+      .catch(() => {});
   }, []);
 
   return (

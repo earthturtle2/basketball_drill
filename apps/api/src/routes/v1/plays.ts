@@ -302,7 +302,7 @@ export async function playRoutes(fastify: FastifyInstance) {
         teamId: copiedTeamIds[0] ?? null,
         teamIds: copiedTeamIds,
         document: buildDocumentOnUpdate(row.document, row.name, { name: newName, category }),
-        libraryScope: "all_coaches" satisfies LibraryScope,
+        libraryScope: "hidden" satisfies LibraryScope,
         sharedWithUserIds: [],
       })
       .returning();
@@ -401,7 +401,7 @@ export async function playRoutes(fastify: FastifyInstance) {
         category,
         tags: b.tags ?? [],
         document,
-        libraryScope: b.libraryScope ?? "all_coaches",
+        libraryScope: b.libraryScope ?? "hidden",
         sharedWithUserIds: b.libraryScope === "partial" ? uniqueUserIds(b.sharedWithUserIds) : [],
       })
       .returning();
@@ -508,7 +508,7 @@ export async function playRoutes(fastify: FastifyInstance) {
         teamId: copiedTeamIds[0] ?? null,
         teamIds: copiedTeamIds,
         document: buildDocumentOnUpdate(row.document, row.name, { name: newName, category }),
-        libraryScope: "all_coaches" satisfies LibraryScope,
+        libraryScope: "hidden" satisfies LibraryScope,
         sharedWithUserIds: [],
       })
       .returning();

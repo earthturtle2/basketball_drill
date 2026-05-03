@@ -34,7 +34,7 @@
 
 | 方法 | 路径 | 说明 |
 |------|------|------|
-| `GET` | `/plays` | 查询列表。Query：`page`, `pageSize`, `q`（名称模糊）, `tag`, `category`, `teamId`；`items` 中每条含 `category` 与 `libraryScope`（`all_coaches` 或 `hidden`） |
+| `GET` | `/plays` | 查询列表。Query：`page`, `pageSize`, `q`（名称模糊）, `tag`, `category`, `teamId`；`items` 中每条含 `category` 与 `libraryScope`（`hidden`、`partial` 或 `all_coaches`） |
 | `POST` | `/plays` | 创建。body：见下方「创建/更新 body」 |
 | `GET` | `/plays/{playId}` | 详情（含完整 `document` 与 `libraryScope`） |
 | `PATCH` | `/plays/{playId}` | 部分更新元数据或 `document`（若支持字段级，可拆 `metadata` / `document`） |
@@ -46,7 +46,7 @@
 | `GET` | `/tactic-categories` | 当前教练的全局战术类别列表（包含已保存的自定义类别、战术与比赛准备中使用过的类别） |
 | `POST` | `/tactic-categories` | 手动加入全局战术类别。body: `{ "name": "半场进攻" }` |
 
-新建战术的 **`libraryScope` 默认 `all_coaches`**：进入全员「战术模版库」；`hidden` 表示不在库中列出（**仅**管理员可改为 `hidden`，非作者不可见于共享库）。
+新建战术的 **`libraryScope` 默认 `hidden`**：仅作者在「我的战术」中可见；发布到全员「战术模版库」必须显式改为 `all_coaches`，`partial` 由作者在编辑页选择具体账号。
 
 | 方法 | 路径 | 说明 |
 |------|------|------|
@@ -65,7 +65,7 @@
 }
 ```
 
-其中 `category` 为战术类别；传入新类别时服务端会自动加入该教练的全局类别列表，后续比赛准备可直接复用。`document` 为 **战术 JSON v1 根对象**（与示例文件同结构）；服务端应校验 `document.schemaVersion` 与内嵌规则（球员数量、时间轴范围等）。为保持兼容，旧数据缺少 `category` 或 `document.meta.category` 时仍可读取。
+其中 `category` 为战术类别；传入新类别时服务端会自动加入该教练的全局类别列表，后续比赛准备可直接复用。`document` 为 **战术 JSON v1/v2 根对象**；服务端应校验 `document.schemaVersion` 与内嵌规则（球员数量、时间轴范围等）。为保持兼容，旧数据缺少 `category` 或 `document.meta.category` 时仍可读取。
 
 ---
 
@@ -73,7 +73,7 @@
 
 | 方法 | 路径 | 说明 |
 |------|------|------|
-| `POST` | `/plays/{playId}/shares` | 创建分享。body 可选：`{ "expiresAt": "...", "password": "可选" }`；返回 `shareId`, `token`, `viewUrl` |
+| `POST` | `/plays/{playId}/shares` | 创建分享。body 可选：`{ "expiresAt": "..." }`；默认 30 天有效，返回 `shareId`, `token`, `viewUrl` |
 | `GET` | `/shares/{token}` | **公开**（可不带 Bearer）。返回战术元数据 + `document`（或仅元数据，由策略定） |
 | `DELETE` | `/shares/{shareId}` | 教练撤销 |
 
@@ -107,7 +107,7 @@
 
 ## 版本与兼容
 
-- URL 路径带 `/api/v1`，**战术 JSON 自带 `schemaVersion: 1`**。日后 v2 战术可在服务端做读时迁移或双读。
+- URL 路径带 `/api/v1`；**战术 JSON 支持 `schemaVersion: 1 | 2`**。v2 在 `events` 上增加教学语义字段，v1 旧文档继续双读。
 
 ---
 

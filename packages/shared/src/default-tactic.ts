@@ -1,7 +1,7 @@
 import type { TacticDocumentV1 } from "./tactic-v1.zod.js";
 
 export const DEFAULT_TACTIC_DOCUMENT: TacticDocumentV1 = {
-  schemaVersion: 1,
+  schemaVersion: 2,
   meta: {
     name: "新战术",
     description: "",

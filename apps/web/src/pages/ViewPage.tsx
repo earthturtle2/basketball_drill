@@ -3,6 +3,7 @@ import { useParams } from "react-router-dom";
 import type { TacticDocumentV1 } from "@basketball/shared";
 import { PlaybackPreviewSection } from "../tactic/PlaybackPreviewSection";
 import { useT } from "../i18n";
+import { ShareWatermark } from "../components/ShareWatermark";
 
 type SharePayload = {
   play: {
@@ -54,9 +55,11 @@ export function ViewPage() {
 
   return (
     <div className="view-page">
+      <ShareWatermark label={`${t("view.watermark")} · ${data.share.id.slice(-6)}`} />
       <h1 style={{ margin: "0 0 0.25rem" }}>{data.play.name}</h1>
       {data.play.category ? <p className="muted" style={{ margin: "0 0 0.35rem" }}>{data.play.category}</p> : null}
       {data.play.description ? <p className="hint">{data.play.description}</p> : null}
+      <p className="share-audience">{t("view.audienceHint")}</p>
       <PlaybackPreviewSection document={doc} resetPlaybackKey={token} rangeInputId="v" />
     </div>
   );

@@ -12,24 +12,27 @@ export class ApiError extends Error {
 }
 
 const ACCESS = "basketball_access";
-const REFRESH = "basketball_refresh";
+const LEGACY_REFRESH = "basketball_refresh";
+export const LOGOUT_MARKER = "basketball_logout_pending";
+
+try {
+  localStorage.removeItem(LEGACY_REFRESH);
+} catch {
+  /* Older builds stored refresh tokens in localStorage; clear them when possible. */
+}
 
 export function getAccessToken() {
   return localStorage.getItem(ACCESS);
 }
 
-export function getRefreshToken() {
-  return localStorage.getItem(REFRESH);
-}
-
-export function setTokens(access: string, refresh: string) {
+export function setAccessToken(access: string) {
   localStorage.setItem(ACCESS, access);
-  localStorage.setItem(REFRESH, refresh);
+  localStorage.removeItem(LEGACY_REFRESH);
 }
 
 export function clearTokens() {
   localStorage.removeItem(ACCESS);
-  localStorage.removeItem(REFRESH);
+  localStorage.removeItem(LEGACY_REFRESH);
 }
 
 let _onAuthFailure: (() => void) | null = null;
@@ -44,12 +47,12 @@ export function onAuthFailure(handler: () => void): () => void {
 }
 
 async function performRefresh() {
-  const r = getRefreshToken();
-  if (!r) return null;
+  if (localStorage.getItem(LOGOUT_MARKER)) return null;
   const res = await fetch(`${base()}/api/v1/auth/refresh`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ refreshToken: r }),
+    credentials: "same-origin",
+    body: "{}",
   });
   if (!res.ok) {
     clearTokens();
@@ -58,9 +61,8 @@ async function performRefresh() {
   }
   const data = (await res.json()) as {
     accessToken: string;
-    refreshToken: string;
   };
-  setTokens(data.accessToken, data.refreshToken);
+  setAccessToken(data.accessToken);
   return data.accessToken;
 }
 
@@ -69,6 +71,10 @@ function refreshOnce() {
     refreshPromise = null;
   });
   return refreshPromise;
+}
+
+function shouldTryRefresh(path: string) {
+  return !path.startsWith("/api/v1/auth/") && !localStorage.getItem(LOGOUT_MARKER);
 }
 
 export async function api<T>(
@@ -85,8 +91,8 @@ export async function api<T>(
   if (token) {
     headers.Authorization = `Bearer ${token}`;
   }
-  const res = await fetch(`${base()}${path}`, { ...init, headers });
-  if (res.status === 401 && !init?._retry && getRefreshToken()) {
+  const res = await fetch(`${base()}${path}`, { ...init, headers, credentials: "same-origin" });
+  if (res.status === 401 && !init?._retry && shouldTryRefresh(path)) {
     const latestToken = getAccessToken();
     if (token && latestToken && latestToken !== token) {
       return api<T>(path, { ...init, _retry: true });

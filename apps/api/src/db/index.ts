@@ -83,8 +83,10 @@ if (hasTable("plays") && !hasColumn("plays", "category")) {
   sqlite.exec("ALTER TABLE plays ADD COLUMN category TEXT NOT NULL DEFAULT ''");
 }
 
+// Startup compatibility only covers idempotent legacy-column additions; release
+// migrations run through `npm run db:push` and must fail fast before restart.
 if (hasTable("plays") && !hasColumn("plays", "library_scope")) {
-  sqlite.exec("ALTER TABLE plays ADD COLUMN library_scope TEXT NOT NULL DEFAULT 'all_coaches'");
+  sqlite.exec("ALTER TABLE plays ADD COLUMN library_scope TEXT NOT NULL DEFAULT 'hidden'");
 }
 
 if (hasTable("plays") && !hasColumn("plays", "shared_with_user_ids")) {

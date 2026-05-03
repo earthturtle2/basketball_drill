@@ -127,13 +127,14 @@ export function resolveBallHolderAt(
     .filter(
       ({ e }) =>
         (e.kind === "pass" && e.from && e.to) ||
+        (e.kind === "handoff" && e.from && e.to) ||
         (e.kind === "possess" && e.to) ||
         e.kind === "possess_end",
     )
     .filter(({ e }) => e.t <= tMs)
     .sort((a, b) => a.e.t - b.e.t || a.i - b.i);
   for (const { e } of chain) {
-    if (e.kind === "pass") holder = e.to;
+    if (e.kind === "pass" || e.kind === "handoff") holder = e.to;
     else if (e.kind === "possess") holder = e.to;
     else if (e.kind === "possess_end") holder = undefined;
   }

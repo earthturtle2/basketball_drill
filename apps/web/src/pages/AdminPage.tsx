@@ -287,7 +287,7 @@ export function AdminPage() {
                   }}
                 >
                   <option value="all_coaches">{t("admin.scopeAll")}</option>
-                  <option value="partial">{t("admin.scopePartial")}</option>
+                  <option value="partial" disabled>{t("admin.scopePartialLocked")}</option>
                   <option value="hidden">{t("admin.scopeHidden")}</option>
                 </select>
               </div>

@@ -1,4 +1,4 @@
-import type { FastifyInstance } from "fastify";
+import type { FastifyInstance, FastifyReply, FastifyRequest } from "fastify";
 import { z } from "zod";
 import { randomUUID } from "node:crypto";
 import { eq, lt } from "drizzle-orm";
@@ -27,8 +27,10 @@ const loginBody = z.object({
 });
 
 const refreshBody = z.object({
-  refreshToken: z.string().min(1),
+  refreshToken: z.string().min(1).optional(),
 });
+
+const REFRESH_COOKIE = "basketball_refresh";
 
 type RegisterTxInput = {
   email: string;
@@ -93,13 +95,58 @@ const registerUserTx = sqliteDb.transaction((input: RegisterTxInput): Registered
   return { id: userId, email: input.email, role };
 });
 
-async function issueTokens(user: { id: string; email: string; role: string }) {
+function cookieSecure() {
+  return process.env.NODE_ENV === "production";
+}
+
+function cookieMaxAgeSeconds() {
+  return Math.floor((refreshExpiresAt().getTime() - Date.now()) / 1000);
+}
+
+function serializeCookie(name: string, value: string, maxAgeSeconds: number) {
+  const parts = [
+    `${name}=${encodeURIComponent(value)}`,
+    "Path=/",
+    "HttpOnly",
+    "SameSite=Lax",
+    `Max-Age=${Math.max(0, maxAgeSeconds)}`,
+  ];
+  if (cookieSecure()) parts.push("Secure");
+  return parts.join("; ");
+}
+
+function readCookie(request: FastifyRequest, name: string) {
+  const header = request.headers.cookie;
+  if (!header) return undefined;
+  for (const part of header.split(";")) {
+    const [rawKey, ...rawValue] = part.trim().split("=");
+    if (rawKey === name) {
+      try {
+        return decodeURIComponent(rawValue.join("="));
+      } catch {
+        return undefined;
+      }
+    }
+  }
+  return undefined;
+}
+
+function setRefreshCookie(reply: FastifyReply, raw: string) {
+  reply.header("Set-Cookie", serializeCookie(REFRESH_COOKIE, raw, cookieMaxAgeSeconds()));
+}
+
+function clearRefreshCookie(reply: FastifyReply) {
+  reply.header("Set-Cookie", serializeCookie(REFRESH_COOKIE, "", 0));
+}
+
+async function issueTokens(user: { id: string; email: string; role: string }, reply: FastifyReply) {
   const accessToken = signAccessToken(user);
   const raw = createRefreshTokenRaw();
   const tokenHash = hashRefreshToken(raw);
   const exp = refreshExpiresAt();
   await db.insert(refreshTokens).values({ userId: user.id, tokenHash, expiresAt: exp });
-  return { accessToken, refreshToken: raw, expiresIn: getAccessTtlSeconds() };
+  setRefreshCookie(reply, raw);
+  return { accessToken, expiresIn: getAccessTtlSeconds() };
 }
 
 export async function authRoutes(fastify: FastifyInstance) {
@@ -112,7 +159,7 @@ export async function authRoutes(fastify: FastifyInstance) {
       name: b.name ?? null,
       inviteCode: b.inviteCode,
     });
-    return reply.send(await issueTokens(u));
+    return reply.send(await issueTokens(u, reply));
   });
 
   fastify.post("/auth/login", async (request, reply) => {
@@ -121,28 +168,44 @@ export async function authRoutes(fastify: FastifyInstance) {
     if (!u) return sendError(reply, 401, "INVALID_CREDENTIALS", "邮箱或密码错误");
     const ok = await bcrypt.compare(b.password, u.passwordHash);
     if (!ok) return sendError(reply, 401, "INVALID_CREDENTIALS", "邮箱或密码错误");
-    return reply.send(await issueTokens(u));
+    return reply.send(await issueTokens(u, reply));
   });
 
   fastify.post("/auth/refresh", async (request, reply) => {
-    const b = refreshBody.parse(request.body);
-    const h = hashRefreshToken(b.refreshToken);
+    const b = refreshBody.parse(request.body ?? {});
+    const rawRefresh = b.refreshToken ?? readCookie(request, REFRESH_COOKIE);
+    if (!rawRefresh) {
+      clearRefreshCookie(reply);
+      return sendError(reply, 401, "INVALID_REFRESH", "登录已过期，请重新登录");
+    }
+    const h = hashRefreshToken(rawRefresh);
     const row = (
       await db.select().from(refreshTokens).where(eq(refreshTokens.tokenHash, h)).limit(1)
     )[0];
-    if (!row || row.expiresAt < new Date()) {
+    if (!row) {
+      return sendError(reply, 401, "INVALID_REFRESH", "登录已过期，请重新登录");
+    }
+    if (row.expiresAt < new Date()) {
+      clearRefreshCookie(reply);
       return sendError(reply, 401, "INVALID_REFRESH", "登录已过期，请重新登录");
     }
     await db.delete(refreshTokens).where(eq(refreshTokens.id, row.id));
     const u = (await db.select().from(users).where(eq(users.id, row.userId)).limit(1))[0];
-    if (!u) return sendError(reply, 401, "INVALID_REFRESH", "用户不存在");
-    return reply.send(await issueTokens(u));
+    if (!u) {
+      clearRefreshCookie(reply);
+      return sendError(reply, 401, "INVALID_REFRESH", "用户不存在");
+    }
+    return reply.send(await issueTokens(u, reply));
   });
 
   fastify.post("/auth/logout", async (request, reply) => {
-    const b = refreshBody.parse(request.body);
-    const h = hashRefreshToken(b.refreshToken);
-    await db.delete(refreshTokens).where(eq(refreshTokens.tokenHash, h));
+    const b = refreshBody.parse(request.body ?? {});
+    const rawRefresh = b.refreshToken ?? readCookie(request, REFRESH_COOKIE);
+    if (rawRefresh) {
+      const h = hashRefreshToken(rawRefresh);
+      await db.delete(refreshTokens).where(eq(refreshTokens.tokenHash, h));
+    }
+    clearRefreshCookie(reply);
     return reply.send({ ok: true });
   });
 

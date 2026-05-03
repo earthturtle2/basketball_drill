@@ -12,6 +12,12 @@ const shareCreateBody = z.object({
   expiresAt: z.string().datetime().optional(),
 });
 
+const DEFAULT_SHARE_TTL_MS = 30 * 24 * 60 * 60 * 1000;
+
+function defaultShareExpiresAt() {
+  return new Date(Date.now() + DEFAULT_SHARE_TTL_MS);
+}
+
 function buildShareResponse(s: typeof playShares.$inferSelect) {
   const viewUrl = `${env.publicAppUrl.replace(/\/$/, "")}/view/${s.token}`;
   return {
@@ -104,10 +110,10 @@ export async function protectedShareRoutes(fastify: FastifyInstance) {
       return sendError(reply, 404, "NOT_FOUND", "未找到");
     }
     const token = nanoid(12);
-    const expiresAt = body.expiresAt ? new Date(body.expiresAt) : null;
+    const expiresAt = body.expiresAt ? new Date(body.expiresAt) : defaultShareExpiresAt();
     const [s] = await db
       .insert(playShares)
-      .values({ playId: row.id, token, expiresAt: expiresAt ?? null })
+      .values({ playId: row.id, token, expiresAt })
       .returning();
     if (!s) return sendError(reply, 500, "INTERNAL", "创建分享失败");
     return reply.status(201).send(buildShareResponse(s));
@@ -136,10 +142,10 @@ export async function protectedShareRoutes(fastify: FastifyInstance) {
       return sendError(reply, 404, "NOT_FOUND", "未找到");
     }
     const token = nanoid(12);
-    const expiresAt = body.expiresAt ? new Date(body.expiresAt) : null;
+    const expiresAt = body.expiresAt ? new Date(body.expiresAt) : defaultShareExpiresAt();
     const [s] = await db
       .insert(matchPrepShares)
-      .values({ prepId: row.id, token, expiresAt: expiresAt ?? null })
+      .values({ prepId: row.id, token, expiresAt })
       .returning();
     if (!s) return sendError(reply, 500, "INTERNAL", "创建分享失败");
     return reply.status(201).send(buildMatchPrepShareResponse(s));
