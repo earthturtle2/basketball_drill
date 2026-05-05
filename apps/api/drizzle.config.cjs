@@ -4,8 +4,10 @@ const { config } = require("dotenv");
 const { defineConfig } = require("drizzle-kit");
 
 const repoRoot = resolve(__dirname, "../..");
+const apiRoot = resolve(repoRoot, "apps/api");
 config({ path: resolve(repoRoot, ".env") });
 config({ path: resolve(repoRoot, ".env.local") });
+config({ path: resolve(apiRoot, ".env") });
 
 const raw = process.env.DATABASE_URL;
 if (!raw) {
