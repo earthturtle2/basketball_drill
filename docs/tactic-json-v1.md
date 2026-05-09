@@ -26,6 +26,7 @@
   "t": 7600,
   "kind": "finish_options",
   "from": "o1",
+  "durationMs": 1800,
   "note": "Primary read is the rim; counters are outlet passes if help commits.",
   "options": [
     { "kind": "shot", "label": "Rim", "x": 0.95, "y": 0.5, "priority": "primary" },
@@ -36,6 +37,7 @@
 ```
 
 - `from`：做终结阅读的持球人。
+- `durationMs`：终结选择在播放/编辑中的有效时长，默认 `1800`ms；全场训练有两次终结时，建议让前一次在下一次前自然失效，避免两个终结读点互相串场。
 - `options[].kind`：`shot` 表示投篮/上篮点；`pass` 表示传球点。
 - `shot` 选项用 `x/y` 标注球场位置；`pass` 选项优先用 `to` 指向接应球员，也可用 `x/y` 标注空位点。
 - `label` 会直接显示在球场上；`priority` 目前用于主选/备选的视觉强调。

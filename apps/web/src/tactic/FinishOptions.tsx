@@ -1,7 +1,12 @@
 import type { TacticDocumentV1 } from "@basketball/shared";
 import { useMemo, type ReactNode } from "react";
 import { tacticToSvg, type CourtMode } from "./court-geometry";
-import { parseFinishOptionsEvent, type FinishOption, type FinishOptionsEvent } from "./finish-options-data";
+import {
+  isFinishOptionsActiveAt,
+  parseFinishOptionsEvent,
+  type FinishOption,
+  type FinishOptionsEvent,
+} from "./finish-options-data";
 import { samplePoses } from "./viewer-math";
 
 type Vec = { x: number; y: number };
@@ -29,7 +34,7 @@ export function FinishOptions({ document, courtMode = "half", visibleAtTimeMs }:
     const optionsEvents = (document.events ?? [])
       .map(parseFinishOptionsEvent)
       .filter((item): item is FinishOptionsEvent => Boolean(item))
-      .filter((item) => item.t <= visibleAtTimeMs)
+      .filter((item) => isFinishOptionsActiveAt(item, visibleAtTimeMs))
       .sort((a, b) => a.t - b.t);
     return optionsEvents.at(-1) ?? null;
   }, [document.events, visibleAtTimeMs]);

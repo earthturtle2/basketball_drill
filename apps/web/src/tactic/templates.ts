@@ -688,6 +688,7 @@ export const TEMPLATES: Template[] = [
           t: 7600,
           kind: "finish_options",
           from: "o1",
+          durationMs: 1800,
           note: "Primary read is the rim; counters are corner, nail and weak-side outlets if help commits.",
           options: [
             { kind: "shot", label: "Rim", x: 0.95, y: 0.5, priority: "primary" },

@@ -15,10 +15,15 @@ export type FinishOptionsEvent = {
   t: number;
   from?: string;
   note?: string;
+  durationMs?: number;
   options: FinishOption[];
 };
 
 type EventRow = NonNullable<TacticDocumentV1["events"]>[number];
+
+export const DEFAULT_FINISH_OPTIONS_DURATION_MS = 1800;
+const MIN_FINISH_OPTIONS_DURATION_MS = 500;
+const MAX_FINISH_OPTIONS_DURATION_MS = 6000;
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
@@ -30,6 +35,23 @@ function finiteNumber(value: unknown): number | undefined {
 
 function stringValue(value: unknown): string | undefined {
   return typeof value === "string" && value.trim() ? value.trim() : undefined;
+}
+
+function durationMsValue(value: unknown): number | undefined {
+  if (typeof value !== "number" || !Number.isFinite(value)) return undefined;
+  return Math.round(Math.max(MIN_FINISH_OPTIONS_DURATION_MS, Math.min(MAX_FINISH_OPTIONS_DURATION_MS, value)));
+}
+
+export function finishOptionsDurationMs(event: { durationMs?: unknown }): number {
+  return durationMsValue(event.durationMs) ?? DEFAULT_FINISH_OPTIONS_DURATION_MS;
+}
+
+export function finishOptionsEndMs(event: { t: number; durationMs?: unknown }): number {
+  return event.t + finishOptionsDurationMs(event);
+}
+
+export function isFinishOptionsActiveAt(event: { t: number; durationMs?: unknown }, tMs: number): boolean {
+  return event.t <= tMs && tMs < finishOptionsEndMs(event);
 }
 
 export function parseFinishOption(value: unknown): FinishOption | null {
@@ -63,6 +85,7 @@ export function parseFinishOptionsEvent(event: EventRow): FinishOptionsEvent | n
     t: event.t,
     from: event.from,
     note: event.note,
+    durationMs: durationMsValue((event as { durationMs?: unknown }).durationMs),
     options,
   };
 }
@@ -83,7 +106,7 @@ export function getActiveFinishOptionsEventIndex(
   if (!events?.length || !fromId) return null;
   const withIdx = events.map((e, i) => ({ e, i }));
   const candidates = withIdx
-    .filter(({ e }) => e.kind === "finish_options" && e.from === fromId && e.t <= tMs)
+    .filter(({ e }) => e.kind === "finish_options" && e.from === fromId && isFinishOptionsActiveAt(e, tMs))
     .sort((a, b) => a.e.t - b.e.t || a.i - b.i);
   return candidates.at(-1)?.i ?? null;
 }
@@ -97,6 +120,7 @@ export function makeFinishOptionsEvent(
     t,
     kind: "finish_options",
     from,
+    durationMs: DEFAULT_FINISH_OPTIONS_DURATION_MS,
     options,
   } as EventRow;
 }

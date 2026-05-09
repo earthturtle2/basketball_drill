@@ -4,7 +4,7 @@ import { PlayPreview } from "./PlayPreview";
 import { courtModeFromDocument } from "./court-geometry";
 import { playbackEndMs } from "./viewer-math";
 import { useT } from "../i18n";
-import { parseFinishOptionsEvent } from "./finish-options-data";
+import { finishOptionsEndMs, isFinishOptionsActiveAt, parseFinishOptionsEvent } from "./finish-options-data";
 
 type Props = {
   document: TacticDocumentV1;
@@ -97,6 +97,14 @@ function hasTeachingValue(event: EventRow) {
   );
 }
 
+function finishOptionsStopTimes(doc: TacticDocumentV1, endT: number) {
+  return (doc.events ?? [])
+    .map(parseFinishOptionsEvent)
+    .filter((item): item is NonNullable<ReturnType<typeof parseFinishOptionsEvent>> => Boolean(item))
+    .map(finishOptionsEndMs)
+    .filter((tm) => tm > 0 && tm <= endT);
+}
+
 export function PlaybackPreviewSection({ document: doc, resetPlaybackKey, rangeInputId = "playback-range" }: Props) {
   const { t } = useT();
   const [tMs, setTms] = useState(0);
@@ -128,6 +136,7 @@ export function PlaybackPreviewSection({ document: doc, resetPlaybackKey, rangeI
     const stops = [...new Set([
       ...doc.keyframes.map((k) => k.t),
       ...(doc.events ?? []).map((event) => event.t),
+      ...finishOptionsStopTimes(doc, endT),
     ])].sort((a, b) => a - b);
     if (endT > (stops[stops.length - 1] ?? 0)) stops.push(endT);
     if (stops.length === 0) return;
@@ -214,7 +223,13 @@ export function PlaybackPreviewSection({ document: doc, resetPlaybackKey, rangeI
 
   const previewStopTimes = useMemo(() => {
     const endT = playbackEndMs(doc);
-    return [...new Set([0, ...doc.keyframes.map((k) => k.t), ...(doc.events ?? []).map((event) => event.t), endT])]
+    return [...new Set([
+      0,
+      ...doc.keyframes.map((k) => k.t),
+      ...(doc.events ?? []).map((event) => event.t),
+      ...finishOptionsStopTimes(doc, endT),
+      endT,
+    ])]
       .filter((tm) => tm >= 0 && tm <= endT)
       .sort((a, b) => a - b);
   }, [doc]);
@@ -222,6 +237,7 @@ export function PlaybackPreviewSection({ document: doc, resetPlaybackKey, rangeI
   const teachingEvent = useMemo(() => {
     const candidates = (doc.events ?? [])
       .filter(hasTeachingValue)
+      .filter((event) => event.kind !== "finish_options" || isFinishOptionsActiveAt(event, tMs))
       .filter((event) => event.t <= tMs + 250)
       .sort((a, b) => a.t - b.t);
     return candidates.at(-1) ?? null;
