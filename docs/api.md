@@ -73,11 +73,11 @@
 
 | 方法 | 路径 | 说明 |
 |------|------|------|
-| `POST` | `/plays/{playId}/shares` | 创建分享。body 可选：`{ "expiresAt": "..." }`；默认 30 天有效，返回 `shareId`, `token`, `viewUrl` |
+| `POST` | `/plays/{playId}/shares` | 创建长期有效分享。body 可为空；`token` 使用「战术名称-6位随机数」格式，返回 `shareId`, `token`, `viewUrl`，`expiresAt` 固定为 `null` |
 | `GET` | `/shares/{token}` | **公开**（可不带 Bearer）。返回战术元数据 + `document`（或仅元数据，由策略定） |
 | `DELETE` | `/shares/{shareId}` | 教练撤销 |
 
-`viewUrl` 示例：`https://basketball.itorange.online/view/{token}`
+`viewUrl` 示例：`https://basketball.itorange.online/view/高位挡拆-123456`
 
 ---
 

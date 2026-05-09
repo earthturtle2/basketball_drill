@@ -1,21 +1,56 @@
 import type { FastifyInstance } from "fastify";
-import { z } from "zod";
+import { randomInt } from "node:crypto";
 import { eq } from "drizzle-orm";
-import { nanoid } from "nanoid";
 import { db } from "../../db/index.js";
 import { matchPreparations, matchPrepShares, playShares, plays } from "../../db/schema.js";
 import { sendError } from "../../lib/errors.js";
 import { env } from "../../lib/env.js";
 import { serializePrepDetail } from "./match-preps.js";
 
-const shareCreateBody = z.object({
-  expiresAt: z.string().datetime().optional(),
-});
+const TOKEN_NAME_MAX_LENGTH = 48;
+const TOKEN_RANDOM_DIGITS = 6;
 
-const DEFAULT_SHARE_TTL_MS = 30 * 24 * 60 * 60 * 1000;
+function tokenNamePart(name: string) {
+  const cleaned = name
+    .normalize("NFKC")
+    .trim()
+    .replace(/[\s_]+/g, "-")
+    .replace(/[^\p{L}\p{N}-]+/gu, "")
+    .replace(/-+/g, "-")
+    .replace(/^-|-$/g, "")
+    .slice(0, TOKEN_NAME_MAX_LENGTH)
+    .replace(/-$/g, "");
+  return cleaned || "share";
+}
 
-function defaultShareExpiresAt() {
-  return new Date(Date.now() + DEFAULT_SHARE_TTL_MS);
+function randomDigits() {
+  const min = 10 ** (TOKEN_RANDOM_DIGITS - 1);
+  const max = 10 ** TOKEN_RANDOM_DIGITS;
+  return String(randomInt(min, max));
+}
+
+async function createPlayShareToken(name: string) {
+  const namePart = tokenNamePart(name);
+  for (let i = 0; i < 10; i += 1) {
+    const token = `${namePart}-${randomDigits()}`;
+    const existing = (
+      await db.select({ id: playShares.id }).from(playShares).where(eq(playShares.token, token)).limit(1)
+    )[0];
+    if (!existing) return token;
+  }
+  return `${namePart}-${Date.now()}-${randomDigits()}`;
+}
+
+async function createMatchPrepShareToken(title: string) {
+  const namePart = tokenNamePart(title);
+  for (let i = 0; i < 10; i += 1) {
+    const token = `${namePart}-${randomDigits()}`;
+    const existing = (
+      await db.select({ id: matchPrepShares.id }).from(matchPrepShares).where(eq(matchPrepShares.token, token)).limit(1)
+    )[0];
+    if (!existing) return token;
+  }
+  return `${namePart}-${Date.now()}-${randomDigits()}`;
 }
 
 function buildShareResponse(s: typeof playShares.$inferSelect) {
@@ -24,7 +59,7 @@ function buildShareResponse(s: typeof playShares.$inferSelect) {
     shareId: s.id,
     token: s.token,
     viewUrl,
-    expiresAt: s.expiresAt?.toISOString() ?? null,
+    expiresAt: null,
     createdAt: s.createdAt.toISOString(),
   };
 }
@@ -35,7 +70,7 @@ function buildMatchPrepShareResponse(s: typeof matchPrepShares.$inferSelect) {
     shareId: s.id,
     token: s.token,
     viewUrl,
-    expiresAt: s.expiresAt?.toISOString() ?? null,
+    expiresAt: null,
     createdAt: s.createdAt.toISOString(),
   };
 }
@@ -48,9 +83,6 @@ export async function publicShareRoutes(fastify: FastifyInstance) {
       await db.select().from(playShares).where(eq(playShares.token, token)).limit(1)
     )[0];
     if (!s) return sendError(reply, 404, "NOT_FOUND", "分享不存在或已撤销");
-    if (s.expiresAt && s.expiresAt < new Date()) {
-      return sendError(reply, 410, "GONE", "分享已过期");
-    }
     const p = (await db.select().from(plays).where(eq(plays.id, s.playId)).limit(1))[0];
     if (!p || p.deletedAt) return sendError(reply, 404, "NOT_FOUND", "战术不存在");
     return reply.send({
@@ -63,7 +95,7 @@ export async function publicShareRoutes(fastify: FastifyInstance) {
         document: p.document,
         updatedAt: p.updatedAt.toISOString(),
       },
-      share: { id: s.id, expiresAt: s.expiresAt?.toISOString() ?? null },
+      share: { id: s.id, expiresAt: null },
     });
   });
 
@@ -73,14 +105,11 @@ export async function publicShareRoutes(fastify: FastifyInstance) {
       await db.select().from(matchPrepShares).where(eq(matchPrepShares.token, token)).limit(1)
     )[0];
     if (!s) return sendError(reply, 404, "NOT_FOUND", "分享不存在或已撤销");
-    if (s.expiresAt && s.expiresAt < new Date()) {
-      return sendError(reply, 410, "GONE", "分享已过期");
-    }
     const prep = (await db.select().from(matchPreparations).where(eq(matchPreparations.id, s.prepId)).limit(1))[0];
     if (!prep) return sendError(reply, 404, "NOT_FOUND", "比赛准备不存在");
     return reply.send({
       prep: await serializePrepDetail(prep),
-      share: { id: s.id, expiresAt: s.expiresAt?.toISOString() ?? null },
+      share: { id: s.id, expiresAt: null },
     });
   });
 }
@@ -94,26 +123,19 @@ export async function protectedShareRoutes(fastify: FastifyInstance) {
       return sendError(reply, 404, "NOT_FOUND", "未找到");
     }
     const rows = await db.select().from(playShares).where(eq(playShares.playId, row.id));
-    const now = new Date();
-    return reply.send(
-      rows
-        .filter((s) => !s.expiresAt || s.expiresAt >= now)
-        .map(buildShareResponse),
-    );
+    return reply.send(rows.map(buildShareResponse));
   });
 
   fastify.post("/plays/:playId/shares", async (request, reply) => {
     const { playId } = request.params as { playId: string };
-    const body = shareCreateBody.parse((request as { body: unknown }).body ?? {});
     const row = (await db.select().from(plays).where(eq(plays.id, playId)).limit(1))[0];
     if (!row || row.deletedAt || row.userId !== request.user!.id) {
       return sendError(reply, 404, "NOT_FOUND", "未找到");
     }
-    const token = nanoid(12);
-    const expiresAt = body.expiresAt ? new Date(body.expiresAt) : defaultShareExpiresAt();
+    const token = await createPlayShareToken(row.name);
     const [s] = await db
       .insert(playShares)
-      .values({ playId: row.id, token, expiresAt })
+      .values({ playId: row.id, token, expiresAt: null })
       .returning();
     if (!s) return sendError(reply, 500, "INTERNAL", "创建分享失败");
     return reply.status(201).send(buildShareResponse(s));
@@ -126,26 +148,19 @@ export async function protectedShareRoutes(fastify: FastifyInstance) {
       return sendError(reply, 404, "NOT_FOUND", "未找到");
     }
     const rows = await db.select().from(matchPrepShares).where(eq(matchPrepShares.prepId, row.id));
-    const now = new Date();
-    return reply.send(
-      rows
-        .filter((s) => !s.expiresAt || s.expiresAt >= now)
-        .map(buildMatchPrepShareResponse),
-    );
+    return reply.send(rows.map(buildMatchPrepShareResponse));
   });
 
   fastify.post("/match-preps/:prepId/shares", async (request, reply) => {
     const { prepId } = request.params as { prepId: string };
-    const body = shareCreateBody.parse((request as { body: unknown }).body ?? {});
     const row = (await db.select().from(matchPreparations).where(eq(matchPreparations.id, prepId)).limit(1))[0];
     if (!row || row.userId !== request.user!.id) {
       return sendError(reply, 404, "NOT_FOUND", "未找到");
     }
-    const token = nanoid(12);
-    const expiresAt = body.expiresAt ? new Date(body.expiresAt) : defaultShareExpiresAt();
+    const token = await createMatchPrepShareToken(row.title);
     const [s] = await db
       .insert(matchPrepShares)
-      .values({ prepId: row.id, token, expiresAt })
+      .values({ prepId: row.id, token, expiresAt: null })
       .returning();
     if (!s) return sendError(reply, 500, "INTERNAL", "创建分享失败");
     return reply.status(201).send(buildMatchPrepShareResponse(s));
