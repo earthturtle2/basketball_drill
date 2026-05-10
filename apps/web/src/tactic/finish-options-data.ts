@@ -1,4 +1,5 @@
 import type { TacticDocumentV1 } from "@basketball/shared";
+import { resolveBallHolderAt } from "./viewer-math";
 
 export type FinishOptionKind = "shot" | "pass";
 
@@ -54,6 +55,27 @@ export function isFinishOptionsActiveAt(event: { t: number; durationMs?: unknown
   return event.t <= tMs && tMs < finishOptionsEndMs(event);
 }
 
+function actorTeam(document: TacticDocumentV1, actorId: string | undefined) {
+  if (!actorId) return undefined;
+  const actor = document.actors.find((item) => item.id === actorId);
+  return actor?.type === "player" ? actor.team : undefined;
+}
+
+export function isFinishOptionsVisibleAt(
+  document: TacticDocumentV1,
+  event: { t: number; from?: string; durationMs?: unknown },
+  tMs: number,
+): boolean {
+  if (!isFinishOptionsActiveAt(event, tMs)) return false;
+
+  const sourceTeam = actorTeam(document, event.from);
+  if (!sourceTeam) return true;
+
+  // Hide stale shot/read markers once the other team controls the next possession.
+  const holderTeam = actorTeam(document, resolveBallHolderAt(document, tMs));
+  return holderTeam === undefined || holderTeam === sourceTeam;
+}
+
 export function parseFinishOption(value: unknown): FinishOption | null {
   if (!isRecord(value)) return null;
   const rawKind = value.kind;
@@ -102,11 +124,16 @@ export function getActiveFinishOptionsEventIndex(
   events: TacticDocumentV1["events"],
   fromId: string | null | undefined,
   tMs: number,
+  document?: TacticDocumentV1,
 ): number | null {
   if (!events?.length || !fromId) return null;
   const withIdx = events.map((e, i) => ({ e, i }));
   const candidates = withIdx
-    .filter(({ e }) => e.kind === "finish_options" && e.from === fromId && isFinishOptionsActiveAt(e, tMs))
+    .filter(({ e }) => (
+      e.kind === "finish_options" &&
+      e.from === fromId &&
+      (document ? isFinishOptionsVisibleAt(document, e, tMs) : isFinishOptionsActiveAt(e, tMs))
+    ))
     .sort((a, b) => a.e.t - b.e.t || a.i - b.i);
   return candidates.at(-1)?.i ?? null;
 }

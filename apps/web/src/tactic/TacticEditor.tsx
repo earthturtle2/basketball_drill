@@ -346,8 +346,8 @@ export function TacticEditor({
   }, [tool, selectedPlayerData]);
 
   const activeFinishEventIndex = useMemo(
-    () => getActiveFinishOptionsEventIndex(doc.events, selectedActorId, currentT),
-    [doc.events, selectedActorId, currentT],
+    () => getActiveFinishOptionsEventIndex(doc.events, selectedActorId, currentT, doc),
+    [doc, selectedActorId, currentT],
   );
 
   const finishOptions = useMemo<BenchFinishOption[]>(() => {

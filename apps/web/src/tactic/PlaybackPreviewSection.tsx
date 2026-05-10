@@ -4,7 +4,7 @@ import { PlayPreview } from "./PlayPreview";
 import { courtModeFromDocument } from "./court-geometry";
 import { playbackEndMs } from "./viewer-math";
 import { useT } from "../i18n";
-import { isFinishOptionsActiveAt, parseFinishOptionsEvent } from "./finish-options-data";
+import { isFinishOptionsVisibleAt, parseFinishOptionsEvent } from "./finish-options-data";
 
 type Props = {
   document: TacticDocumentV1;
@@ -231,11 +231,11 @@ export function PlaybackPreviewSection({ document: doc, resetPlaybackKey, rangeI
 
   const teachingEvent = useMemo(() => {
     const candidates = teachingEvents
-      .filter((event) => event.kind !== "finish_options" || isFinishOptionsActiveAt(event, tMs))
+      .filter((event) => event.kind !== "finish_options" || isFinishOptionsVisibleAt(doc, event, tMs))
       .filter((event) => event.t <= tMs + 250)
       .sort((a, b) => a.t - b.t);
     return candidates.at(-1) ?? null;
-  }, [teachingEvents, tMs]);
+  }, [doc, teachingEvents, tMs]);
 
   const progressPct = effectiveEnd > 0 ? Math.max(0, Math.min(100, (tMs / effectiveEnd) * 100)) : 0;
   const currentStopIdx = previewStopTimes.findIndex((tm) => Math.abs(tm - tMs) < 1);
