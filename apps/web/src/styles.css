@@ -1122,18 +1122,6 @@ pre.doc {
   white-space: nowrap;
   text-shadow: 0 1px 14px rgba(0, 0, 0, 0.35);
 }
-.share-audience {
-  display: inline-flex;
-  margin: 0.2rem 0 0.85rem;
-  padding: 0.34rem 0.66rem;
-  border: 1px solid rgba(255, 179, 71, 0.22);
-  border-radius: 999px;
-  background: rgba(255, 179, 71, 0.08);
-  color: #ffe0a6;
-  font-size: 0.84rem;
-  font-weight: 760;
-}
-
 /* Tactic editor — grid layout: tools left, court center, properties right, timeline bottom */
 .tactic-editor {
   display: grid;
@@ -1661,6 +1649,18 @@ pre.doc {
 .preview-controls__mark--active .preview-controls__mark-label {
   color: #0a1f0e;
 }
+.preview-controls__event-mark {
+  position: absolute;
+  top: 50%;
+  width: 2px;
+  height: 28px;
+  border-radius: 999px;
+  background: rgba(255, 224, 166, 0.82);
+  box-shadow: 0 0 10px rgba(255, 179, 71, 0.26);
+  transform: translate(-50%, -50%);
+  pointer-events: none;
+  z-index: 3;
+}
 .preview-controls__range {
   position: absolute;
   left: 0;
@@ -1888,6 +1888,28 @@ pre.doc {
 .teaching-panel__reads span {
   margin-right: 0.4rem;
   color: var(--muted);
+}
+.teaching-panel--timeline {
+  margin-top: 0.78rem;
+}
+.teaching-panel__list {
+  display: grid;
+  gap: 0.7rem;
+  max-height: 280px;
+  overflow: auto;
+  padding-right: 0.2rem;
+}
+.teaching-panel__event {
+  padding: 0.68rem 0.74rem;
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  border-radius: 14px;
+  background: rgba(5, 17, 9, 0.36);
+}
+.teaching-panel__event--active {
+  border-color: rgba(255, 179, 71, 0.34);
+  background:
+    linear-gradient(135deg, rgba(255, 179, 71, 0.12), transparent 52%),
+    rgba(5, 17, 9, 0.5);
 }
 
 .controls {

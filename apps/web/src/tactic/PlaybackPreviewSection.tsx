@@ -4,7 +4,7 @@ import { PlayPreview } from "./PlayPreview";
 import { courtModeFromDocument } from "./court-geometry";
 import { playbackEndMs } from "./viewer-math";
 import { useT } from "../i18n";
-import { finishOptionsEndMs, isFinishOptionsActiveAt, parseFinishOptionsEvent } from "./finish-options-data";
+import { isFinishOptionsActiveAt, parseFinishOptionsEvent } from "./finish-options-data";
 
 type Props = {
   document: TacticDocumentV1;
@@ -97,14 +97,6 @@ function hasTeachingValue(event: EventRow) {
   );
 }
 
-function finishOptionsStopTimes(doc: TacticDocumentV1, endT: number) {
-  return (doc.events ?? [])
-    .map(parseFinishOptionsEvent)
-    .filter((item): item is NonNullable<ReturnType<typeof parseFinishOptionsEvent>> => Boolean(item))
-    .map(finishOptionsEndMs)
-    .filter((tm) => tm > 0 && tm <= endT);
-}
-
 export function PlaybackPreviewSection({ document: doc, resetPlaybackKey, rangeInputId = "playback-range" }: Props) {
   const { t } = useT();
   const [tMs, setTms] = useState(0);
@@ -133,11 +125,7 @@ export function PlaybackPreviewSection({ document: doc, resetPlaybackKey, rangeI
   const startFrameStep = useCallback(() => {
     if (frameStepTargetRef.current) return;
     const endT = playbackEndMs(doc);
-    const stops = [...new Set([
-      ...doc.keyframes.map((k) => k.t),
-      ...(doc.events ?? []).map((event) => event.t),
-      ...finishOptionsStopTimes(doc, endT),
-    ])].sort((a, b) => a - b);
+    const stops = [...new Set(doc.keyframes.map((k) => k.t))].sort((a, b) => a - b);
     if (endT > (stops[stops.length - 1] ?? 0)) stops.push(endT);
     if (stops.length === 0) return;
     const E = 0.5;
@@ -223,28 +211,31 @@ export function PlaybackPreviewSection({ document: doc, resetPlaybackKey, rangeI
 
   const previewStopTimes = useMemo(() => {
     const endT = playbackEndMs(doc);
-    return [...new Set([
-      0,
-      ...doc.keyframes.map((k) => k.t),
-      ...(doc.events ?? []).map((event) => event.t),
-      ...finishOptionsStopTimes(doc, endT),
-      endT,
-    ])]
+    return [...new Set([0, ...doc.keyframes.map((k) => k.t), endT])]
       .filter((tm) => tm >= 0 && tm <= endT)
       .sort((a, b) => a - b);
   }, [doc]);
 
-  const teachingEvent = useMemo(() => {
-    const candidates = (doc.events ?? [])
+  const eventMarkerTimes = useMemo(() => {
+    const endT = playbackEndMs(doc);
+    return [...new Set((doc.events ?? []).map((event) => event.t))]
+      .filter((tm) => tm >= 0 && tm <= endT)
+      .sort((a, b) => a - b);
+  }, [doc]);
+
+  const teachingEvents = useMemo(() => {
+    return (doc.events ?? [])
       .filter(hasTeachingValue)
+      .sort((a, b) => a.t - b.t);
+  }, [doc.events]);
+
+  const teachingEvent = useMemo(() => {
+    const candidates = teachingEvents
       .filter((event) => event.kind !== "finish_options" || isFinishOptionsActiveAt(event, tMs))
       .filter((event) => event.t <= tMs + 250)
       .sort((a, b) => a.t - b.t);
     return candidates.at(-1) ?? null;
-  }, [doc.events, tMs]);
-  const teachingDetails = teachingEvent ? eventDetails(teachingEvent) : [];
-  const teachingTags = teachingEvent ? eventTags(teachingEvent) : [];
-  const teachingFinishLabels = teachingEvent ? finishLabels(teachingEvent) : [];
+  }, [teachingEvents, tMs]);
 
   const progressPct = effectiveEnd > 0 ? Math.max(0, Math.min(100, (tMs / effectiveEnd) * 100)) : 0;
   const currentStopIdx = previewStopTimes.findIndex((tm) => Math.abs(tm - tMs) < 1);
@@ -262,34 +253,6 @@ export function PlaybackPreviewSection({ document: doc, resetPlaybackKey, rangeI
   return (
     <>
       <PlayPreview document={doc} tMs={tMs} courtMode={courtMode} />
-      {teachingEvent ? (
-        <section className="teaching-panel" aria-label={t("view.teachingTitle")}>
-          <div className="teaching-panel__header">
-            <span className="teaching-panel__time">{Math.round(teachingEvent.t)} ms</span>
-            <strong>{eventTitle(teachingEvent, doc, t)}</strong>
-          </div>
-          {teachingTags.length > 0 ? (
-            <div className="teaching-panel__tags">
-              {teachingTags.map((tag) => (
-                <span key={tag}>{tag}</span>
-              ))}
-            </div>
-          ) : null}
-          {teachingDetails.length > 0 ? (
-            <ul className="teaching-panel__details">
-              {teachingDetails.map((detail) => (
-                <li key={detail}>{detail}</li>
-              ))}
-            </ul>
-          ) : null}
-          {teachingFinishLabels.length > 0 ? (
-            <p className="teaching-panel__reads">
-              <span>{t("view.finishReads")}</span>
-              {teachingFinishLabels.join(" / ")}
-            </p>
-          ) : null}
-        </section>
-      ) : null}
       <div className="preview-controls view-controls">
         <div className="preview-controls__timeline-row">
           <span className="preview-controls__time">
@@ -298,6 +261,17 @@ export function PlaybackPreviewSection({ document: doc, resetPlaybackKey, rangeI
           <div className="preview-controls__timeline">
             <div className="preview-controls__track">
               <div className="preview-controls__progress" style={{ width: `${progressPct}%` }} />
+              {eventMarkerTimes.map((tm) => {
+                const left = effectiveEnd > 0 ? (tm / effectiveEnd) * 100 : 0;
+                return (
+                  <span
+                    key={`event-${tm}`}
+                    className="preview-controls__event-mark"
+                    style={{ left: `${left}%` }}
+                    title={`${t("view.teachingTitle")}: ${tm}ms`}
+                  />
+                );
+              })}
               {previewStopTimes.map((tm, i) => {
                 const left = effectiveEnd > 0 ? (tm / effectiveEnd) * 100 : 0;
                 const active = currentStopIdx === i;
@@ -309,7 +283,9 @@ export function PlaybackPreviewSection({ document: doc, resetPlaybackKey, rangeI
                     style={{ left: `${left}%` }}
                     onClick={() => seekPreview(tm)}
                     title={`${t("kf.frame")} ${i + 1}: ${tm}ms`}
-                  />
+                  >
+                    <span className="preview-controls__mark-label">{i + 1}</span>
+                  </button>
                 );
               })}
             </div>
@@ -402,6 +378,49 @@ export function PlaybackPreviewSection({ document: doc, resetPlaybackKey, rangeI
           </span>
         </div>
       </div>
+      {teachingEvents.length > 0 ? (
+        <section className="teaching-panel teaching-panel--timeline" aria-label={t("view.teachingTitle")}>
+          <div className="teaching-panel__list">
+            {teachingEvents.map((event, index) => {
+              const teachingDetails = eventDetails(event);
+              const teachingTags = eventTags(event);
+              const teachingFinishLabels = finishLabels(event);
+              const active = teachingEvent === event;
+              return (
+                <article
+                  key={`${event.t}-${event.kind}-${index}`}
+                  className={`teaching-panel__event${active ? " teaching-panel__event--active" : ""}`}
+                >
+                  <div className="teaching-panel__header">
+                    <span className="teaching-panel__time">{Math.round(event.t)} ms</span>
+                    <strong>{eventTitle(event, doc, t)}</strong>
+                  </div>
+                  {teachingTags.length > 0 ? (
+                    <div className="teaching-panel__tags">
+                      {teachingTags.map((tag) => (
+                        <span key={tag}>{tag}</span>
+                      ))}
+                    </div>
+                  ) : null}
+                  {teachingDetails.length > 0 ? (
+                    <ul className="teaching-panel__details">
+                      {teachingDetails.map((detail) => (
+                        <li key={detail}>{detail}</li>
+                      ))}
+                    </ul>
+                  ) : null}
+                  {teachingFinishLabels.length > 0 ? (
+                    <p className="teaching-panel__reads">
+                      <span>{t("view.finishReads")}</span>
+                      {teachingFinishLabels.join(" / ")}
+                    </p>
+                  ) : null}
+                </article>
+              );
+            })}
+          </div>
+        </section>
+      ) : null}
     </>
   );
 }

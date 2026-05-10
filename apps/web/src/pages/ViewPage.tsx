@@ -59,7 +59,6 @@ export function ViewPage() {
       <h1 style={{ margin: "0 0 0.25rem" }}>{data.play.name}</h1>
       {data.play.category ? <p className="muted" style={{ margin: "0 0 0.35rem" }}>{data.play.category}</p> : null}
       {data.play.description ? <p className="hint">{data.play.description}</p> : null}
-      <p className="share-audience">{t("view.audienceHint")}</p>
       <PlaybackPreviewSection document={doc} resetPlaybackKey={token} rangeInputId="v" />
     </div>
   );

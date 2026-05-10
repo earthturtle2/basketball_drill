@@ -148,7 +148,6 @@ export function MatchPrepViewPage() {
           <p className="match-prep-kicker">{t("matchPrep.publicKicker")}</p>
           <h1>{data.prep.title}</h1>
           <p className="hint">{t("matchPrep.publicHint")}</p>
-          <p className="share-audience">{t("view.audienceHint")}</p>
         </div>
         <div className="match-prep-public-meta">
           {data.prep.opponent ? <span>{`${t("matchPrep.vs")} ${data.prep.opponent}`}</span> : null}
