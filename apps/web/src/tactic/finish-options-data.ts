@@ -61,12 +61,27 @@ function actorTeam(document: TacticDocumentV1, actorId: string | undefined) {
   return actor?.type === "player" ? actor.team : undefined;
 }
 
+function finishOptionsEndMatches(event: EventRow, from: string | undefined): boolean {
+  return event.kind === "finish_options_end" && (event.from ?? "") === (from ?? "");
+}
+
+function hasFinishOptionsEndBetween(
+  document: TacticDocumentV1,
+  event: { t: number; from?: string },
+  tMs: number,
+): boolean {
+  return (document.events ?? []).some((item) =>
+    item.t > event.t && item.t <= tMs && finishOptionsEndMatches(item, event.from),
+  );
+}
+
 export function isFinishOptionsVisibleAt(
   document: TacticDocumentV1,
   event: { t: number; from?: string; durationMs?: unknown },
   tMs: number,
 ): boolean {
   if (!isFinishOptionsActiveAt(event, tMs)) return false;
+  if (hasFinishOptionsEndBetween(document, event, tMs)) return false;
 
   const sourceTeam = actorTeam(document, event.from);
   if (!sourceTeam) return true;
@@ -93,6 +108,32 @@ export function parseFinishOption(value: unknown): FinishOption | null {
 
   if (option.to || (option.x !== undefined && option.y !== undefined)) return option;
   return null;
+}
+
+export function withFinishOptionsClearedAt(document: TacticDocumentV1, tMs: number): TacticDocumentV1 {
+  const events = document.events ?? [];
+  const sourcesToClear = new Set<string>();
+  for (const event of events) {
+    const parsed = parseFinishOptionsEvent(event);
+    if (!parsed || parsed.t >= tMs) continue;
+    if (isFinishOptionsActiveAt(parsed, tMs) && !hasFinishOptionsEndBetween(document, parsed, tMs)) {
+      sourcesToClear.add(parsed.from ?? "");
+    }
+  }
+  if (sourcesToClear.size === 0) return document;
+
+  const clearEvents = [...sourcesToClear]
+    .filter((sourceKey) => !events.some((event) =>
+      event.t === tMs && event.kind === "finish_options_end" && (event.from ?? "") === sourceKey,
+    ))
+    .map((sourceKey) => ({
+      t: tMs,
+      kind: "finish_options_end" as const,
+      ...(sourceKey ? { from: sourceKey } : {}),
+    }));
+
+  if (clearEvents.length === 0) return document;
+  return { ...document, events: [...events, ...clearEvents] };
 }
 
 export function parseFinishOptionsEvent(event: EventRow): FinishOptionsEvent | null {

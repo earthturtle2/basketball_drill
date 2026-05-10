@@ -5,8 +5,10 @@ import { useAuth } from "../auth";
 import { useT } from "../i18n";
 import { DEFAULT_TACTIC_DOCUMENT } from "@basketball/shared";
 import {
-  TACTIC_CATEGORY_KEYS,
-  uniqueCategoryOptions,
+  DEFAULT_TACTIC_CATEGORY,
+  TACTIC_CATEGORY_VALUES,
+  displayTacticCategory,
+  uniqueTacticCategoryOptions,
   withDocumentCategory,
 } from "../tactic/categories";
 
@@ -24,10 +26,9 @@ export function PlaysPage() {
   const [filterTeamId, setFilterTeamId] = useState<string>("");
   const [filterCategory, setFilterCategory] = useState<string>("");
   const [err, setErr] = useState<string | null>(null);
-  const defaultCategories = useMemo(() => TACTIC_CATEGORY_KEYS.map((key) => t(key)), [t]);
   const categoryOptions = useMemo(
-    () => uniqueCategoryOptions([...defaultCategories, ...tacticCategories, ...items.map((item) => item.category)]),
-    [defaultCategories, tacticCategories, items],
+    () => uniqueTacticCategoryOptions([...TACTIC_CATEGORY_VALUES, ...tacticCategories, ...items.map((item) => item.category)]),
+    [tacticCategories, items],
   );
 
   const loadTeams = useCallback(async () => {
@@ -77,7 +78,7 @@ export function PlaysPage() {
 
   async function create() {
     setErr(null);
-    const category = defaultCategories[0] ?? "";
+    const category = DEFAULT_TACTIC_CATEGORY;
     try {
       const body = {
         name: t("plays.defaultName"),
@@ -133,7 +134,7 @@ export function PlaysPage() {
             <option value="">{t("plays.allCategories")}</option>
             {categoryOptions.map((category) => (
               <option key={category} value={category}>
-                {category}
+                {displayTacticCategory(category, t)}
               </option>
             ))}
           </select>
@@ -150,7 +151,7 @@ export function PlaysPage() {
                   <span className="list-item__title">{p.name}</span>
                   {p.category ? (
                     <span className="status-pill" style={{ marginLeft: "0.5rem" }}>
-                      {p.category}
+                      {displayTacticCategory(p.category, t)}
                     </span>
                   ) : null}
                 </h3>

@@ -16,6 +16,7 @@ import {
   getActiveFinishOptionsEventIndex,
   makeFinishOptionsEvent,
   normalizeFinishOptions,
+  withFinishOptionsClearedAt,
   type FinishOption,
 } from "./finish-options-data";
 import { KeyframeTimeline } from "./KeyframeTimeline";
@@ -663,13 +664,17 @@ export function TacticEditor({
       const newKf = { t: duration, poses: last ? clonePosesForNewKeyframe(last.poses) : {} };
       const newKfs = redistributeKeyframeTimes([...sorted, newKf], duration);
       const existingNewKfs = newKfs.slice(0, sorted.length);
-      onChange({
+      const newFrameIndex = newKfs.length - 1;
+      const nextDoc = withFinishOptionsClearedAt({
         ...doc,
         meta: { ...doc.meta, durationMs: duration },
         keyframes: newKfs,
         events: remapEventsAtKeyframeTimes(doc.events, sorted, existingNewKfs),
-      });
-      setActiveKfIdx(newKfs.length - 1);
+      }, newKfs[newFrameIndex]?.t ?? duration);
+      onChange(nextDoc);
+      setActiveKfIdx(newFrameIndex);
+      setTool("select");
+      setPassSource(null);
       return;
     }
 
@@ -678,12 +683,15 @@ export function TacticEditor({
     const current = sorted[activeKfIdx] ?? sorted[sorted.length - 1];
     const newKf = { t: target.t, poses: current ? clonePosesForNewKeyframe(current.poses) : {} };
     const newKfs = [...sorted, newKf].sort((a, b) => a.t - b.t);
-    onChange({
+    const nextDoc = withFinishOptionsClearedAt({
       ...doc,
       meta: { ...doc.meta, durationMs: target.durationMs },
       keyframes: newKfs,
-    });
+    }, target.t);
+    onChange(nextDoc);
     setActiveKfIdx(newKfs.findIndex((k) => k === newKf));
+    setTool("select");
+    setPassSource(null);
   }, [doc, activeKfIdx, onChange]);
 
   const handleRemoveKeyframe = useCallback(

@@ -10,9 +10,11 @@ import { TemplateLibrary } from "../tactic/TemplateLibrary";
 import { playbackEndMs } from "../tactic/viewer-math";
 import { courtModeFromDocument, type CourtMode } from "../tactic/court-geometry";
 import {
-  cleanTacticCategory,
-  TACTIC_CATEGORY_KEYS,
-  uniqueCategoryOptions,
+  DEFAULT_TACTIC_CATEGORY,
+  TACTIC_CATEGORY_VALUES,
+  displayTacticCategory,
+  normalizeTacticCategory,
+  uniqueTacticCategoryOptions,
   withDocumentCategory,
 } from "../tactic/categories";
 
@@ -86,10 +88,9 @@ export function PlayEditPage() {
   const [playbackSpeed, setPlaybackSpeed] = useState<0.5 | 1 | 2>(1);
   const [libraryScope, setLibraryScope] = useState<"all_coaches" | "partial" | "hidden">("hidden");
   const [sharedWithUserIds, setSharedWithUserIds] = useState<string[]>([]);
-  const defaultCategories = useMemo(() => TACTIC_CATEGORY_KEYS.map((key) => t(key)), [t]);
   const categoryOptions = useMemo(
-    () => uniqueCategoryOptions([...defaultCategories, ...tacticCategories, category, doc?.meta.category]),
-    [category, defaultCategories, tacticCategories, doc],
+    () => uniqueTacticCategoryOptions([...TACTIC_CATEGORY_VALUES, ...tacticCategories, category, doc?.meta.category]),
+    [category, tacticCategories, doc],
   );
 
   const savePayload = useMemo<SavePayload | null>(
@@ -119,7 +120,6 @@ export function PlayEditPage() {
   savePayloadRef.current = savePayload;
   const saveInFlightRef = useRef(false);
   const saveQueuedRef = useRef(false);
-  const categoryInputRef = useRef<HTMLInputElement | null>(null);
   const tMsRef = useRef(0);
   tMsRef.current = tMs;
   const speedRef = useRef(playbackSpeed);
@@ -197,7 +197,7 @@ export function PlayEditPage() {
 
   const handleCategoryChange = useCallback(
     (value: string) => {
-      const nextCategory = value.slice(0, 64);
+      const nextCategory = normalizeTacticCategory(value);
       setCategory(nextCategory);
       setDoc((prev) => {
         if (!prev) return prev;
@@ -235,7 +235,7 @@ export function PlayEditPage() {
     const payload = savePayloadRef.current;
     if (!payload) return;
     const payloadSnapshot = snapshotSavePayload(payload);
-    const nextCategory = cleanTacticCategory(payload.category);
+    const nextCategory = normalizeTacticCategory(payload.category) || DEFAULT_TACTIC_CATEGORY;
     const nextDoc = withDocumentCategory(payload.doc, nextCategory);
     const savedSnapshot = snapshotSavePayload({
       ...payload,
@@ -304,7 +304,7 @@ export function PlayEditPage() {
       const shares = await api<PlayShare[]>(`/api/v1/plays/${id}/shares`);
       setName(p.name);
       setDescription(p.description ?? "");
-      const nextCategory = cleanTacticCategory(p.category ?? p.document.meta.category);
+      const nextCategory = normalizeTacticCategory(p.category ?? p.document.meta.category) || DEFAULT_TACTIC_CATEGORY;
       setCategory(nextCategory);
       const nextAssignedTeamIds = p.teamIds?.length ? p.teamIds : p.teamId ? [p.teamId] : [];
       setAssignedTeamIds(nextAssignedTeamIds);
@@ -506,7 +506,7 @@ export function PlayEditPage() {
         return;
       }
       if (doc) pushUndoSnapshot(doc);
-      const nextCategory = cleanTacticCategory(parsed.data.meta.category || category);
+      const nextCategory = normalizeTacticCategory(parsed.data.meta.category || category) || DEFAULT_TACTIC_CATEGORY;
       const nextDoc = withDocumentCategory(parsed.data, nextCategory);
       setCategory(nextCategory);
       setDoc(nextDoc);
@@ -695,26 +695,20 @@ export function PlayEditPage() {
       </div>
       <div className="field">
         <label htmlFor="playCategory">{t("edit.tacticCategory")}</label>
-        <div
-          className="category-combobox"
-          onClick={() => categoryInputRef.current?.focus()}
+        <select
+          id="playCategory"
+          value={category}
+          onChange={(e) => handleCategoryChange(e.target.value)}
         >
-          <input
-            ref={categoryInputRef}
-            id="playCategory"
-            list="play-category-options"
-            value={category}
-            maxLength={64}
-            placeholder={t("edit.tacticCategoryPlaceholder")}
-            onChange={(e) => handleCategoryChange(e.target.value)}
-          />
-          <span className="category-combobox__chevron" aria-hidden="true">⌄</span>
-        </div>
-        <datalist id="play-category-options">
+          <option value="" disabled>
+            {t("edit.tacticCategoryPlaceholder")}
+          </option>
           {categoryOptions.map((option) => (
-            <option key={option} value={option} />
+            <option key={option} value={option}>
+              {displayTacticCategory(option, t)}
+            </option>
           ))}
-        </datalist>
+        </select>
         <p className="muted" style={{ margin: "0.35rem 0 0" }}>
           {t("edit.tacticCategoryHint")}
         </p>
