@@ -5,6 +5,7 @@ import { db } from "../../db/index.js";
 import { matchPreparations, matchPrepShares, playShares, plays } from "../../db/schema.js";
 import { sendError } from "../../lib/errors.js";
 import { env } from "../../lib/env.js";
+import { cleanTacticCategory } from "../../lib/tactic-categories.js";
 import { serializePrepDetail } from "./match-preps.js";
 
 const TOKEN_NAME_MAX_LENGTH = 48;
@@ -90,7 +91,7 @@ export async function publicShareRoutes(fastify: FastifyInstance) {
         id: p.id,
         name: p.name,
         description: p.description,
-        category: p.category,
+        category: cleanTacticCategory(p.category || p.document.meta.category),
         tags: p.tags,
         document: p.document,
         updatedAt: p.updatedAt.toISOString(),

@@ -14,6 +14,7 @@ import {
   cleanTacticCategory,
   ensureTacticCategory,
   listTacticCategories,
+  tacticCategoryFilterValues,
 } from "../../lib/tactic-categories.js";
 
 const playCreateBody = z.object({
@@ -114,6 +115,12 @@ function isLibraryVisibleTo(row: typeof plays.$inferSelect, userId: string) {
   return false;
 }
 
+function tacticCategoryCondition(category: string) {
+  const values = tacticCategoryFilterValues(category);
+  if (values.length <= 1) return eq(plays.category, values[0] ?? "");
+  return inArray(plays.category, values);
+}
+
 function libraryVisibilitySql(userId: string) {
   return sql`(${plays.libraryScope} = 'all_coaches' or (${plays.libraryScope} = 'partial' and exists (select 1 from json_each(${plays.sharedWithUserIds}) as j where j.value = ${userId})) or (${plays.userId} = ${userId} and ${plays.libraryScope} != 'hidden'))`;
 }
@@ -170,7 +177,7 @@ export async function playRoutes(fastify: FastifyInstance) {
       );
     }
     if (q.category) {
-      conditions.push(eq(plays.category, cleanTacticCategory(q.category)));
+      conditions.push(tacticCategoryCondition(q.category));
     }
     if (q.teamId) {
       conditions.push(
@@ -324,7 +331,7 @@ export async function playRoutes(fastify: FastifyInstance) {
       );
     }
     if (q.category) {
-      conditions.push(eq(plays.category, cleanTacticCategory(q.category)));
+      conditions.push(tacticCategoryCondition(q.category));
     }
     if (q.teamId) {
       conditions.push(

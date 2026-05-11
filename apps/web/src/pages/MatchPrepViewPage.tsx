@@ -3,7 +3,13 @@ import { useParams } from "react-router-dom";
 import type { TacticDocumentV1 } from "@basketball/shared";
 import { useT } from "../i18n";
 import { PlaybackPreviewSection } from "../tactic/PlaybackPreviewSection";
-import { buildCategoryLetterMap, formatCategoryCode } from "../tactic/categories";
+import {
+  buildCategoryLetterMap,
+  displayTacticCategory,
+  formatCategoryCode,
+  normalizeTacticCategory,
+  uniqueCategoryOptions,
+} from "../tactic/categories";
 import { ShareWatermark } from "../components/ShareWatermark";
 
 type SharedPrepEntryPlay = {
@@ -95,7 +101,7 @@ export function MatchPrepViewPage() {
 
   const sortedEntries = useMemo(() => sortEntries(data?.prep.entries ?? []), [data]);
   const categories = useMemo(
-    () => [...new Set(sortedEntries.map((entry) => entry.category).filter(Boolean))],
+    () => uniqueCategoryOptions(sortedEntries.map((entry) => entry.category)),
     [sortedEntries],
   );
   const categoryLetterMap = useMemo(() => buildCategoryLetterMap(categories), [categories]);
@@ -103,12 +109,13 @@ export function MatchPrepViewPage() {
     formatCategoryCode(entry, categoryLetterMap);
   const normalizedSearch = search.trim().toLocaleLowerCase();
   const filteredEntries = sortedEntries.filter((entry) => {
-    if (categoryFilter && entry.category !== categoryFilter) return false;
+    if (categoryFilter && normalizeTacticCategory(entry.category) !== categoryFilter) return false;
     if (!normalizedSearch) return true;
     const haystack = [
       displayEntryCode(entry),
       entry.code,
-      entry.category,
+      displayTacticCategory(entry.category, t),
+      normalizeTacticCategory(entry.category),
       entry.cue ?? "",
       entry.notes ?? "",
       entry.play?.name ?? "",
@@ -117,7 +124,7 @@ export function MatchPrepViewPage() {
     return haystack.includes(normalizedSearch);
   });
   const compactEntries = categoryFilter
-    ? sortedEntries.filter((entry) => entry.category === categoryFilter)
+    ? sortedEntries.filter((entry) => normalizeTacticCategory(entry.category) === categoryFilter)
     : sortedEntries;
   const selectedEntry = sortedEntries.find((entry) => entry.id === selectedEntryId) ?? sortedEntries[0] ?? null;
 
@@ -132,8 +139,8 @@ export function MatchPrepViewPage() {
 
   function selectCategoryFilter(nextCategory: string) {
     setCategoryFilter(nextCategory);
-    if (!nextCategory || selectedEntry?.category === nextCategory) return;
-    const firstInCategory = sortedEntries.find((entry) => entry.category === nextCategory);
+    if (!nextCategory || normalizeTacticCategory(selectedEntry?.category) === nextCategory) return;
+    const firstInCategory = sortedEntries.find((entry) => normalizeTacticCategory(entry.category) === nextCategory);
     if (firstInCategory) setSelectedEntryId(firstInCategory.id);
   }
 
@@ -179,7 +186,7 @@ export function MatchPrepViewPage() {
                 className={`btn btn-sm ${categoryFilter === category ? "btn-active" : ""}`}
                 onClick={() => selectCategoryFilter(category)}
               >
-                {category}
+                {displayTacticCategory(category, t)}
               </button>
             ))}
           </div>
@@ -191,9 +198,9 @@ export function MatchPrepViewPage() {
                 className={`match-prep-call-card${selectedEntry?.id === entry.id ? " match-prep-call-card--active" : ""}`}
                 onClick={() => selectEntry(entry.id)}
               >
-                <span className="match-prep-call-card__code" title={entry.category}>{displayEntryCode(entry)}</span>
+                <span className="match-prep-call-card__code" title={displayTacticCategory(entry.category, t)}>{displayEntryCode(entry)}</span>
                 <strong>{entry.play?.name ?? t("matchPrep.unavailablePlay")}</strong>
-                <small>{entry.category}</small>
+                <small>{displayTacticCategory(entry.category, t)}</small>
                 {entry.cue ? <span>{entry.cue}</span> : null}
               </button>
             ))}
@@ -224,7 +231,7 @@ export function MatchPrepViewPage() {
                 <option value="">{t("matchPrep.allCategories")}</option>
                 {categories.map((category) => (
                   <option key={category} value={category}>
-                    {category}
+                    {displayTacticCategory(category, t)}
                   </option>
                 ))}
               </select>

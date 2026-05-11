@@ -619,7 +619,10 @@ export function PlayEditPage() {
         </Link>
       </p>
       <div style={{ display: "flex", alignItems: "center", gap: "0.75rem", marginBottom: "0.5rem" }}>
-        <h1 style={{ margin: 0 }}>{t("edit.title")}</h1>
+        <h1 className="play-edit-title">
+          <span className="play-edit-title__name">{name.trim() || t("plays.defaultName")}</span>
+          <span className="play-edit-title__label">{t("edit.title")}</span>
+        </h1>
         <span className={`save-status save-status--${saveStatus}`}>{statusLabel}</span>
       </div>
       {err ? <p className="error">{err}</p> : null}

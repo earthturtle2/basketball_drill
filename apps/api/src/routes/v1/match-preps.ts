@@ -5,7 +5,7 @@ import { and, count, desc, eq, inArray, isNull, sql, type SQL } from "drizzle-or
 import { db } from "../../db/index.js";
 import { matchPreparations, plays, teams, type MatchPrepEntry } from "../../db/schema.js";
 import { sendError } from "../../lib/errors.js";
-import { ensureTacticCategories } from "../../lib/tactic-categories.js";
+import { cleanTacticCategory, ensureTacticCategories } from "../../lib/tactic-categories.js";
 
 const prepEntryBody = z.object({
   id: z.string().max(80).optional(),
@@ -95,7 +95,7 @@ async function normalizeEntriesOrError(
     id: entry.id?.trim() || randomUUID(),
     playId: entry.playId.trim(),
     code: entry.code.trim(),
-    category: entry.category.trim(),
+    category: cleanTacticCategory(entry.category),
     cue: cleanText(entry.cue) ?? undefined,
     notes: cleanText(entry.notes) ?? undefined,
     sortOrder: entry.sortOrder ?? index,
@@ -133,7 +133,7 @@ async function normalizeEntriesOrError(
 }
 
 function serializePrepList(row: typeof matchPreparations.$inferSelect) {
-  const categories = [...new Set(row.entries.map((entry) => entry.category).filter(Boolean))];
+  const categories = [...new Set(row.entries.map((entry) => cleanTacticCategory(entry.category)).filter(Boolean))];
   return {
     id: row.id,
     title: row.title,
@@ -149,7 +149,9 @@ function serializePrepList(row: typeof matchPreparations.$inferSelect) {
 }
 
 export async function serializePrepDetail(row: typeof matchPreparations.$inferSelect) {
-  const entries = [...row.entries].sort((a, b) => a.sortOrder - b.sortOrder || a.code.localeCompare(b.code));
+  const entries = row.entries
+    .map((entry) => ({ ...entry, category: cleanTacticCategory(entry.category) }))
+    .sort((a, b) => a.sortOrder - b.sortOrder || a.code.localeCompare(b.code));
   const playIds = [...new Set(entries.map((entry) => entry.playId))];
   const playRows = playIds.length
     ? await db
@@ -177,6 +179,7 @@ export async function serializePrepDetail(row: typeof matchPreparations.$inferSe
         play: play
           ? {
             ...play,
+            category: cleanTacticCategory(play.category || play.document.meta.category),
             updatedAt: play.updatedAt.toISOString(),
           }
           : null,

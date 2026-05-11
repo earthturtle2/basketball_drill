@@ -8,7 +8,9 @@ import { PlaybackPreviewSection } from "../tactic/PlaybackPreviewSection";
 import {
   TACTIC_CATEGORY_KEYS,
   buildCategoryLetterMap,
+  displayTacticCategory,
   formatCategoryCode,
+  normalizeTacticCategory,
   uniqueCategoryOptions,
 } from "../tactic/categories";
 
@@ -79,7 +81,7 @@ function entryPayload(entries: PrepEntry[]) {
     id: entry.id,
     playId: entry.playId,
     code: entry.code.trim(),
-    category: entry.category.trim(),
+    category: normalizeTacticCategory(entry.category),
     cue: entry.cue?.trim() || null,
     notes: entry.notes?.trim() || null,
     sortOrder: index,
@@ -87,7 +89,7 @@ function entryPayload(entries: PrepEntry[]) {
 }
 
 function entryCodeKey(category: string, code: string) {
-  return `${category.trim().toLocaleLowerCase()}\u0000${code.trim().toLocaleLowerCase()}`;
+  return `${normalizeTacticCategory(category).toLocaleLowerCase()}\u0000${code.trim().toLocaleLowerCase()}`;
 }
 
 function playAssignedToTeam(play: PlayListItem, teamId: string) {
@@ -254,7 +256,7 @@ function MatchPrepListPage() {
               <div className="match-prep-list-card__chips">
                 {prep.categories.slice(0, 4).map((category) => (
                   <span key={category} className="status-pill">
-                    {category}
+                    {displayTacticCategory(category, t)}
                   </span>
                 ))}
               </div>
@@ -482,7 +484,7 @@ function MatchPrepDetailPage({ prepId }: { prepId: string }) {
 
   function addEntry() {
     const selectedPlay = plays.find((play) => play.id === newPlayId);
-    const entryCategory = (newCategory.trim() || selectedPlay?.category || "").trim();
+    const entryCategory = normalizeTacticCategory(newCategory || selectedPlay?.category || "");
     if (!newPlayId || !newCode.trim() || !entryCategory) return;
     if (entries.some((entry) => entryCodeKey(entry.category, entry.code) === entryCodeKey(entryCategory, newCode))) {
       setErr(t("matchPrep.duplicateCode"));
@@ -545,7 +547,7 @@ function MatchPrepDetailPage({ prepId }: { prepId: string }) {
   }
 
   const sortedEntries = sortEntries(entries);
-  const categories = [...new Set(sortedEntries.map((entry) => entry.category).filter(Boolean))];
+  const categories = uniqueCategoryOptions(sortedEntries.map((entry) => entry.category));
   const categoryLetterMap = buildCategoryLetterMap(categories);
   const displayEntryCode = (entry: Pick<PrepEntry, "category" | "code">) =>
     formatCategoryCode(entry, categoryLetterMap);
@@ -561,13 +563,20 @@ function MatchPrepDetailPage({ prepId }: { prepId: string }) {
   const normalizedSearch = search.trim().toLocaleLowerCase();
   const playMap = new Map(plays.map((play) => [play.id, play]));
   const filteredEntries = sortedEntries.filter((entry) => {
-    if (categoryFilter && entry.category !== categoryFilter) return false;
+    if (categoryFilter && normalizeTacticCategory(entry.category) !== categoryFilter) return false;
     if (!normalizedSearch) return true;
-    const haystack = [displayEntryCode(entry), entry.code, entry.category, entry.cue ?? "", entry.play?.name ?? playMap.get(entry.playId)?.name ?? ""].join(" ").toLocaleLowerCase();
+    const haystack = [
+      displayEntryCode(entry),
+      entry.code,
+      displayTacticCategory(entry.category, t),
+      normalizeTacticCategory(entry.category),
+      entry.cue ?? "",
+      entry.play?.name ?? playMap.get(entry.playId)?.name ?? "",
+    ].join(" ").toLocaleLowerCase();
     return haystack.includes(normalizedSearch);
   });
   const compactEntries = categoryFilter
-    ? sortedEntries.filter((entry) => entry.category === categoryFilter)
+    ? sortedEntries.filter((entry) => normalizeTacticCategory(entry.category) === categoryFilter)
     : sortedEntries;
   const teamMap = new Map(teams.map((tm) => [tm.id, tm]));
   const activeTeam = teamId ? teamMap.get(teamId) : null;
@@ -580,8 +589,8 @@ function MatchPrepDetailPage({ prepId }: { prepId: string }) {
 
   function selectCategoryFilter(nextCategory: string) {
     setCategoryFilter(nextCategory);
-    if (!nextCategory || selectedEntry?.category === nextCategory) return;
-    const firstInCategory = sortedEntries.find((entry) => entry.category === nextCategory);
+    if (!nextCategory || normalizeTacticCategory(selectedEntry?.category) === nextCategory) return;
+    const firstInCategory = sortedEntries.find((entry) => normalizeTacticCategory(entry.category) === nextCategory);
     if (firstInCategory) setSelectedEntryId(firstInCategory.id);
   }
 
@@ -672,7 +681,7 @@ function MatchPrepDetailPage({ prepId }: { prepId: string }) {
                     <option value="">{t("matchPrep.allCategories")}</option>
                     {categories.map((category) => (
                       <option key={category} value={category}>
-                        {category}
+                        {displayTacticCategory(category, t)}
                       </option>
                     ))}
                   </select>
@@ -728,7 +737,7 @@ function MatchPrepDetailPage({ prepId }: { prepId: string }) {
                     className={`btn btn-sm ${categoryFilter === category ? "btn-active" : ""}`}
                     onClick={() => selectCategoryFilter(category)}
                   >
-                    {category}
+                    {displayTacticCategory(category, t)}
                   </button>
                 ))}
               </div>
@@ -740,9 +749,9 @@ function MatchPrepDetailPage({ prepId }: { prepId: string }) {
                     className={`match-prep-call-card${selectedEntry?.id === entry.id ? " match-prep-call-card--active" : ""}`}
                     onClick={() => setSelectedEntryId(entry.id)}
                   >
-                    <span className="match-prep-call-card__code" title={entry.category}>{displayEntryCode(entry)}</span>
+                    <span className="match-prep-call-card__code" title={displayTacticCategory(entry.category, t)}>{displayEntryCode(entry)}</span>
                     <strong>{entry.play?.name ?? playMap.get(entry.playId)?.name ?? t("matchPrep.unavailablePlay")}</strong>
-                    <small>{entry.category}</small>
+                    <small>{displayTacticCategory(entry.category, t)}</small>
                     {entry.cue ? <span>{entry.cue}</span> : null}
                   </button>
                 ))}
@@ -806,13 +815,13 @@ function MatchPrepDetailPage({ prepId }: { prepId: string }) {
                     const nextPlayId = e.target.value;
                     const nextPlay = plays.find((play) => play.id === nextPlayId);
                     setNewPlayId(nextPlayId);
-                    if (nextPlay?.category) setNewCategory(nextPlay.category);
+                    if (nextPlay?.category) setNewCategory(normalizeTacticCategory(nextPlay.category));
                   }}
                 >
                   <option value="">{t("matchPrep.choosePlay")}</option>
                   {playOptions.map((play) => (
                     <option key={play.id} value={play.id}>
-                      {play.category ? `${play.name} · ${play.category}` : play.name}
+                      {play.category ? `${play.name} · ${displayTacticCategory(play.category, t)}` : play.name}
                     </option>
                   ))}
                 </select>
@@ -869,13 +878,13 @@ function MatchPrepDetailPage({ prepId }: { prepId: string }) {
                       const nextPlay = plays.find((play) => play.id === nextPlayId);
                       updateEntry(entry.id, {
                         playId: nextPlayId,
-                        ...(nextPlay?.category ? { category: nextPlay.category } : {}),
+                        ...(nextPlay?.category ? { category: normalizeTacticCategory(nextPlay.category) } : {}),
                       });
                     }}
                   >
                     {plays.map((play) => (
                       <option key={play.id} value={play.id}>
-                        {play.category ? `${play.name} · ${play.category}` : play.name}
+                        {play.category ? `${play.name} · ${displayTacticCategory(play.category, t)}` : play.name}
                       </option>
                     ))}
                     {!plays.some((play) => play.id === entry.playId) ? (

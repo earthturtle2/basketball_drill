@@ -4,6 +4,7 @@ import type { TacticDocumentV1 } from "@basketball/shared";
 import { PlaybackPreviewSection } from "../tactic/PlaybackPreviewSection";
 import { useT } from "../i18n";
 import { ShareWatermark } from "../components/ShareWatermark";
+import { displayTacticCategory } from "../tactic/categories";
 
 type SharePayload = {
   play: {
@@ -57,7 +58,9 @@ export function ViewPage() {
     <div className="view-page">
       <ShareWatermark label={`${t("view.watermark")} · ${data.share.id.slice(-6)}`} />
       <h1 style={{ margin: "0 0 0.25rem" }}>{data.play.name}</h1>
-      {data.play.category ? <p className="muted" style={{ margin: "0 0 0.35rem" }}>{data.play.category}</p> : null}
+      {data.play.category ? (
+        <p className="muted" style={{ margin: "0 0 0.35rem" }}>{displayTacticCategory(data.play.category, t)}</p>
+      ) : null}
       {data.play.description ? <p className="hint">{data.play.description}</p> : null}
       <PlaybackPreviewSection document={doc} resetPlaybackKey={token} rangeInputId="v" />
     </div>

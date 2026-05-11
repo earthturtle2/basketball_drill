@@ -149,6 +149,8 @@ const zh: Record<string, string> = {
   // Tactic categories
   "playCategory.halfCourtOffense": "半场进攻",
   "playCategory.halfCourtDefense": "半场防守",
+  "playCategory.halfCourtPractice": "半场训练",
+  "playCategory.fullPractice": "全程训练",
   "playCategory.frontcourtSideline": "前场边线球",
   "playCategory.frontcourtBaseline": "前场底线球",
   "playCategory.backcourtSideline": "后场边线球",
@@ -602,6 +604,8 @@ const en: Record<string, string> = {
   // Tactic categories
   "playCategory.halfCourtOffense": "Half-court offense",
   "playCategory.halfCourtDefense": "Half-court defense",
+  "playCategory.halfCourtPractice": "Half-court practice",
+  "playCategory.fullPractice": "Full-session practice",
   "playCategory.frontcourtSideline": "Frontcourt sideline out",
   "playCategory.frontcourtBaseline": "Frontcourt baseline out",
   "playCategory.backcourtSideline": "Backcourt sideline out",

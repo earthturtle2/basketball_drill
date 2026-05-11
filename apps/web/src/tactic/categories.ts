@@ -3,6 +3,8 @@ import type { TacticDocumentV1 } from "@basketball/shared";
 export const TACTIC_CATEGORY_KEYS = [
   "playCategory.halfCourtOffense",
   "playCategory.halfCourtDefense",
+  "playCategory.halfCourtPractice",
+  "playCategory.fullPractice",
   "playCategory.frontcourtSideline",
   "playCategory.frontcourtBaseline",
   "playCategory.backcourtSideline",
@@ -19,6 +21,8 @@ export type TacticCategoryKey = (typeof TACTIC_CATEGORY_KEYS)[number];
 export const TACTIC_CATEGORY_LABELS_ZH: Record<TacticCategoryKey, string> = {
   "playCategory.halfCourtOffense": "半场进攻",
   "playCategory.halfCourtDefense": "半场防守",
+  "playCategory.halfCourtPractice": "半场训练",
+  "playCategory.fullPractice": "全程训练",
   "playCategory.frontcourtSideline": "前场边线球",
   "playCategory.frontcourtBaseline": "前场底线球",
   "playCategory.backcourtSideline": "后场边线球",
@@ -33,6 +37,8 @@ export const TACTIC_CATEGORY_LABELS_ZH: Record<TacticCategoryKey, string> = {
 const TACTIC_CATEGORY_LABELS_EN: Record<TacticCategoryKey, string> = {
   "playCategory.halfCourtOffense": "Half-court offense",
   "playCategory.halfCourtDefense": "Half-court defense",
+  "playCategory.halfCourtPractice": "Half-court practice",
+  "playCategory.fullPractice": "Full-session practice",
   "playCategory.frontcourtSideline": "Frontcourt sideline out",
   "playCategory.frontcourtBaseline": "Frontcourt baseline out",
   "playCategory.backcourtSideline": "Backcourt sideline out",
@@ -52,6 +58,24 @@ for (const key of TACTIC_CATEGORY_KEYS) {
   for (const label of [key, TACTIC_CATEGORY_LABELS_ZH[key], TACTIC_CATEGORY_LABELS_EN[key]]) {
     CATEGORY_KEY_BY_VALUE.set(label.toLocaleLowerCase(), key);
   }
+}
+
+const LEGACY_CATEGORY_KEY_BY_VALUE: Array<[string, TacticCategoryKey]> = [
+  ["fu", "playCategory.fullPractice"],
+  ["full court practice", "playCategory.fullPractice"],
+  ["full-court practice", "playCategory.fullPractice"],
+  ["full court training", "playCategory.fullPractice"],
+  ["full-court training", "playCategory.fullPractice"],
+  ["full session practice", "playCategory.fullPractice"],
+  ["full-session practice", "playCategory.fullPractice"],
+  ["half court practice", "playCategory.halfCourtPractice"],
+  ["half-court practice", "playCategory.halfCourtPractice"],
+  ["half court training", "playCategory.halfCourtPractice"],
+  ["half-court training", "playCategory.halfCourtPractice"],
+];
+
+for (const [label, key] of LEGACY_CATEGORY_KEY_BY_VALUE) {
+  CATEGORY_KEY_BY_VALUE.set(label.toLocaleLowerCase(), key);
 }
 
 export function cleanTacticCategory(value: string | null | undefined) {
@@ -74,20 +98,6 @@ export function uniqueCategoryOptions(values: Array<string | null | undefined>) 
   const seen = new Set<string>();
   const options: string[] = [];
   for (const value of values) {
-    const category = cleanTacticCategory(value);
-    if (!category) continue;
-    const key = category.toLocaleLowerCase();
-    if (seen.has(key)) continue;
-    seen.add(key);
-    options.push(category);
-  }
-  return options;
-}
-
-export function uniqueTacticCategoryOptions(values: Array<string | null | undefined>) {
-  const seen = new Set<string>();
-  const options: string[] = [];
-  for (const value of values) {
     const category = normalizeTacticCategory(value);
     if (!category) continue;
     const key = category.toLocaleLowerCase();
@@ -98,12 +108,18 @@ export function uniqueTacticCategoryOptions(values: Array<string | null | undefi
   return options;
 }
 
+export function uniqueTacticCategoryOptions(values: Array<string | null | undefined>) {
+  return uniqueCategoryOptions(values);
+}
+
 function suggestedCategoryLetter(category: string) {
   const text = category.toLocaleLowerCase();
   if (/trap|夹击/.test(text)) return "T";
   if (/after|ato|暂停/.test(text)) return "A";
   if (/baseline|底线/.test(text)) return "B";
   if (/sideline|边线/.test(text)) return "S";
+  if (/half.*(practice|training)|半场训练/.test(text)) return "H";
+  if (/full.*(practice|training|session)|全程训练/.test(text)) return "F";
   if (/press|压迫/.test(text)) return "P";
   if (/transition|快攻|转换/.test(text)) return "R";
   if (/end|最后|绝杀|末节/.test(text)) return "E";
@@ -143,7 +159,7 @@ export function formatCategoryCode(
   entry: { category: string; code: string },
   categoryLetters: Map<string, string>,
 ) {
-  const category = cleanTacticCategory(entry.category);
+  const category = normalizeTacticCategory(entry.category);
   const code = entry.code.trim();
   const letter = categoryLetters.get(category.toLocaleLowerCase()) ?? suggestedCategoryLetter(category) ?? "X";
   if (code.toLocaleUpperCase().startsWith(letter)) return code;
