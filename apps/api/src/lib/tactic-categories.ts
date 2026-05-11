@@ -4,7 +4,7 @@ import { matchPreparations, plays, tacticCategories } from "../db/schema.js";
 
 export const MAX_TACTIC_CATEGORY_LENGTH = 64;
 export const HALF_COURT_PRACTICE_CATEGORY = "半场训练";
-export const FULL_PRACTICE_CATEGORY = "全程训练";
+export const FULL_PRACTICE_CATEGORY = "全场训练";
 
 const CATEGORY_ALIASES = new Map<string, string>([
   ["fu", FULL_PRACTICE_CATEGORY],
@@ -14,6 +14,7 @@ const CATEGORY_ALIASES = new Map<string, string>([
   ["full-court training", FULL_PRACTICE_CATEGORY],
   ["full session practice", FULL_PRACTICE_CATEGORY],
   ["full-session practice", FULL_PRACTICE_CATEGORY],
+  ["全程训练", FULL_PRACTICE_CATEGORY],
   ["half court practice", HALF_COURT_PRACTICE_CATEGORY],
   ["half-court practice", HALF_COURT_PRACTICE_CATEGORY],
   ["half court training", HALF_COURT_PRACTICE_CATEGORY],
@@ -38,6 +39,7 @@ const CATEGORY_FILTER_ALIASES = new Map<string, string[]>([
       "Full Session Practice",
       "full-session practice",
       "Full-Session Practice",
+      "全程训练",
     ],
   ],
   [

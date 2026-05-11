@@ -22,7 +22,7 @@ export const TACTIC_CATEGORY_LABELS_ZH: Record<TacticCategoryKey, string> = {
   "playCategory.halfCourtOffense": "半场进攻",
   "playCategory.halfCourtDefense": "半场防守",
   "playCategory.halfCourtPractice": "半场训练",
-  "playCategory.fullPractice": "全程训练",
+  "playCategory.fullPractice": "全场训练",
   "playCategory.frontcourtSideline": "前场边线球",
   "playCategory.frontcourtBaseline": "前场底线球",
   "playCategory.backcourtSideline": "后场边线球",
@@ -38,7 +38,7 @@ const TACTIC_CATEGORY_LABELS_EN: Record<TacticCategoryKey, string> = {
   "playCategory.halfCourtOffense": "Half-court offense",
   "playCategory.halfCourtDefense": "Half-court defense",
   "playCategory.halfCourtPractice": "Half-court practice",
-  "playCategory.fullPractice": "Full-session practice",
+  "playCategory.fullPractice": "Full-court practice",
   "playCategory.frontcourtSideline": "Frontcourt sideline out",
   "playCategory.frontcourtBaseline": "Frontcourt baseline out",
   "playCategory.backcourtSideline": "Backcourt sideline out",
@@ -68,6 +68,7 @@ const LEGACY_CATEGORY_KEY_BY_VALUE: Array<[string, TacticCategoryKey]> = [
   ["full-court training", "playCategory.fullPractice"],
   ["full session practice", "playCategory.fullPractice"],
   ["full-session practice", "playCategory.fullPractice"],
+  ["全程训练", "playCategory.fullPractice"],
   ["half court practice", "playCategory.halfCourtPractice"],
   ["half-court practice", "playCategory.halfCourtPractice"],
   ["half court training", "playCategory.halfCourtPractice"],
@@ -119,7 +120,7 @@ function suggestedCategoryLetter(category: string) {
   if (/baseline|底线/.test(text)) return "B";
   if (/sideline|边线/.test(text)) return "S";
   if (/half.*(practice|training)|半场训练/.test(text)) return "H";
-  if (/full.*(practice|training|session)|全程训练/.test(text)) return "F";
+  if (/full.*(practice|training|session)|全场训练|全程训练/.test(text)) return "F";
   if (/press|压迫/.test(text)) return "P";
   if (/transition|快攻|转换/.test(text)) return "R";
   if (/end|最后|绝杀|末节/.test(text)) return "E";
