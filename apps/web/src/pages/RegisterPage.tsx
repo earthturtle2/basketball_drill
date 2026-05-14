@@ -13,14 +13,14 @@ export function RegisterPage() {
   const [inviteCode, setInviteCode] = useState("");
   const [err, setErr] = useState<string | null>(null);
 
-  if (user) return <Navigate to="/plays" replace />;
+  if (user) return <Navigate to="/" replace />;
 
   async function onSubmit(e: React.FormEvent) {
     e.preventDefault();
     setErr(null);
     try {
       await register(email, password, inviteCode);
-      nav("/plays", { replace: true });
+      nav("/", { replace: true });
     } catch (e2) {
       setErr(e2 instanceof ApiError ? e2.message : t("register.failed"));
     }

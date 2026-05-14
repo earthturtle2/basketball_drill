@@ -12,6 +12,7 @@ import { MovementTrails } from "./MovementTrails";
 import { PassLines } from "./PassLines";
 import { FinishOptions } from "./FinishOptions";
 import { EditorBench, type BenchFinishOption, type BenchPlayerOption, type EditorTool } from "./EditorBench";
+import { TeachingPointEditor } from "./TeachingPointEditor";
 import {
   getActiveFinishOptionsEventIndex,
   makeFinishOptionsEvent,
@@ -818,6 +819,16 @@ export function TacticEditor({
     [doc, onChange],
   );
 
+  const handleJumpToTeachingTime = useCallback(
+    (timeMs: number) => {
+      const times = doc.keyframes.map((item) => item.t);
+      const target = nearestTime(timeMs, times);
+      const idx = doc.keyframes.findIndex((item) => item.t === target);
+      if (idx >= 0) setActiveKfIdx(idx);
+    },
+    [doc.keyframes],
+  );
+
   // --- Control point drag ---
   const handleCpPointerDown = useCallback(
     (actorId: string, kfIdx: number, e: React.PointerEvent) => {
@@ -1064,6 +1075,12 @@ export function TacticEditor({
           onMoveEnd={handleCommitKeyframeMove}
           onRedistribute={handleRedistributeKeyframes}
           onDurationChange={handleDurationChange}
+        />
+        <TeachingPointEditor
+          document={doc}
+          currentT={currentT}
+          onChange={onChange}
+          onJumpToTime={handleJumpToTeachingTime}
         />
       </div>
     </div>

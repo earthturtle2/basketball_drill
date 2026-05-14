@@ -12,14 +12,14 @@ export function LoginPage() {
   const [password, setPassword] = useState("");
   const [err, setErr] = useState<string | null>(null);
 
-  if (user) return <Navigate to="/plays" replace />;
+  if (user) return <Navigate to="/" replace />;
 
   async function onSubmit(e: React.FormEvent) {
     e.preventDefault();
     setErr(null);
     try {
       await login(email, password);
-      nav("/plays", { replace: true });
+      nav("/", { replace: true });
     } catch (e2) {
       setErr(e2 instanceof ApiError ? e2.message : t("login.failed"));
     }

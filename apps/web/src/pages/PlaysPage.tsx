@@ -1,9 +1,10 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { Link, Navigate, useNavigate } from "react-router-dom";
+import { Link, Navigate, useNavigate, useSearchParams } from "react-router-dom";
 import { api, ApiError } from "../api";
 import { useAuth } from "../auth";
 import { useT } from "../i18n";
 import { DEFAULT_TACTIC_DOCUMENT } from "@basketball/shared";
+import { CreatePlayWizard } from "../components/CreatePlayWizard";
 import {
   DEFAULT_TACTIC_CATEGORY,
   TACTIC_CATEGORY_VALUES,
@@ -18,6 +19,7 @@ type Team = { id: string; name: string; color: string; players: TeamPlayer[] };
 
 export function PlaysPage() {
   const nav = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
   const { user } = useAuth();
   const { t } = useT();
   const [items, setItems] = useState<PlayListItem[]>([]);
@@ -26,6 +28,7 @@ export function PlaysPage() {
   const [filterTeamId, setFilterTeamId] = useState<string>("");
   const [filterCategory, setFilterCategory] = useState<string>("");
   const [err, setErr] = useState<string | null>(null);
+  const [showQuickStart, setShowQuickStart] = useState(false);
   const categoryOptions = useMemo(
     () => uniqueTacticCategoryOptions([...TACTIC_CATEGORY_VALUES, ...tacticCategories, ...items.map((item) => item.category)]),
     [tacticCategories, items],
@@ -74,7 +77,20 @@ export function PlaysPage() {
     if (user) void load();
   }, [user, load]);
 
+  useEffect(() => {
+    if (searchParams.get("quickStart") === "1") setShowQuickStart(true);
+  }, [searchParams]);
+
   if (!user) return <Navigate to="/login" replace />;
+
+  function closeQuickStart() {
+    setShowQuickStart(false);
+    if (searchParams.has("quickStart")) {
+      const next = new URLSearchParams(searchParams);
+      next.delete("quickStart");
+      setSearchParams(next, { replace: true });
+    }
+  }
 
   async function create() {
     setErr(null);
@@ -107,7 +123,10 @@ export function PlaysPage() {
       {err ? <p className="error">{err}</p> : null}
       <div style={{ display: "flex", gap: "0.75rem", flexWrap: "wrap", marginBottom: "1rem", alignItems: "center" }}>
         <button type="button" className="btn btn-primary" onClick={() => void create()}>
-          {t("plays.create")}
+          {t("plays.createBlank")}
+        </button>
+        <button type="button" className="btn btn-ghost" onClick={() => setShowQuickStart(true)}>
+          {t("plays.createFromTemplate")}
         </button>
         {teams.length > 0 && (
           <select
@@ -184,9 +203,17 @@ export function PlaysPage() {
           );
         })}
         {items.length === 0 && !err ? (
-          <p className="muted">{t("plays.empty")}</p>
+          <div className="home-empty-state">
+            <p className="muted">{t("plays.empty")}</p>
+            <button type="button" className="btn btn-primary" onClick={() => setShowQuickStart(true)}>
+              {t("plays.createFromTemplate")}
+            </button>
+          </div>
         ) : null}
       </div>
+      {showQuickStart ? (
+        <CreatePlayWizard teams={teams} initialTeamId={filterTeamId} onClose={closeQuickStart} />
+      ) : null}
     </div>
   );
 }

@@ -2,6 +2,7 @@ import { useEffect, useRef, useState, type ReactNode } from "react";
 import { Link, Navigate, NavLink, Route, Routes, useLocation, useNavigate } from "react-router-dom";
 import { useAuth } from "./auth";
 import { useT, LangToggle } from "./i18n";
+import { HomePage } from "./pages/HomePage";
 import { LoginPage } from "./pages/LoginPage";
 import { RegisterPage } from "./pages/RegisterPage";
 import { PlaysPage } from "./pages/PlaysPage";
@@ -78,7 +79,7 @@ function Layout({ children }: { children: ReactNode }) {
   return (
     <div className="app-shell">
       <header className={`top${topNavOpen ? " top--nav-open" : ""}`}>
-        <Link to={user ? "/plays" : "/"} className="brand">
+        <Link to="/" className="brand">
           {t("app.brand")}
         </Link>
         <button
@@ -97,6 +98,9 @@ function Layout({ children }: { children: ReactNode }) {
           {loading ? null : user ? (
             <>
               <div className="top-nav__primary" aria-label={t("app.primaryNav")}>
+                <NavLink to="/" end className={navLinkClass} onClick={closeNav}>
+                  {t("app.home")}
+                </NavLink>
                 <NavLink to="/plays" className={navLinkClass} onClick={closeNav}>
                   {t("app.myPlays")}
                 </NavLink>
@@ -205,7 +209,7 @@ export function App() {
   return (
     <Layout>
       <Routes>
-        <Route path="/" element={<Navigate to="/plays" replace />} />
+        <Route path="/" element={<HomePage />} />
         <Route path="/login" element={<LoginPage />} />
         <Route path="/register" element={<RegisterPage />} />
         <Route
