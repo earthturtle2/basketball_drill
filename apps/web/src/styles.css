@@ -1645,7 +1645,7 @@ pre.doc {
   gap: 1rem;
 }
 .home-dashboard-grid--wide {
-  grid-template-columns: minmax(0, 0.92fr) minmax(320px, 0.62fr);
+  grid-template-columns: minmax(0, 1fr) minmax(320px, 0.82fr);
 }
 .home-section-heading {
   display: flex;
@@ -1679,6 +1679,13 @@ pre.doc {
   text-decoration: none;
   transition: border-color 0.18s ease, background 0.18s ease, transform 0.18s ease;
 }
+.home-readiness-step {
+  display: grid;
+  grid-template-columns: 2.4rem minmax(0, 1fr);
+  justify-content: start;
+  min-height: 112px;
+  padding-inline: 1rem;
+}
 .home-readiness-step:hover,
 .home-recent-play:hover,
 .home-next-prep__card:hover {
@@ -1690,7 +1697,7 @@ pre.doc {
 .home-readiness-step > span {
   display: grid;
   place-items: center;
-  flex: 0 0 auto;
+  justify-self: center;
   width: 2rem;
   height: 2rem;
   border-radius: 50%;
