@@ -196,19 +196,26 @@ body::before {
   .card,
   .list-item,
   .home-stat-card,
-  .home-flow-card {
+  .home-flow-card,
+  .home-guest-metric,
+  .home-feature-card,
+  .home-lesson-flow {
     animation: rise-in 0.46s ease both;
   }
 
   .list-item:nth-child(2),
   .home-stat-card:nth-child(2),
-  .home-flow-card:nth-child(2) {
+  .home-flow-card:nth-child(2),
+  .home-guest-metric:nth-child(2),
+  .home-feature-card:nth-child(2) {
     animation-delay: 0.04s;
   }
 
   .list-item:nth-child(3),
   .home-stat-card:nth-child(3),
-  .home-flow-card:nth-child(3) {
+  .home-flow-card:nth-child(3),
+  .home-guest-metric:nth-child(3),
+  .home-feature-card:nth-child(3) {
     animation-delay: 0.08s;
   }
 }
@@ -1266,6 +1273,31 @@ pre.doc {
   color: #b7d3bd;
   font-size: clamp(1rem, 1.7vw, 1.18rem);
 }
+.home-hero--landing {
+  grid-template-columns: minmax(0, 1fr) minmax(340px, 0.9fr);
+  min-height: clamp(470px, 48vw, 590px);
+}
+.home-hero__actions {
+  margin-bottom: 0.9rem;
+}
+.home-hero-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.48rem;
+  margin-top: 0.18rem;
+}
+.home-hero-chips span {
+  display: inline-flex;
+  align-items: center;
+  min-height: 34px;
+  padding: 0.28rem 0.78rem;
+  border: 1px solid rgba(91, 255, 118, 0.14);
+  border-radius: 999px;
+  background: rgba(4, 16, 9, 0.42);
+  color: var(--muted-strong);
+  font-size: 0.82rem;
+  font-weight: 780;
+}
 .home-dashboard-hero__actions {
   display: flex;
   justify-content: flex-end;
@@ -1280,6 +1312,12 @@ pre.doc {
     linear-gradient(145deg, rgba(255, 179, 71, 0.1), transparent 38%),
     rgba(5, 17, 9, 0.58);
   box-shadow: 0 24px 70px rgba(0, 0, 0, 0.3), var(--shadow-glow);
+}
+.home-court-card--landing {
+  justify-self: end;
+  width: min(100%, 540px);
+  padding: 1rem;
+  transform: rotate(-1.2deg);
 }
 .home-court-card__header {
   display: flex;
@@ -1383,6 +1421,32 @@ pre.doc {
   gap: 0.45rem;
   margin-top: 0.75rem;
 }
+.home-court-card__caption {
+  position: absolute;
+  right: 1.05rem;
+  bottom: 1.05rem;
+  display: grid;
+  gap: 0.2rem;
+  width: min(68%, 290px);
+  padding: 0.86rem 0.95rem;
+  border: 1px solid rgba(91, 255, 118, 0.16);
+  border-radius: 18px;
+  background:
+    radial-gradient(220px 120px at 100% 0%, rgba(255, 178, 63, 0.1), transparent 70%),
+    rgba(3, 13, 8, 0.9);
+  box-shadow: 0 18px 46px rgba(0, 0, 0, 0.3);
+}
+.home-court-card__caption p,
+.home-court-card__caption span {
+  margin: 0;
+  color: var(--muted);
+  font-size: 0.78rem;
+}
+.home-court-card__caption strong {
+  color: var(--text-strong);
+  font-size: 0.98rem;
+  line-height: 1.25;
+}
 .home-preview-points span,
 .home-professional-list span {
   display: flex;
@@ -1415,6 +1479,116 @@ pre.doc {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));
   gap: 0.8rem;
+}
+.home-guest-metrics,
+.home-feature-grid {
+  display: grid;
+  gap: 0.85rem;
+}
+.home-guest-metrics {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+.home-feature-grid {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+.home-guest-metric,
+.home-feature-card {
+  position: relative;
+  overflow: hidden;
+  border: 1px solid rgba(91, 255, 118, 0.14);
+  background:
+    radial-gradient(260px 150px at 100% 0%, rgba(255, 178, 63, 0.08), transparent 74%),
+    linear-gradient(135deg, rgba(255, 255, 255, 0.042), transparent 52%),
+    rgba(8, 27, 16, 0.8);
+  box-shadow: var(--shadow-soft);
+}
+.home-guest-metric {
+  min-height: 112px;
+  padding: 1rem 1.1rem;
+  border-radius: var(--radius-md);
+}
+.home-guest-metric strong {
+  display: block;
+  color: var(--text-strong);
+  font-family: var(--font-display);
+  font-size: clamp(2rem, 4vw, 3rem);
+  font-weight: 940;
+  line-height: 0.95;
+  letter-spacing: -0.045em;
+}
+.home-guest-metric span {
+  display: block;
+  margin-top: 0.58rem;
+  color: var(--muted-strong);
+  font-size: 0.84rem;
+  font-weight: 760;
+}
+.home-feature-card {
+  display: grid;
+  grid-template-rows: auto auto minmax(0, 1fr) auto;
+  align-items: start;
+  min-height: 300px;
+  padding: clamp(1rem, 2vw, 1.35rem);
+  border-radius: var(--radius-lg);
+}
+.home-feature-card h2 {
+  max-width: 14ch;
+  margin: 0.7rem 0 0.58rem;
+  font-size: clamp(1.32rem, 2.4vw, 2rem);
+  line-height: 1.12;
+}
+.home-feature-card p {
+  margin: 0 0 1.2rem;
+}
+.home-feature-card .btn {
+  justify-self: start;
+  align-self: end;
+}
+.home-lesson-flow {
+  display: grid;
+  grid-template-columns: minmax(0, 0.88fr) minmax(320px, 1.12fr);
+  gap: clamp(1rem, 3vw, 2rem);
+  align-items: center;
+}
+.home-lesson-flow h2 {
+  margin: 0 0 0.52rem;
+  font-size: clamp(1.45rem, 3vw, 2.35rem);
+}
+.home-lesson-list {
+  display: grid;
+  gap: 0.72rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.home-lesson-list li {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: 0.72rem;
+  align-items: center;
+  min-height: 74px;
+  padding: 0.74rem 0.82rem;
+  border: 1px solid rgba(91, 255, 118, 0.12);
+  border-radius: 18px;
+  background: rgba(4, 16, 9, 0.46);
+}
+.home-lesson-list strong {
+  display: grid;
+  place-items: center;
+  width: 2.1rem;
+  height: 2.1rem;
+  border-radius: 50%;
+  background:
+    radial-gradient(circle at 35% 22%, rgba(255, 255, 255, 0.28), transparent 30%),
+    linear-gradient(180deg, var(--accent), var(--accent-dim));
+  color: #06170b;
+  font-weight: 940;
+}
+.home-lesson-list span {
+  color: var(--muted-strong);
+  font-size: 0.95rem;
+  line-height: 1.5;
+  overflow-wrap: anywhere;
 }
 .home-flow-card,
 .home-stat-card {
@@ -4133,14 +4307,35 @@ h3,
   .home-hero,
   .home-dashboard-hero,
   .home-dashboard-grid,
-  .home-dashboard-grid--wide {
+  .home-dashboard-grid--wide,
+  .home-lesson-flow {
     grid-template-columns: 1fr;
+  }
+  .home-hero--landing {
+    min-height: 0;
   }
   .home-dashboard-hero__actions {
     justify-content: flex-start;
   }
+  .home-court-card--landing {
+    justify-self: stretch;
+    width: 100%;
+    transform: none;
+  }
   .home-court-mini {
     min-height: 220px;
+  }
+  .home-guest-metrics {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+  .home-feature-grid {
+    grid-template-columns: 1fr;
+  }
+  .home-feature-card {
+    min-height: 230px;
+  }
+  .home-feature-card h2 {
+    max-width: none;
   }
   .home-section-heading {
     flex-direction: column;
@@ -4194,8 +4389,14 @@ h3,
     max-height: 24vh;
   }
   .home-stat-grid,
-  .home-flow__grid {
+  .home-flow__grid,
+  .home-guest-metrics {
     grid-template-columns: 1fr;
+  }
+  .home-court-card__caption {
+    position: static;
+    width: 100%;
+    margin-top: 0.8rem;
   }
   .home-dashboard-hero__actions .btn,
   .home-hero .row-actions .btn {

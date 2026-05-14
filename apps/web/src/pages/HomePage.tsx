@@ -48,30 +48,43 @@ function formatShortDate(value: string | null) {
 
 function GuestHome() {
   const { t } = useT();
-  const flow = [
+  const heroChips = [t("home.capabilityEdit"), t("home.capabilityShare"), t("home.capabilityPrep")];
+  const features = [
     { title: t("home.guestFlow1Title"), text: t("home.guestFlow1Text") },
     { title: t("home.guestFlow2Title"), text: t("home.guestFlow2Text") },
     { title: t("home.guestFlow3Title"), text: t("home.guestFlow3Text") },
   ];
+  const featureCtas = [t("home.guestFeature1Cta"), t("home.guestFeature2Cta"), t("home.guestFeature3Cta")];
+  const metrics = [
+    { value: `${TEMPLATES.length}+`, label: t("home.guestStatTemplates") },
+    { value: "5v5", label: t("home.guestStatPlayers") },
+    { value: t("home.guestStatNoLoginValue"), label: t("home.guestStatNoLogin") },
+  ];
+  const lessonSteps = [t("home.guestLesson1"), t("home.guestLesson2"), t("home.guestLesson3")];
   const points = [t("home.previewPoint1"), t("home.previewPoint2"), t("home.previewPoint3")];
 
   return (
     <div className="home-page home-page--guest">
-      <section className="home-hero card">
+      <section className="home-hero home-hero--landing card">
         <div className="home-hero__copy">
           <p className="home-kicker">{t("home.guestKicker")}</p>
           <h1>{t("home.guestTitle")}</h1>
           <p className="home-hero__lead">{t("home.guestHint")}</p>
-          <div className="row-actions">
-            <Link to="/login" className="btn btn-primary">
+          <div className="row-actions home-hero__actions">
+            <Link to="/register" className="btn btn-primary">
               {t("home.guestPrimary")}
             </Link>
-            <Link to="/register" className="btn btn-ghost">
+            <Link to="/login" className="btn btn-ghost">
               {t("home.guestSecondary")}
             </Link>
           </div>
+          <div className="home-hero-chips" aria-label={t("home.capabilitiesLabel")}>
+            {heroChips.map((chip) => (
+              <span key={chip}>{chip}</span>
+            ))}
+          </div>
         </div>
-        <div className="home-court-card" aria-label={t("home.previewTitle")}>
+        <div className="home-court-card home-court-card--landing" aria-label={t("home.previewTitle")}>
           <div className="home-court-card__header">
             <span>{t("home.previewTitle")}</span>
             <strong>{t("home.previewMeta")}</strong>
@@ -94,23 +107,50 @@ function GuestHome() {
               </span>
             ))}
           </div>
+          <div className="home-court-card__caption">
+            <p>{t("home.previewCaptionKicker")}</p>
+            <strong>{t("home.previewCaptionTitle")}</strong>
+            <span>{t("home.previewCaptionText")}</span>
+          </div>
         </div>
       </section>
 
-      <section className="home-flow">
+      <section className="home-guest-metrics" aria-label={t("home.guestStatsLabel")}>
+        {metrics.map((metric) => (
+          <article className="home-guest-metric" key={metric.label}>
+            <strong>{metric.value}</strong>
+            <span>{metric.label}</span>
+          </article>
+        ))}
+      </section>
+
+      <section className="home-feature-grid" aria-label={t("home.guestFeaturesLabel")}>
+        {features.map((item, index) => (
+          <article className="home-feature-card" key={item.title}>
+            <span className="home-flow-card__num">{String(index + 1).padStart(2, "0")}</span>
+            <h2>{item.title}</h2>
+            <p className="muted">{item.text}</p>
+            <Link to="/login" className="btn btn-sm btn-ghost">
+              {featureCtas[index]}
+            </Link>
+          </article>
+        ))}
+      </section>
+
+      <section className="home-lesson-flow card">
         <div>
           <p className="home-kicker">{t("home.guestFlowTitle")}</p>
           <h2>{t("home.guestFlowHeading")}</h2>
+          <p className="muted">{t("home.guestLessonText")}</p>
         </div>
-        <div className="home-flow__grid">
-          {flow.map((item, index) => (
-            <article className="home-flow-card" key={item.title}>
-              <span className="home-flow-card__num">{String(index + 1).padStart(2, "0")}</span>
-              <h3>{item.title}</h3>
-              <p className="muted">{item.text}</p>
-            </article>
+        <ol className="home-lesson-list">
+          {lessonSteps.map((step, index) => (
+            <li key={step}>
+              <strong>{index + 1}</strong>
+              <span>{step}</span>
+            </li>
           ))}
-        </div>
+        </ol>
       </section>
     </div>
   );
