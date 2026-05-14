@@ -117,23 +117,34 @@ export function PlaysPage() {
   const teamMap = new Map(teams.map((tm) => [tm.id, tm]));
 
   return (
-    <div>
-      <h1 style={{ margin: "0 0 0.5rem" }}>{t("plays.title")}</h1>
-      <p className="hint">{t("plays.hint")}</p>
-      {err ? <p className="error">{err}</p> : null}
-      <div style={{ display: "flex", gap: "0.75rem", flexWrap: "wrap", marginBottom: "1rem", alignItems: "center" }}>
-        <button type="button" className="btn btn-primary" onClick={() => void create()}>
-          {t("plays.createBlank")}
-        </button>
-        <button type="button" className="btn btn-ghost" onClick={() => setShowQuickStart(true)}>
-          {t("plays.createFromTemplate")}
-        </button>
+    <div className="page-stack">
+      <header className="page-header">
+        <div className="page-title-block">
+          <p className="page-eyebrow">{t("app.myPlays")}</p>
+          <h1>{t("plays.title")}</h1>
+          <p className="hint">{t("plays.hint")}</p>
+        </div>
+        <div className="page-header__actions">
+          <span className="status-pill page-count-pill">{items.length}</span>
+          <button type="button" className="btn btn-primary" onClick={() => void create()}>
+            {t("plays.createBlank")}
+          </button>
+          <button type="button" className="btn btn-ghost" onClick={() => setShowQuickStart(true)}>
+            {t("plays.createFromTemplate")}
+          </button>
+        </div>
+      </header>
+      {err ? (
+        <div className="state-surface state-surface--error state-surface--compact">
+          <p>{err}</p>
+        </div>
+      ) : null}
+      <div className="page-toolbar">
         {teams.length > 0 && (
           <select
             className="btn"
             value={filterTeamId}
             onChange={(e) => setFilterTeamId(e.target.value)}
-            style={{ minWidth: 120 }}
           >
             <option value="">{t("plays.allTeams")}</option>
             {teams.map((tm) => (
@@ -148,7 +159,6 @@ export function PlaysPage() {
             className="btn"
             value={filterCategory}
             onChange={(e) => setFilterCategory(e.target.value)}
-            style={{ minWidth: 140 }}
           >
             <option value="">{t("plays.allCategories")}</option>
             {categoryOptions.map((category) => (
@@ -169,32 +179,26 @@ export function PlaysPage() {
                 <h3>
                   <span className="list-item__title">{p.name}</span>
                   {p.category ? (
-                    <span className="status-pill" style={{ marginLeft: "0.5rem" }}>
+                    <span className="status-pill">
                       {displayTacticCategory(p.category, t)}
                     </span>
                   ) : null}
                 </h3>
                 <div className="muted">
                   {assignedTeams.length ? (
-                    <span style={{ marginRight: "0.5rem" }}>
+                    <span className="team-pill-list">
                       {assignedTeams.map((team) => (
-                        <span key={team.id} style={{ marginRight: "0.45rem" }}>
+                        <span key={team.id} className="team-pill">
                           <span
-                            style={{
-                              display: "inline-block",
-                              width: 8,
-                              height: 8,
-                              borderRadius: "50%",
-                              background: team.color,
-                              marginRight: 4,
-                            }}
+                            className="team-swatch"
+                            style={{ background: team.color }}
                           />
                           {team.name}
                         </span>
                       ))}
                     </span>
                   ) : (
-                    <span style={{ marginRight: "0.5rem" }}>{t("plays.availableAllTeams")}</span>
+                    <span className="team-pill-list">{t("plays.availableAllTeams")}</span>
                   )}
                   {t("plays.updatedAt")} {new Date(p.updatedAt).toLocaleString()}
                 </div>
@@ -203,7 +207,7 @@ export function PlaysPage() {
           );
         })}
         {items.length === 0 && !err ? (
-          <div className="home-empty-state">
+          <div className="state-surface state-surface--empty">
             <p className="muted">{t("plays.empty")}</p>
             <button type="button" className="btn btn-primary" onClick={() => setShowQuickStart(true)}>
               {t("plays.createFromTemplate")}

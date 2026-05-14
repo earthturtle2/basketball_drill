@@ -105,9 +105,21 @@ export function AdminPage() {
     }
   }, [user]);
 
-  if (loading) return <p className="hint">{t("view.loading")}</p>;
+  if (loading) {
+    return (
+      <div className="state-surface state-surface--loading">
+        <p>{t("view.loading")}</p>
+      </div>
+    );
+  }
   if (!user) return <Navigate to="/login" replace />;
-  if (!isAdmin(user.role)) return <p className="error">{t("admin.forbidden")}</p>;
+  if (!isAdmin(user.role)) {
+    return (
+      <div className="state-surface state-surface--error">
+        <p>{t("admin.forbidden")}</p>
+      </div>
+    );
+  }
 
   async function createInvite() {
     setCreating(true);
@@ -184,17 +196,26 @@ export function AdminPage() {
     : [];
 
   return (
-    <div>
-      <h1>{t("admin.title")}</h1>
-      <p className="hint">{t("admin.hint")}</p>
-      {err ? <p className="error">{err}</p> : null}
+    <div className="page-stack">
+      <header className="page-header">
+        <div className="page-title-block">
+          <p className="page-eyebrow">{t("app.admin")}</p>
+          <h1>{t("admin.title")}</h1>
+          <p className="hint">{t("admin.hint")}</p>
+        </div>
+      </header>
+      {err ? (
+        <div className="state-surface state-surface--error state-surface--compact">
+          <p>{err}</p>
+        </div>
+      ) : null}
       {ok ? <p className="success">{ok}</p> : null}
 
-      <section className="card" style={{ marginBottom: "1rem" }}>
-        <div className="row-actions" style={{ justifyContent: "space-between", alignItems: "center" }}>
+      <section className="card">
+        <div className="section-heading">
           <div>
-            <h2 style={{ margin: 0 }}>{t("admin.inviteTitle")}</h2>
-            <p className="hint" style={{ margin: "0.25rem 0 0" }}>
+            <h2>{t("admin.inviteTitle")}</h2>
+            <p className="hint inline-note">
               {t("admin.inviteHint")}
             </p>
           </div>
@@ -216,7 +237,7 @@ export function AdminPage() {
         ) : null}
       </section>
 
-      <section className="stats-grid" style={{ marginBottom: "1rem" }}>
+      <section className="stats-grid">
         {stats.map(([label, value]) => (
           <div className="stat-card" key={label}>
             <span>{label}</span>
@@ -225,10 +246,16 @@ export function AdminPage() {
         ))}
       </section>
 
-      <section className="card" style={{ marginBottom: "1rem" }}>
-        <h2 style={{ marginTop: 0 }}>{t("admin.inviteList")}</h2>
+      <section className="card">
+        <div className="section-heading">
+          <h2>{t("admin.inviteList")}</h2>
+        </div>
         <div className="list">
-          {codes.length === 0 ? <p className="hint">{t("admin.noInvites")}</p> : null}
+          {codes.length === 0 ? (
+            <div className="state-surface state-surface--empty state-surface--compact">
+              <p>{t("admin.noInvites")}</p>
+            </div>
+          ) : null}
           {codes.map((code) => (
             <div className="list-item" key={code.id}>
               <div>
@@ -245,14 +272,11 @@ export function AdminPage() {
         </div>
       </section>
 
-      <section className="card" style={{ marginBottom: "1rem" }}>
-        <div
-          className="row-actions"
-          style={{ justifyContent: "space-between", alignItems: "center", marginBottom: "0.5rem" }}
-        >
+      <section className="card">
+        <div className="section-heading">
           <div>
-            <h2 style={{ margin: 0 }}>{t("admin.playLibrary")}</h2>
-            <p className="hint" style={{ margin: "0.25rem 0 0" }}>
+            <h2>{t("admin.playLibrary")}</h2>
+            <p className="hint inline-note">
               {t("admin.playLibraryHint")}
             </p>
           </div>
@@ -264,7 +288,7 @@ export function AdminPage() {
           {playsLib.map((p) => (
             <div className="list-item" key={p.id}>
               <div>
-                <h3 style={{ margin: 0, fontSize: "1.05rem" }}>{p.name}</h3>
+                <h3>{p.name}</h3>
                 <p className="muted">
                   {p.author.name} · {p.author.email}
                   {p.category ? ` · ${p.category}` : ""}
@@ -272,8 +296,8 @@ export function AdminPage() {
                   · {formatTime(p.updatedAt)}
                 </p>
               </div>
-              <div className="row-actions" style={{ alignItems: "center" }}>
-                <label className="muted" htmlFor={`lib-${p.id}`} style={{ marginRight: "0.35rem" }}>
+              <div className="row-actions admin-scope-actions">
+                <label className="muted" htmlFor={`lib-${p.id}`}>
                   {t("admin.libraryScope")}
                 </label>
                 <select
@@ -294,13 +318,17 @@ export function AdminPage() {
             </div>
           ))}
           {playsLib.length === 0 && !playsLibLoading ? (
-            <p className="hint">{t("lib.empty")}</p>
+            <div className="state-surface state-surface--empty state-surface--compact">
+              <p>{t("lib.empty")}</p>
+            </div>
           ) : null}
         </div>
       </section>
 
       <section className="card">
-        <h2 style={{ marginTop: 0 }}>{t("admin.userList")}</h2>
+        <div className="section-heading">
+          <h2>{t("admin.userList")}</h2>
+        </div>
         <div className="list">
           {users.map((u) => (
             <div className="list-item" key={u.id}>

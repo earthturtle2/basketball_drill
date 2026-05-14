@@ -144,8 +144,20 @@ export function MatchPrepViewPage() {
     if (firstInCategory) setSelectedEntryId(firstInCategory.id);
   }
 
-  if (err) return <p className="error">{err}</p>;
-  if (!data) return <p className="hint">{t("view.loading")}</p>;
+  if (err) {
+    return (
+      <div className="state-surface state-surface--error">
+        <p>{err}</p>
+      </div>
+    );
+  }
+  if (!data) {
+    return (
+      <div className="state-surface state-surface--loading">
+        <p>{t("view.loading")}</p>
+      </div>
+    );
+  }
 
   return (
     <div className="match-prep-public">
@@ -204,7 +216,11 @@ export function MatchPrepViewPage() {
                 {entry.cue ? <span>{entry.cue}</span> : null}
               </button>
             ))}
-            {filteredEntries.length === 0 ? <p className="muted">{t("matchPrep.noEntriesMatched")}</p> : null}
+            {filteredEntries.length === 0 ? (
+              <div className="state-surface state-surface--empty state-surface--compact">
+                <p>{t("matchPrep.noEntriesMatched")}</p>
+              </div>
+            ) : null}
           </div>
         </aside>
 
@@ -259,7 +275,9 @@ export function MatchPrepViewPage() {
                   {displayEntryCode(entry)}
                 </button>
               ))}
-              {compactEntries.length === 0 ? <span className="muted">{t("matchPrep.noEntriesMatched")}</span> : null}
+              {compactEntries.length === 0 ? (
+                <span className="muted mobile-empty-copy">{t("matchPrep.noEntriesMatched")}</span>
+              ) : null}
             </div>
           </div>
           {selectedEntry?.notes ? <p className="hint">{selectedEntry.notes}</p> : null}

@@ -149,7 +149,9 @@ export function TeachingPointEditor({ document: doc, currentT, onChange, onJumpT
             </button>
           ))
         ) : (
-          <p className="muted">{t("teach.empty")}</p>
+          <div className="state-surface state-surface--empty state-surface--compact">
+            <p>{t("teach.empty")}</p>
+          </div>
         )}
       </div>
     </section>

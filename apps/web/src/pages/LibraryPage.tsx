@@ -86,15 +86,26 @@ function LibraryList() {
   if (!user) return <Navigate to="/login" replace />;
 
   return (
-    <div>
-      <h1 style={{ margin: "0 0 0.5rem" }}>{t("lib.title")}</h1>
-      <p className="hint">{t("lib.hint")}</p>
-      {err ? <p className="error">{err}</p> : null}
-      <div style={{ display: "flex", gap: "0.75rem", marginBottom: "1rem", flexWrap: "wrap" }}>
+    <div className="page-stack">
+      <header className="page-header">
+        <div className="page-title-block">
+          <p className="page-eyebrow">{t("app.library")}</p>
+          <h1>{t("lib.title")}</h1>
+          <p className="hint">{t("lib.hint")}</p>
+        </div>
+        <div className="page-header__actions">
+          <span className="status-pill page-count-pill">{builtIns.length + items.length}</span>
+        </div>
+      </header>
+      {err ? (
+        <div className="state-surface state-surface--error state-surface--compact">
+          <p>{err}</p>
+        </div>
+      ) : null}
+      <div className="page-toolbar">
         <input
           type="search"
-          className="btn"
-          style={{ minWidth: 200, textAlign: "left" }}
+          className="toolbar-search"
           placeholder={t("lib.searchPlaceholder")}
           value={q}
           onChange={(e) => setQ(e.target.value)}
@@ -107,7 +118,7 @@ function LibraryList() {
         </button>
       </div>
 
-      <div className="row-actions" role="tablist" aria-label={t("lib.title")} style={{ marginBottom: "1rem" }}>
+      <div className="page-tabs" role="tablist" aria-label={t("lib.title")}>
         <button
           type="button"
           role="tab"
@@ -133,7 +144,7 @@ function LibraryList() {
           {builtIns.map((tmpl) => (
             <Link key={tmpl.id} to={`/library/builtin/${tmpl.id}`} className="list-item list-item--link">
               <div>
-                <h3 style={{ display: "flex", alignItems: "center", flexWrap: "wrap", gap: "0.5rem" }}>
+                <h3 className="list-title-row">
                   <span className="list-item__title">{t(tmpl.nameKey)}</span>
                   <span className="status-pill">{t("lib.builtinBadge")}</span>
                 </h3>
@@ -146,14 +157,18 @@ function LibraryList() {
               </div>
             </Link>
           ))}
-          {builtIns.length === 0 ? <p className="muted">{t("lib.builtinEmpty")}</p> : null}
+          {builtIns.length === 0 ? (
+            <div className="state-surface state-surface--empty state-surface--compact">
+              <p>{t("lib.builtinEmpty")}</p>
+            </div>
+          ) : null}
         </div>
       ) : (
         <div className="list" role="tabpanel">
           {items.map((p) => (
             <Link key={p.id} to={`/library/${p.id}`} className="list-item list-item--link">
               <div>
-                <h3 style={{ display: "flex", alignItems: "center", flexWrap: "wrap", gap: "0.5rem" }}>
+                <h3 className="list-title-row">
                   {p.author.avatarUrl ? (
                     <img src={p.author.avatarUrl} alt="" className="avatar-thumb" width={36} height={36} />
                   ) : null}
@@ -173,11 +188,15 @@ function LibraryList() {
               </div>
             </Link>
           ))}
-          {items.length === 0 && !err ? <p className="muted">{t("lib.empty")}</p> : null}
+          {items.length === 0 && !err ? (
+            <div className="state-surface state-surface--empty state-surface--compact">
+              <p>{t("lib.empty")}</p>
+            </div>
+          ) : null}
         </div>
       )}
       {builtIns.length > 0 || items.length > 0 ? (
-        <p className="hint" style={{ marginTop: "1rem" }}>
+        <p className="hint inline-note">
           {t("lib.hintEnd")}
         </p>
       ) : null}
@@ -197,12 +216,14 @@ function BuiltinLibraryDetail({ templateId }: { templateId: string }) {
   if (!template) {
     return (
       <div>
-        <p style={{ margin: "0 0 0.5rem" }}>
+        <p className="back-link">
           <Link to="/library" className="muted">
             {t("lib.back")}
           </Link>
         </p>
-        <p className="error">{t("lib.invalidDoc")}</p>
+        <div className="state-surface state-surface--error">
+          <p>{t("lib.invalidDoc")}</p>
+        </div>
       </div>
     );
   }
@@ -240,31 +261,33 @@ function BuiltinLibraryDetail({ templateId }: { templateId: string }) {
   }
 
   return (
-    <div>
-      <p style={{ margin: "0 0 0.5rem" }}>
+    <div className="page-stack">
+      <p className="back-link">
         <Link to="/library" className="muted">
           {t("lib.back")}
         </Link>
       </p>
-      {err ? <p className="error">{err}</p> : null}
-      <div style={{ marginBottom: "0.5rem" }}>
-        <h1 style={{ margin: "0 0 0.35rem" }}>{t(tmpl.nameKey)}</h1>
-        <p className="hint" style={{ margin: 0 }}>
-          {t("lib.builtinBadge")}
-          {doc.meta.tags?.length ? ` · ${doc.meta.tags.join(", ")}` : null}
-        </p>
-        <p className="muted" style={{ margin: "0.5rem 0 0" }}>
-          {t(tmpl.descKey)}
-        </p>
-      </div>
-      <div className="row-actions" style={{ margin: "0.75rem 0" }}>
-        <button type="button" className="btn btn-primary" onClick={() => void copy()} disabled={copying}>
-          {copying ? t("lib.copying") : t("lib.copyToMine")}
-        </button>
-      </div>
-      <p className="muted" style={{ margin: "0 0 0.75rem" }}>
-        {t("bench.court")}: {courtModeFromDocument(doc) === "full" ? t("bench.full") : t("bench.half")}
-      </p>
+      {err ? (
+        <div className="state-surface state-surface--error state-surface--compact">
+          <p>{err}</p>
+        </div>
+      ) : null}
+      <header className="page-header">
+        <div className="page-title-block">
+          <p className="page-eyebrow">{t("lib.builtinBadge")}</p>
+          <h1>{t(tmpl.nameKey)}</h1>
+          <p className="hint">{t(tmpl.descKey)}</p>
+          <p className="muted detail-meta">
+            {doc.meta.tags?.length ? `${doc.meta.tags.join(", ")} · ` : ""}
+            {t("bench.court")}: {courtModeFromDocument(doc) === "full" ? t("bench.full") : t("bench.half")}
+          </p>
+        </div>
+        <div className="page-header__actions">
+          <button type="button" className="btn btn-primary" onClick={() => void copy()} disabled={copying}>
+            {copying ? t("lib.copying") : t("lib.copyToMine")}
+          </button>
+        </div>
+      </header>
       <PlaybackPreviewSection document={doc} resetPlaybackKey={`builtin-${tmpl.id}`} rangeInputId="builtin-playback-range" />
     </div>
   );
@@ -316,68 +339,74 @@ function LibraryDetail({ playId }: { playId: string }) {
   if (!user) return <Navigate to="/login" replace />;
 
   return (
-    <div>
-      <p style={{ margin: "0 0 0.5rem" }}>
+    <div className="page-stack">
+      <p className="back-link">
         <Link to="/library" className="muted">
           {t("lib.back")}
         </Link>
       </p>
-      {err ? <p className="error">{err}</p> : null}
+      {err ? (
+        <div className="state-surface state-surface--error state-surface--compact">
+          <p>{err}</p>
+        </div>
+      ) : null}
       {row && doc ? (
         <>
-          <div style={{ display: "flex", alignItems: "flex-start", gap: "0.75rem", marginBottom: "0.5rem" }}>
-            {row.author.avatarUrl ? (
-              <img
-                src={row.author.avatarUrl}
-                alt=""
-                className="avatar-thumb"
-                width={48}
-                height={48}
-                style={{ width: 48, height: 48 }}
-              />
-            ) : null}
-            <div style={{ minWidth: 0 }}>
-              <h1 style={{ margin: "0 0 0.35rem" }}>{row.name}</h1>
-              <p className="hint" style={{ margin: 0 }}>
-                {t("lib.by")} {row.author.name ?? row.author.email}
-                {row.author.name && row.author.email && row.author.name !== row.author.email
-                  ? ` · ${row.author.email}`
-                  : null}
-                {" "}
-                · #{playIdSuffix(row.id)}
-                {row.isOwner ? ` · ${t("lib.mine")}` : null}
-              </p>
-              {row.category ? (
-                <p className="muted" style={{ margin: "0.35rem 0 0" }}>
-                  {t("edit.tacticCategory")}: {row.category}
-                </p>
+          <header className="page-header">
+            <div className="page-title-block avatar-line">
+              {row.author.avatarUrl ? (
+                <img
+                  src={row.author.avatarUrl}
+                  alt=""
+                  className="avatar-thumb avatar-thumb--lg"
+                  width={48}
+                  height={48}
+                />
               ) : null}
-              {row.author.bio ? (
-                <p className="muted" style={{ margin: "0.5rem 0 0", whiteSpace: "pre-wrap" }}>
-                  {row.author.bio}
+              <div>
+                <p className="page-eyebrow">
+                  {t("lib.by")} {row.author.name ?? row.author.email}
                 </p>
+                <h1>{row.name}</h1>
+                <p className="hint">
+                  {row.author.name && row.author.email && row.author.name !== row.author.email
+                    ? `${row.author.email} · `
+                    : ""}
+                  #{playIdSuffix(row.id)}
+                  {row.isOwner ? ` · ${t("lib.mine")}` : null}
+                </p>
+                <p className="muted detail-meta">
+                  {row.category ? `${t("edit.tacticCategory")}: ${row.category} · ` : ""}
+                  {t("bench.court")}: {courtModeFromDocument(doc) === "full" ? t("bench.full") : t("bench.half")}
+                </p>
+                {row.author.bio ? (
+                  <p className="muted library-author-bio">
+                    {row.author.bio}
+                  </p>
+                ) : null}
+              </div>
+            </div>
+            <div className="page-header__actions">
+              <button type="button" className="btn btn-primary" onClick={() => void copy()} disabled={copying}>
+                {copying ? t("lib.copying") : t("lib.copyToMine")}
+              </button>
+              {row.isOwner ? (
+                <Link to={`/plays/${row.id}`} className="btn">
+                  {t("lib.openMine")}
+                </Link>
               ) : null}
             </div>
-          </div>
-          <div className="row-actions" style={{ margin: "0.75rem 0" }}>
-            <button type="button" className="btn btn-primary" onClick={() => void copy()} disabled={copying}>
-              {copying ? t("lib.copying") : t("lib.copyToMine")}
-            </button>
-            {row.isOwner ? (
-              <Link to={`/plays/${row.id}`} className="btn">
-                {t("lib.openMine")}
-              </Link>
-            ) : null}
-          </div>
-          <p className="muted" style={{ margin: "0 0 0.75rem" }}>
-            {t("bench.court")}: {courtModeFromDocument(doc) === "full" ? t("bench.full") : t("bench.half")}
-          </p>
+          </header>
           <PlaybackPreviewSection document={doc} resetPlaybackKey={playId} rangeInputId="lib-playback-range" />
         </>
       ) : !err && row === null ? (
-        <p className="hint">{t("view.loading")}</p>
+        <div className="state-surface state-surface--loading">
+          <p>{t("view.loading")}</p>
+        </div>
       ) : row && !doc ? (
-        <p className="error">{t("lib.invalidDoc")}</p>
+        <div className="state-surface state-surface--error">
+          <p>{t("lib.invalidDoc")}</p>
+        </div>
       ) : null}
     </div>
   );

@@ -185,14 +185,24 @@ function Layout({ children }: { children: ReactNode }) {
 
 function NotFound() {
   const { t } = useT();
-  return <p className="hint">{t("app.notFound")}</p>;
+  return (
+    <div className="state-surface state-surface--empty">
+      <p>{t("app.notFound")}</p>
+    </div>
+  );
 }
 
 function RequireAuth({ children }: { children: ReactNode }) {
   const loc = useLocation();
   const { user, loading } = useAuth();
   const { t } = useT();
-  if (loading) return <p className="hint">{t("view.loading")}</p>;
+  if (loading) {
+    return (
+      <div className="state-surface state-surface--loading">
+        <p>{t("view.loading")}</p>
+      </div>
+    );
+  }
   if (!user) return <Navigate to="/login" state={{ from: loc }} replace />;
   return children;
 }
@@ -201,7 +211,13 @@ function RequireAdmin({ children }: { children: ReactNode }) {
   const { user } = useAuth();
   const { t } = useT();
   if (!user) return null;
-  if (!isAdmin(user.role)) return <p className="error">{t("admin.forbidden")}</p>;
+  if (!isAdmin(user.role)) {
+    return (
+      <div className="state-surface state-surface--error">
+        <p>{t("admin.forbidden")}</p>
+      </div>
+    );
+  }
   return children;
 }
 

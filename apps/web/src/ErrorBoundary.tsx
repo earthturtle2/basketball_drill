@@ -23,7 +23,7 @@ export class ErrorBoundary extends Component<Props, State> {
       const { t } = this.context;
       return (
         <div
-          className="card"
+          className="card state-surface state-surface--error"
           style={{ maxWidth: 500, margin: "2rem auto", textAlign: "center" }}
         >
           <h2 style={{ margin: "0 0 0.5rem" }}>{t("error.title")}</h2>

@@ -45,18 +45,18 @@ export function AvatarCropModal({ imageSrc, onCancel, onConfirm }: Props) {
       onClick={onCancel}
     >
       <div className="modal-content avatar-crop-modal" onClick={(e) => e.stopPropagation()}>
-        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "0.75rem" }}>
-          <h2 id="avatar-crop-title" style={{ margin: 0, fontSize: "1.1rem" }}>
+        <div className="modal-heading">
+          <h2 id="avatar-crop-title">
             {t("profile.cropTitle")}
           </h2>
           <button type="button" className="btn btn-sm btn-ghost" onClick={onCancel}>
             {t("profile.cropCancel")}
           </button>
         </div>
-        <p className="hint" style={{ margin: "0 0 0.75rem" }}>
+        <p className="hint">
           {t("profile.cropHint")}
         </p>
-        {localErr ? <p className="error" style={{ marginBottom: "0.5rem" }}>{localErr}</p> : null}
+        {localErr ? <p className="error">{localErr}</p> : null}
         <div className="avatar-crop-wrap">
           <Cropper
             image={imageSrc}
@@ -72,7 +72,7 @@ export function AvatarCropModal({ imageSrc, onCancel, onConfirm }: Props) {
             maxZoom={4}
           />
         </div>
-        <div className="field" style={{ marginTop: "0.75rem", marginBottom: 0 }}>
+        <div className="field avatar-crop-zoom">
           <label htmlFor="avatar-crop-zoom">{t("profile.cropZoom")}</label>
           <input
             id="avatar-crop-zoom"
@@ -85,7 +85,7 @@ export function AvatarCropModal({ imageSrc, onCancel, onConfirm }: Props) {
             onChange={(e) => setZoom(Number(e.target.value))}
           />
         </div>
-        <div className="row-actions" style={{ marginTop: "1rem", justifyContent: "flex-end" }}>
+        <div className="row-actions modal-actions">
           <button type="button" className="btn btn-ghost" onClick={onCancel} disabled={busy}>
             {t("profile.cropCancel")}
           </button>

@@ -173,10 +173,22 @@ function MatchPrepListPage() {
   const teamMap = new Map(teams.map((tm) => [tm.id, tm]));
 
   return (
-    <div>
-      <h1 style={{ margin: "0 0 0.5rem" }}>{t("matchPrep.title")}</h1>
-      <p className="hint">{t("matchPrep.hint")}</p>
-      {err ? <p className="error">{err}</p> : null}
+    <div className="page-stack">
+      <header className="page-header">
+        <div className="page-title-block">
+          <p className="page-eyebrow">{t("app.matchPreps")}</p>
+          <h1>{t("matchPrep.title")}</h1>
+          <p className="hint">{t("matchPrep.hint")}</p>
+        </div>
+        <div className="page-header__actions">
+          <span className="status-pill page-count-pill">{items.length}</span>
+        </div>
+      </header>
+      {err ? (
+        <div className="state-surface state-surface--error state-surface--compact">
+          <p>{err}</p>
+        </div>
+      ) : null}
 
       <div className="match-prep-hero card">
         <div>
@@ -191,8 +203,10 @@ function MatchPrepListPage() {
         </div>
       </div>
 
-      <div className="card" style={{ marginBottom: "1.25rem" }}>
-        <h2 style={{ margin: "0 0 0.8rem", fontSize: "1.1rem" }}>{t("matchPrep.newPlan")}</h2>
+      <div className="card form-card">
+        <div className="section-heading">
+          <h2>{t("matchPrep.newPlan")}</h2>
+        </div>
         <div className="match-prep-form-grid">
           <div className="field">
             <label>{t("matchPrep.planTitle")}</label>
@@ -246,7 +260,7 @@ function MatchPrepListPage() {
                 <h3>
                   <span className="list-item__title">{prep.title}</span>
                 </h3>
-                <p className="muted" style={{ margin: "0.25rem 0 0" }}>
+                <p className="muted detail-meta">
                   {prep.opponent ? `${t("matchPrep.vs")} ${prep.opponent} · ` : ""}
                   {prep.gameDate ? `${formatDate(prep.gameDate)} · ` : ""}
                   {team ? `${team.name} · ` : ""}
@@ -263,7 +277,11 @@ function MatchPrepListPage() {
             </Link>
           );
         })}
-        {items.length === 0 && !err ? <p className="muted">{t("matchPrep.empty")}</p> : null}
+        {items.length === 0 && !err ? (
+          <div className="state-surface state-surface--empty">
+            <p>{t("matchPrep.empty")}</p>
+          </div>
+        ) : null}
       </div>
     </div>
   );
@@ -595,19 +613,32 @@ function MatchPrepDetailPage({ prepId }: { prepId: string }) {
   }
 
   return (
-    <div className="match-prep-detail">
-      <p className="match-prep-detail__crumb" style={{ margin: "0 0 0.5rem" }}>
+    <div className="match-prep-detail page-stack">
+      <p className="match-prep-detail__crumb back-link">
         <Link to="/match-preps" className="muted">
           {t("matchPrep.back")}
         </Link>
       </p>
-      <div className="match-prep-detail__title" style={{ display: "flex", alignItems: "center", gap: "0.75rem", marginBottom: "0.5rem" }}>
-        <h1 style={{ margin: 0 }}>{t("matchPrep.detailTitle")}</h1>
-        <span className={`save-status save-status--${saveStatus}`}>{statusLabel}</span>
-      </div>
-      <p className="hint match-prep-detail__hint">{t("matchPrep.detailHint")}</p>
-      {err ? <p className="error">{err}</p> : null}
-      {!prep && !err ? <p className="hint">{t("view.loading")}</p> : null}
+      <header className="match-prep-detail__title page-header">
+        <div className="page-title-block">
+          <p className="page-eyebrow">{t("app.matchPreps")}</p>
+          <h1>{t("matchPrep.detailTitle")}</h1>
+          <p className="hint match-prep-detail__hint">{t("matchPrep.detailHint")}</p>
+        </div>
+        <div className="page-header__actions">
+          <span className={`save-status save-status--${saveStatus}`}>{statusLabel}</span>
+        </div>
+      </header>
+      {err ? (
+        <div className="state-surface state-surface--error state-surface--compact">
+          <p>{err}</p>
+        </div>
+      ) : null}
+      {!prep && !err ? (
+        <div className="state-surface state-surface--loading">
+          <p>{t("view.loading")}</p>
+        </div>
+      ) : null}
 
       {prep ? (
         <>
@@ -709,7 +740,9 @@ function MatchPrepDetailPage({ prepId }: { prepId: string }) {
                       {displayEntryCode(entry)}
                     </button>
                   ))}
-                  {compactEntries.length === 0 ? <span className="muted">{t("matchPrep.noEntriesMatched")}</span> : null}
+                  {compactEntries.length === 0 ? (
+                    <span className="muted mobile-empty-copy">{t("matchPrep.noEntriesMatched")}</span>
+                  ) : null}
                 </div>
               </div>
               {selectedEntry?.play ? (
@@ -755,13 +788,19 @@ function MatchPrepDetailPage({ prepId }: { prepId: string }) {
                     {entry.cue ? <span>{entry.cue}</span> : null}
                   </button>
                 ))}
-                {filteredEntries.length === 0 ? <p className="muted">{t("matchPrep.noEntriesMatched")}</p> : null}
+                {filteredEntries.length === 0 ? (
+                  <div className="state-surface state-surface--empty state-surface--compact">
+                    <p>{t("matchPrep.noEntriesMatched")}</p>
+                  </div>
+                ) : null}
               </div>
             </aside>
           </div>
 
-          <div className="card" style={{ marginTop: "1rem" }}>
-            <h2 style={{ margin: "0 0 0.8rem", fontSize: "1.1rem" }}>{t("matchPrep.planInfo")}</h2>
+          <div className="card section-card">
+            <div className="section-heading">
+              <h2>{t("matchPrep.planInfo")}</h2>
+            </div>
             <div className="match-prep-form-grid">
               <div className="field">
                 <label>{t("matchPrep.planTitle")}</label>
@@ -804,8 +843,10 @@ function MatchPrepDetailPage({ prepId }: { prepId: string }) {
             </div>
           </div>
 
-          <div className="card" style={{ marginTop: "1rem" }}>
-            <h2 style={{ margin: "0 0 0.8rem", fontSize: "1.1rem" }}>{t("matchPrep.addTactic")}</h2>
+          <div className="card section-card">
+            <div className="section-heading">
+              <h2>{t("matchPrep.addTactic")}</h2>
+            </div>
             <div className="match-prep-entry-add">
               <div className="field">
                 <label>{t("matchPrep.play")}</label>
@@ -848,14 +889,18 @@ function MatchPrepDetailPage({ prepId }: { prepId: string }) {
               ))}
             </datalist>
             {plays.length === 0 ? (
-              <p className="muted" style={{ marginTop: "0.75rem" }}>
-                {t("matchPrep.noPlays")} <Link to="/plays">{t("matchPrep.createPlayFirst")}</Link>
-              </p>
+              <div className="state-surface state-surface--empty state-surface--compact detail-meta">
+                <p>
+                  {t("matchPrep.noPlays")} <Link to="/plays">{t("matchPrep.createPlayFirst")}</Link>
+                </p>
+              </div>
             ) : null}
           </div>
 
-          <div className="card" style={{ marginTop: "1rem" }}>
-            <h2 style={{ margin: "0 0 0.8rem", fontSize: "1.1rem" }}>{t("matchPrep.entryEditor")}</h2>
+          <div className="card section-card">
+            <div className="section-heading">
+              <h2>{t("matchPrep.entryEditor")}</h2>
+            </div>
             <div className="match-prep-entry-editor">
               {sortedEntries.map((entry, index) => (
                 <div key={entry.id} className="match-prep-entry-row">
@@ -910,9 +955,13 @@ function MatchPrepDetailPage({ prepId }: { prepId: string }) {
                   </div>
                 </div>
               ))}
-              {sortedEntries.length === 0 ? <p className="muted">{t("matchPrep.noEntries")}</p> : null}
+              {sortedEntries.length === 0 ? (
+                <div className="state-surface state-surface--empty state-surface--compact">
+                  <p>{t("matchPrep.noEntries")}</p>
+                </div>
+              ) : null}
             </div>
-            <p className="muted" style={{ margin: "0.75rem 0 0" }}>
+            <p className="muted detail-meta">
               {t("matchPrep.saveAfterEdit")}
             </p>
           </div>

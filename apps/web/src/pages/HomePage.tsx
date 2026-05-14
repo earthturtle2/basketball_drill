@@ -214,8 +214,16 @@ function CoachDashboard() {
         </div>
       </section>
 
-      {err ? <p className="error">{err}</p> : null}
-      {loading ? <p className="hint">{t("home.loading")}</p> : null}
+      {err ? (
+        <div className="state-surface state-surface--error state-surface--compact">
+          <p>{err}</p>
+        </div>
+      ) : null}
+      {loading ? (
+        <div className="state-surface state-surface--loading state-surface--compact">
+          <p>{t("home.loading")}</p>
+        </div>
+      ) : null}
 
       <section className="home-stat-grid" aria-label={t("home.statsLabel")}>
         <Link to="/plays" className="home-stat-card">
@@ -292,7 +300,7 @@ function CoachDashboard() {
               </div>
             </Link>
           ) : (
-            <div className="home-empty-state">
+            <div className="home-empty-state state-surface state-surface--empty">
               <p className="muted">{t("home.nextPrepEmpty")}</p>
               <Link to="/match-preps" className="btn btn-primary">
                 {t("home.actionBuildPrep")}
@@ -328,7 +336,7 @@ function CoachDashboard() {
                 </Link>
               ))
             ) : (
-              <div className="home-empty-state">
+              <div className="home-empty-state state-surface state-surface--empty">
                 <p className="muted">{t("home.recentEmpty")}</p>
                 <Link to="/plays?quickStart=1" className="btn btn-primary">
                   {t("home.actionUseTemplate")}
@@ -360,6 +368,12 @@ export function HomePage() {
   const { user, loading } = useAuth();
   const { t } = useT();
 
-  if (loading) return <p className="hint">{t("view.loading")}</p>;
+  if (loading) {
+    return (
+      <div className="state-surface state-surface--loading">
+        <p>{t("view.loading")}</p>
+      </div>
+    );
+  }
   return user ? <CoachDashboard /> : <GuestHome />;
 }

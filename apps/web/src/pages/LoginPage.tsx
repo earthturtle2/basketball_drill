@@ -26,42 +26,44 @@ export function LoginPage() {
   }
 
   return (
-    <div className="card" style={{ maxWidth: 420, margin: "0 auto" }}>
-      <h1 style={{ margin: "0 0 0.5rem" }}>{t("login.title")}</h1>
-      <p className="hint">{t("login.hint")}</p>
-      {err ? <p className="error">{err}</p> : null}
-      <form onSubmit={onSubmit}>
-        <div className="field">
-          <label htmlFor="e">{t("login.email")}</label>
-          <input
-            id="e"
-            type="email"
-            autoComplete="email"
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-            required
-          />
-        </div>
-        <div className="field">
-          <label htmlFor="p">{t("login.password")}</label>
-          <input
-            id="p"
-            type="password"
-            autoComplete="current-password"
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            required
-          />
-        </div>
-        <div className="form-actions">
-          <button className="btn btn-primary" type="submit">
-            {t("login.submit")}
-          </button>
-          <Link to="/register" className="btn btn-ghost">
-            {t("login.goRegister")}
-          </Link>
-        </div>
-      </form>
+    <div className="auth-wrap">
+      <div className="card auth-card">
+        <h1>{t("login.title")}</h1>
+        <p className="hint">{t("login.hint")}</p>
+        {err ? <p className="error">{err}</p> : null}
+        <form onSubmit={onSubmit}>
+          <div className="field">
+            <label htmlFor="e">{t("login.email")}</label>
+            <input
+              id="e"
+              type="email"
+              autoComplete="email"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              required
+            />
+          </div>
+          <div className="field">
+            <label htmlFor="p">{t("login.password")}</label>
+            <input
+              id="p"
+              type="password"
+              autoComplete="current-password"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              required
+            />
+          </div>
+          <div className="form-actions">
+            <button className="btn btn-primary" type="submit">
+              {t("login.submit")}
+            </button>
+            <Link to="/register" className="btn btn-ghost">
+              {t("login.goRegister")}
+            </Link>
+          </div>
+        </form>
+      </div>
     </div>
   );
 }

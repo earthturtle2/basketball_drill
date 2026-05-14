@@ -487,7 +487,13 @@ export function PlayEditPage() {
   }, [doc]);
 
   if (!user) return <Navigate to="/login" replace />;
-  if (!id) return <p className="error">{t("edit.missingId")}</p>;
+  if (!id) {
+    return (
+      <div className="state-surface state-surface--error">
+        <p>{t("edit.missingId")}</p>
+      </div>
+    );
+  }
 
   function handleDocChange(newDoc: TacticDocumentV1) {
     if (doc) pushUndoSnapshot(doc);
@@ -612,23 +618,38 @@ export function PlayEditPage() {
   };
 
   return (
-    <div>
-      <p style={{ margin: "0 0 0.5rem" }}>
+    <div className="page-stack play-edit-page">
+      <p className="back-link">
         <Link to="/plays" className="muted">
           {t("edit.back")}
         </Link>
       </p>
-      <div style={{ display: "flex", alignItems: "center", gap: "0.75rem", marginBottom: "0.5rem" }}>
-        <h1 className="play-edit-title">
-          <span className="play-edit-title__name">{name.trim() || t("plays.defaultName")}</span>
-          <span className="play-edit-title__label">{t("edit.title")}</span>
-        </h1>
-        <span className={`save-status save-status--${saveStatus}`}>{statusLabel}</span>
-      </div>
-      {err ? <p className="error">{err}</p> : null}
+      <header className="page-header play-edit-header">
+        <div className="page-title-block">
+          <p className="page-eyebrow">{t("edit.title")}</p>
+          <h1 className="play-edit-title">
+            <span className="play-edit-title__name">{name.trim() || t("plays.defaultName")}</span>
+          </h1>
+        </div>
+        <div className="page-header__actions">
+          <span className={`save-status save-status--${saveStatus}`}>{statusLabel}</span>
+        </div>
+      </header>
+      {err ? (
+        <div className="state-surface state-surface--error state-surface--compact">
+          <p>{err}</p>
+        </div>
+      ) : null}
+      {!doc && !err ? (
+        <div className="state-surface state-surface--loading">
+          <p>{t("view.loading")}</p>
+        </div>
+      ) : null}
+      {doc ? (
+        <>
       {viewUrl || shares.length > 0 ? (
-        <div className="card share-management" style={{ marginBottom: "1rem" }}>
-          <p className="hint" style={{ marginTop: 0 }}>
+        <div className="card share-management">
+          <p className="hint inline-note">
             {t("edit.viewHint")}
           </p>
           <div className="share-management__list">
@@ -653,7 +674,7 @@ export function PlayEditPage() {
           </div>
         </div>
       ) : null}
-      <div className="row-actions" style={{ marginBottom: "1rem" }}>
+      <div className="page-toolbar">
         <button type="button" className="btn btn-primary" onClick={() => void doSave()}>
           {t("edit.save")}
         </button>
@@ -712,7 +733,7 @@ export function PlayEditPage() {
             </option>
           ))}
         </select>
-        <p className="muted" style={{ margin: "0.35rem 0 0" }}>
+        <p className="muted detail-meta">
           {t("edit.tacticCategoryHint")}
         </p>
       </div>
@@ -747,7 +768,7 @@ export function PlayEditPage() {
             </label>
           ))}
         </div>
-        <p className="muted" style={{ margin: "0.35rem 0 0" }}>
+        <p className="muted detail-meta">
           {libraryScope === "all_coaches"
             ? t("edit.libraryVisibleAll")
             : libraryScope === "hidden"
@@ -764,11 +785,7 @@ export function PlayEditPage() {
               .map((account) => {
                 const checked = sharedWithUserIds.includes(account.id);
                 return (
-                  <label
-                    key={account.id}
-                    className="team-checkbox"
-                    style={{ display: "flex", alignItems: "center", gap: "0.35rem" }}
-                  >
+                  <label key={account.id} className="team-checkbox">
                     <input
                       type="checkbox"
                       checked={checked}
@@ -786,7 +803,6 @@ export function PlayEditPage() {
                         className="avatar-thumb"
                         width={28}
                         height={28}
-                        style={{ width: 28, height: 28 }}
                       />
                     ) : null}
                     <span>{account.name || account.email}</span>
@@ -795,7 +811,7 @@ export function PlayEditPage() {
               })}
           </div>
           {accounts.filter((account) => account.id !== user.id).length === 0 ? (
-            <p className="muted" style={{ margin: "0.35rem 0 0" }}>
+            <p className="muted detail-meta">
               {t("edit.noShareAccounts")}
             </p>
           ) : null}
@@ -835,13 +851,13 @@ export function PlayEditPage() {
                         setSaveStatus("unsaved");
                       }}
                     />
-                    <span style={{ background: tm.color }} />
+                    <span className="team-swatch" style={{ background: tm.color }} />
                     {tm.name}
                   </label>
                 );
               })}
             </div>
-            <p className="muted" style={{ margin: "0.35rem 0 0" }}>
+            <p className="muted detail-meta">
               {assignedTeamIds.length === 0 ? t("edit.assignedAllTeamsHint") : t("edit.assignedTeamsHint")}
             </p>
           </div>
@@ -861,8 +877,10 @@ export function PlayEditPage() {
       ) : null}
 
       {doc ? (
-        <div className="card" style={{ marginTop: "1rem" }}>
-          <h2 style={{ margin: "0 0 0.5rem", fontSize: "1.05rem" }}>{t("edit.preview")}</h2>
+        <div className="card section-card">
+          <div className="section-heading">
+            <h2>{t("edit.preview")}</h2>
+          </div>
           <PlayPreview document={doc} tMs={tMs} courtMode={courtModeFromDocument(doc)} />
           <div className="preview-controls view-controls">
             <div className="preview-controls__timeline-row">
@@ -988,7 +1006,7 @@ export function PlayEditPage() {
       ) : null}
 
       <details
-        style={{ marginTop: "1rem" }}
+        className="json-panel"
         open={showJson}
         onToggle={(e) => {
           const open = (e.target as HTMLDetailsElement).open;
@@ -996,15 +1014,15 @@ export function PlayEditPage() {
           if (open && doc) setJsonText(JSON.stringify(doc, null, 2));
         }}
       >
-        <summary className="muted" style={{ cursor: "pointer" }}>{t("edit.jsonTitle")}</summary>
-        <div className="field" style={{ marginTop: "0.5rem" }}>
+        <summary className="muted">{t("edit.jsonTitle")}</summary>
+        <div className="field json-panel__field">
           <textarea
             rows={12}
             value={jsonText}
             onChange={(e) => setJsonText(e.target.value)}
             spellCheck={false}
           />
-          <p style={{ margin: "0.4rem 0 0" }}>
+          <p className="detail-meta">
             <button type="button" className="btn btn-ghost" onClick={applyLocalJson}>
               {t("edit.applyJson")}
             </button>
@@ -1021,6 +1039,8 @@ export function PlayEditPage() {
           }}
           onClose={() => setShowTemplates(false)}
         />
+      ) : null}
+        </>
       ) : null}
     </div>
   );

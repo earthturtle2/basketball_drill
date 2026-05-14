@@ -116,15 +116,25 @@ export function TeamsPage() {
     if (user) void load();
   }, [user, load]);
 
-  if (loading) return <p className="hint">{t("view.loading")}</p>;
+  if (loading) {
+    return (
+      <div className="state-surface state-surface--loading">
+        <p>{t("view.loading")}</p>
+      </div>
+    );
+  }
   if (!user) {
     return (
-      <div className="card" style={{ maxWidth: 480, margin: "0 auto" }}>
-        <h1 style={{ margin: "0 0 0.5rem" }}>{t("teams.title")}</h1>
-        <p className="error">{t("teams.loginRequired")}</p>
-        <Link to="/login" className="btn btn-primary">
-          {t("app.login")}
-        </Link>
+      <div className="auth-wrap">
+        <div className="card auth-card">
+          <h1>{t("teams.title")}</h1>
+          <div className="state-surface state-surface--error state-surface--compact">
+            <p>{t("teams.loginRequired")}</p>
+          </div>
+          <Link to="/login" className="btn btn-primary">
+            {t("app.login")}
+          </Link>
+        </div>
       </div>
     );
   }
@@ -172,20 +182,32 @@ export function TeamsPage() {
   }
 
   return (
-    <div>
-      <h1 style={{ margin: "0 0 0.5rem" }}>{t("teams.title")}</h1>
-      <p className="hint">{t("teams.hint")}</p>
-      {err ? <p className="error">{err}</p> : null}
+    <div className="page-stack">
+      <header className="page-header">
+        <div className="page-title-block">
+          <p className="page-eyebrow">{t("app.teams")}</p>
+          <h1>{t("teams.title")}</h1>
+          <p className="hint">{t("teams.hint")}</p>
+        </div>
+        <div className="page-header__actions">
+          <span className="status-pill page-count-pill">{teams.length}</span>
+        </div>
+      </header>
+      {err ? (
+        <div className="state-surface state-surface--error state-surface--compact">
+          <p>{err}</p>
+        </div>
+      ) : null}
 
-      <div className="card" style={{ marginBottom: "1.25rem" }}>
-        <div style={{ display: "flex", gap: "0.5rem", flexWrap: "wrap", alignItems: "end" }}>
-          <div className="field" style={{ flex: 1, minWidth: 120, margin: 0 }}>
+      <div className="card form-card">
+        <div className="form-inline">
+          <div className="field field--grow">
             <label>{t("teams.name")}</label>
             <input value={name} onChange={(e) => setName(e.target.value)} placeholder={t("teams.namePlaceholder")} />
           </div>
-          <div className="field" style={{ margin: 0, width: 60 }}>
+          <div className="field field--color">
             <label>{t("teams.color")}</label>
-            <input type="color" value={color} onChange={(e) => setColor(e.target.value)} style={{ padding: "2px", height: 36 }} />
+            <input className="color-input" type="color" value={color} onChange={(e) => setColor(e.target.value)} />
           </div>
           <button type="button" className="btn btn-primary" onClick={() => void create()}>
             {t("teams.add")}
@@ -198,18 +220,18 @@ export function TeamsPage() {
         {teams.map((tm) => (
           <div key={tm.id} className="list-item">
             {editId === tm.id ? (
-              <div style={{ flex: 1 }}>
-                <div style={{ display: "flex", gap: "0.5rem", flexWrap: "wrap", alignItems: "center", flex: 1 }}>
+              <div className="team-edit-panel">
+                <div className="form-inline">
                   <input
                     value={editName}
                     onChange={(e) => setEditName(e.target.value)}
-                    style={{ flex: 1, minWidth: 100 }}
+                    className="toolbar-search"
                   />
                   <input
                     type="color"
                     value={editColor}
                     onChange={(e) => setEditColor(e.target.value)}
-                    style={{ width: 40, padding: "2px", height: 32 }}
+                    className="color-input"
                   />
                   <button type="button" className="btn btn-sm" onClick={() => void update(tm.id)}>
                     {t("teams.save")}
@@ -223,20 +245,14 @@ export function TeamsPage() {
             ) : (
               <>
                 <div>
-                  <div style={{ display: "flex", alignItems: "center", gap: "0.6rem" }}>
+                  <div className="team-heading">
                     <span
-                      style={{
-                        display: "inline-block",
-                        width: 16,
-                        height: 16,
-                        borderRadius: "50%",
-                        background: tm.color,
-                        flexShrink: 0,
-                      }}
+                      className="team-swatch team-swatch--lg"
+                      style={{ background: tm.color }}
                     />
                     <h3>{tm.name}</h3>
                   </div>
-                  <p className="muted" style={{ margin: "0.35rem 0 0" }}>
+                  <p className="muted detail-meta">
                     {(tm.players?.length ? tm.players : defaultPlayers())
                       .map((p) => `${p.number}${p.name ? ` ${p.name}` : ""}`)
                       .join(" / ")}
@@ -264,7 +280,9 @@ export function TeamsPage() {
           </div>
         ))}
         {teams.length === 0 && !err ? (
-          <p className="muted">{t("teams.empty")}</p>
+          <div className="state-surface state-surface--empty">
+            <p>{t("teams.empty")}</p>
+          </div>
         ) : null}
       </div>
     </div>

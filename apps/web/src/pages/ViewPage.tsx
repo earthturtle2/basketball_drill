@@ -51,17 +51,34 @@ export function ViewPage() {
 
   const doc = data?.play.document;
 
-  if (err) return <p className="error">{err}</p>;
-  if (!data || !doc) return <p className="hint">{t("view.loading")}</p>;
+  if (err) {
+    return (
+      <div className="state-surface state-surface--error">
+        <p>{err}</p>
+      </div>
+    );
+  }
+  if (!data || !doc) {
+    return (
+      <div className="state-surface state-surface--loading">
+        <p>{t("view.loading")}</p>
+      </div>
+    );
+  }
 
   return (
     <div className="view-page">
       <ShareWatermark label={`${t("view.watermark")} · ${data.share.id.slice(-6)}`} />
-      <h1 style={{ margin: "0 0 0.25rem" }}>{data.play.name}</h1>
-      {data.play.category ? (
-        <p className="muted" style={{ margin: "0 0 0.35rem" }}>{displayTacticCategory(data.play.category, t)}</p>
-      ) : null}
-      {data.play.description ? <p className="hint">{data.play.description}</p> : null}
+      <header className="view-page__header card">
+        <div>
+          <p className="page-eyebrow">{t("view.watermark")}</p>
+          <h1>{data.play.name}</h1>
+          {data.play.description ? <p className="hint">{data.play.description}</p> : null}
+        </div>
+        {data.play.category ? (
+          <span className="status-pill">{displayTacticCategory(data.play.category, t)}</span>
+        ) : null}
+      </header>
       <PlaybackPreviewSection document={doc} resetPlaybackKey={token} rangeInputId="v" />
     </div>
   );

@@ -32,7 +32,13 @@ export function ProfilePage() {
     };
   }, [cropObjectUrl]);
 
-  if (loading) return <p className="hint">{t("view.loading")}</p>;
+  if (loading) {
+    return (
+      <div className="state-surface state-surface--loading">
+        <p>{t("view.loading")}</p>
+      </div>
+    );
+  }
   if (!user) return <Navigate to="/login" replace />;
 
   async function onSubmit(e: React.FormEvent) {
@@ -85,7 +91,8 @@ export function ProfilePage() {
   }
 
   return (
-    <div className="card" style={{ maxWidth: 520, margin: "0 auto" }}>
+    <div className="auth-wrap">
+      <div className="card auth-card profile-card">
       {cropObjectUrl ? (
         <AvatarCropModal
           imageSrc={cropObjectUrl}
@@ -96,7 +103,7 @@ export function ProfilePage() {
           }}
         />
       ) : null}
-      <h1 style={{ margin: "0 0 0.5rem" }}>{t("profile.title")}</h1>
+      <h1>{t("profile.title")}</h1>
       <p className="hint">{t("profile.hint")}</p>
       {err ? <p className="error">{err}</p> : null}
       {ok ? <p className="success">{ok}</p> : null}
@@ -118,7 +125,7 @@ export function ProfilePage() {
         </div>
         <div className="field">
           <label htmlFor="profile-avatar">{t("profile.avatar")}</label>
-          <p className="muted" style={{ margin: "0 0 0.35rem", fontSize: "0.9em" }}>
+          <p className="field-help">
             {t("profile.avatarHint")}
           </p>
           <input
@@ -129,12 +136,12 @@ export function ProfilePage() {
             placeholder="https://"
           />
           {avatarUrl.startsWith("data:") ? (
-            <p className="muted" style={{ margin: "0.35rem 0 0", fontSize: "0.9em" }}>
+            <p className="field-help">
               {t("profile.avatarLocalNote")}
             </p>
           ) : null}
-          <div style={{ marginTop: "0.5rem" }}>
-            <label className="btn btn-ghost" style={{ cursor: "pointer", display: "inline-block" }}>
+          <div className="row-actions profile-avatar-actions">
+            <label className="btn btn-ghost">
               {t("profile.avatarUpload")}
               <input type="file" accept="image/jpeg,image/png" className="sr-only" onChange={onAvatarFile} />
             </label>
@@ -142,7 +149,6 @@ export function ProfilePage() {
               <button
                 type="button"
                 className="btn btn-ghost"
-                style={{ marginLeft: "0.5rem" }}
                 onClick={() => setAvatarUrl("")}
               >
                 {t("profile.avatarClear")}
@@ -150,7 +156,7 @@ export function ProfilePage() {
             ) : null}
           </div>
           {avatarUrl ? (
-            <div style={{ marginTop: "0.75rem" }}>
+            <div className="profile-avatar-frame">
               <img src={avatarUrl} alt="" className="profile-avatar-preview" />
             </div>
           ) : null}
@@ -170,6 +176,7 @@ export function ProfilePage() {
           {saving ? t("profile.saving") : t("profile.save")}
         </button>
       </form>
+      </div>
     </div>
   );
 }

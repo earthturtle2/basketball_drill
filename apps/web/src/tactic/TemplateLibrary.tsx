@@ -80,13 +80,13 @@ export function TemplateLibrary({ onSelect, onClose, confirmBeforeSelect = false
   return (
     <div className="modal-overlay" onClick={onClose}>
       <div className="modal-content" onClick={(e) => e.stopPropagation()}>
-        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "1rem" }}>
-          <h2 style={{ margin: 0 }}>{t("tpl.title")}</h2>
+        <div className="modal-heading">
+          <h2>{t("tpl.title")}</h2>
           <button type="button" className="btn btn-sm" onClick={onClose}>
             {t("tpl.close")}
           </button>
         </div>
-        <div className="row-actions" style={{ marginBottom: "0.75rem" }}>
+        <div className="page-tabs template-tabs">
           <button
             type="button"
             className={tab === "builtin" ? "btn btn-primary" : "btn btn-ghost"}
@@ -122,8 +122,16 @@ export function TemplateLibrary({ onSelect, onClose, confirmBeforeSelect = false
         ) : (
           <>
             <p className="hint">{t("tpl.hintShared")}</p>
-            {loadErr ? <p className="error">{loadErr}</p> : null}
-            {loading ? <p className="muted">{t("view.loading")}</p> : null}
+            {loadErr ? (
+              <div className="state-surface state-surface--error state-surface--compact">
+                <p>{loadErr}</p>
+              </div>
+            ) : null}
+            {loading ? (
+              <div className="state-surface state-surface--loading state-surface--compact">
+                <p>{t("view.loading")}</p>
+              </div>
+            ) : null}
             <div className="template-grid">
               {shared.map((p) => (
                 <button
@@ -140,7 +148,6 @@ export function TemplateLibrary({ onSelect, onClose, confirmBeforeSelect = false
                       className="avatar-thumb"
                       width={40}
                       height={40}
-                      style={{ marginBottom: "0.35rem" }}
                     />
                   ) : null}
                   <strong>{p.name}</strong>
@@ -156,7 +163,9 @@ export function TemplateLibrary({ onSelect, onClose, confirmBeforeSelect = false
               ))}
             </div>
             {!loading && shared.length === 0 && !loadErr ? (
-              <p className="muted">{t("lib.empty")}</p>
+              <div className="state-surface state-surface--empty state-surface--compact">
+                <p>{t("lib.empty")}</p>
+              </div>
             ) : null}
           </>
         )}
