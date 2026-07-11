@@ -39,6 +39,14 @@ const accessTokenTtlSeconds = intInRange("JWT_ACCESS_TTL_SECONDS", 15 * 60, 60, 
  * active users get a rolling window. Increase via env to reduce re-logins.
  */
 const refreshTokenTtlDays = intInRange("JWT_REFRESH_TTL_DAYS", 30, 1, 365);
+const passwordResetTtlMinutes = intInRange("PASSWORD_RESET_TTL_MINUTES", 30, 5, 120);
+const passwordResetCooldownSeconds = intInRange("PASSWORD_RESET_COOLDOWN_SECONDS", 60, 30, 600);
+
+function bool(name: string, fallback: boolean) {
+  const value = process.env[name]?.trim().toLowerCase();
+  if (!value) return fallback;
+  return value === "true" || value === "1" || value === "yes";
+}
 
 export const env = {
   databaseUrl: req("DATABASE_URL"),
@@ -48,4 +56,13 @@ export const env = {
   host: process.env.HOST ?? "0.0.0.0",
   accessTokenTtlSeconds,
   refreshTokenTtlDays,
+  passwordResetTtlMinutes,
+  passwordResetCooldownSeconds,
+  smtpHost: process.env.SMTP_HOST?.trim() || undefined,
+  smtpPort: intInRange("SMTP_PORT", 587, 1, 65_535),
+  smtpSecure: bool("SMTP_SECURE", false),
+  smtpUser: process.env.SMTP_USER?.trim() || undefined,
+  smtpPass: process.env.SMTP_PASS || undefined,
+  mailFrom: process.env.MAIL_FROM?.trim() || undefined,
+  passwordResetLogLinks: bool("PASSWORD_RESET_LOG_LINKS", false),
 };

@@ -50,7 +50,7 @@ git push -u origin main
 
    ```bash
    cp .env.example .env
-   # 若自行修改，至少配置 DATABASE_URL、JWT_ACCESS_SECRET、JWT_REFRESH_SECRET
+   # 若自行修改，至少配置 DATABASE_URL、JWT_ACCESS_SECRET
    ```
 
 2. **数据库（SQLite）**
@@ -69,6 +69,7 @@ git push -u origin main
 
    - 前端 <http://localhost:5173>，通过 Vite 代理将 `/api` 转发到 <http://127.0.0.1:3002>。  
    - 注册/登录后创建「战术」；在编辑页可改 **战术 JSON**、半场预览、**生成分享链接**；学员在 `/view/{token}` 只读。
+   - 本地未配置 SMTP 时，“找回密码”提交后的重置链接会写入 API 开发日志；生产环境必须配置 `.env.example` 中的 SMTP 变量。
 
 4. **构建**
 

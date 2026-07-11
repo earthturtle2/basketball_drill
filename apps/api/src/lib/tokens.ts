@@ -6,14 +6,26 @@ interface AccessPayload {
   sub: string;
   email: string;
   role: string;
+  ver: number;
   typ: "a";
   exp: number;
   iat: number;
 }
 
-export function signAccessToken(user: { id: string; email: string; role: string }) {
+export function signAccessToken(user: {
+  id: string;
+  email: string;
+  role: string;
+  authVersion: number;
+}) {
   return jwt.sign(
-    { sub: user.id, email: user.email, role: user.role, typ: "a" },
+    {
+      sub: user.id,
+      email: user.email,
+      role: user.role,
+      ver: user.authVersion,
+      typ: "a",
+    },
     env.jwtAccessSecret,
     { expiresIn: env.accessTokenTtlSeconds },
   );
@@ -28,6 +40,14 @@ export function createRefreshTokenRaw() {
 }
 
 export function hashRefreshToken(raw: string) {
+  return createHash("sha256").update(raw, "utf8").digest("hex");
+}
+
+export function createPasswordResetTokenRaw() {
+  return randomBytes(32).toString("base64url");
+}
+
+export function hashPasswordResetToken(raw: string) {
   return createHash("sha256").update(raw, "utf8").digest("hex");
 }
 

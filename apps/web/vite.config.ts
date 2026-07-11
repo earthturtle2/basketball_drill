@@ -4,6 +4,7 @@ import { fileURLToPath } from "node:url";
 import { resolve } from "node:path";
 
 const root = fileURLToPath(new URL(".", import.meta.url));
+const apiProxyTarget = process.env.API_PROXY_TARGET ?? "http://127.0.0.1:3002";
 
 export default defineConfig({
   plugins: [react()],
@@ -15,7 +16,7 @@ export default defineConfig({
   server: {
     port: 5173,
     proxy: {
-      "/api": { target: "http://127.0.0.1:3002", changeOrigin: true },
+      "/api": { target: apiProxyTarget, changeOrigin: true },
     },
   },
   build: {

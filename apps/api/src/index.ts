@@ -7,7 +7,10 @@ import { globalErrorHandler } from "./lib/errors.js";
 import { env } from "./lib/env.js";
 
 async function main() {
-  const app = Fastify({ logger: true });
+  const app = Fastify({
+    logger: true,
+    trustProxy: process.env.NODE_ENV === "production" ? ["127.0.0.1", "::1"] : false,
+  });
 
   app.setErrorHandler(globalErrorHandler);
 
@@ -49,6 +52,22 @@ async function main() {
   app.get("/health", async () => ({ status: "ok" as const }));
 
   await app.register(registerV1, { prefix: "/api/v1" });
+
+  let closing = false;
+  const shutdown = async (signal: string) => {
+    if (closing) return;
+    closing = true;
+    app.log.info({ signal }, "Shutting down API");
+    try {
+      await app.close();
+      process.exit(0);
+    } catch (error) {
+      app.log.error(error, "Failed to shut down API cleanly");
+      process.exit(1);
+    }
+  };
+  process.once("SIGINT", () => void shutdown("SIGINT"));
+  process.once("SIGTERM", () => void shutdown("SIGTERM"));
 
   await app.listen({ port: env.port, host: env.host });
 }

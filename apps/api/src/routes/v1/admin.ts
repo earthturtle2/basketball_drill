@@ -4,8 +4,17 @@ import { and, count, desc, eq, isNotNull, isNull, or, sql, type SQL } from "driz
 import { z } from "zod";
 import bcrypt from "bcryptjs";
 import { db } from "../../db/index.js";
-import { inviteCodes, matchPrepShares, playShares, plays, refreshTokens, teams, users } from "../../db/schema.js";
+import {
+  inviteCodes,
+  matchPrepShares,
+  playShares,
+  plays,
+  refreshTokens,
+  teams,
+  users,
+} from "../../db/schema.js";
 import { sendError } from "../../lib/errors.js";
+import { replacePasswordAndRevokeSessions } from "../../lib/password-change.js";
 
 const inviteBody = z.object({
   expiresAt: z.string().datetime().optional(),
@@ -59,8 +68,8 @@ export async function adminRoutes(fastify: FastifyInstance) {
     const row = (await db.select({ id: users.id }).from(users).where(eq(users.id, userId)).limit(1))[0];
     if (!row) return sendError(reply, 404, "NOT_FOUND", "用户不存在");
     const passwordHash = await bcrypt.hash(b.password, 10);
-    await db.update(users).set({ passwordHash }).where(eq(users.id, userId));
-    await db.delete(refreshTokens).where(eq(refreshTokens.userId, userId));
+    const changed = replacePasswordAndRevokeSessions({ userId, passwordHash });
+    if (!changed) return sendError(reply, 404, "NOT_FOUND", "用户不存在");
     return reply.send({ ok: true });
   });
 

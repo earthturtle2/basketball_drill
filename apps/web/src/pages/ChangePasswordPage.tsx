@@ -1,17 +1,17 @@
 import { useState } from "react";
-import { Navigate } from "react-router-dom";
+import { Navigate, useNavigate } from "react-router-dom";
 import { ApiError, api } from "../api";
 import { useAuth } from "../auth";
 import { useT } from "../i18n";
 
 export function ChangePasswordPage() {
-  const { user, loading } = useAuth();
+  const navigate = useNavigate();
+  const { user, loading, logout } = useAuth();
   const { t } = useT();
   const [currentPassword, setCurrentPassword] = useState("");
   const [newPassword, setNewPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [err, setErr] = useState<string | null>(null);
-  const [ok, setOk] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
 
   if (loading) {
@@ -26,7 +26,6 @@ export function ChangePasswordPage() {
   async function onSubmit(e: React.FormEvent) {
     e.preventDefault();
     setErr(null);
-    setOk(null);
     if (newPassword !== confirmPassword) {
       setErr(t("password.mismatch"));
       return;
@@ -37,10 +36,8 @@ export function ChangePasswordPage() {
         method: "POST",
         body: JSON.stringify({ currentPassword, newPassword }),
       });
-      setCurrentPassword("");
-      setNewPassword("");
-      setConfirmPassword("");
-      setOk(t("password.changed"));
+      logout();
+      navigate("/login", { replace: true, state: { passwordChanged: true } });
     } catch (e2) {
       setErr(e2 instanceof ApiError ? e2.message : t("password.failed"));
     } finally {
@@ -54,7 +51,6 @@ export function ChangePasswordPage() {
         <h1>{t("password.title")}</h1>
         <p className="hint">{t("password.hint")}</p>
         {err ? <p className="error">{err}</p> : null}
-        {ok ? <p className="success">{ok}</p> : null}
         <form onSubmit={onSubmit}>
           <div className="field">
             <label htmlFor="currentPassword">{t("password.current")}</label>

@@ -971,6 +971,40 @@ pre.doc {
   padding: clamp(1.25rem, 4vw, 1.8rem);
 }
 
+.auth-link-row {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: 0.42rem;
+  font-size: 0.86rem;
+}
+
+.auth-link-row a {
+  color: var(--accent);
+  font-weight: 720;
+}
+
+.auth-sent-email {
+  display: flex;
+  flex-direction: column;
+  gap: 0.18rem;
+  margin: 1rem 0 0;
+  padding: 0.78rem 0.9rem;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: rgba(3, 13, 8, 0.52);
+  overflow-wrap: anywhere;
+}
+
+.auth-sent-email span {
+  color: var(--muted);
+  font-size: 0.76rem;
+  font-weight: 800;
+}
+
+.auth-status-actions {
+  align-items: center;
+}
+
 .auth-card h1,
 .form-card h2,
 .section-heading h2,

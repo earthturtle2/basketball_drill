@@ -99,6 +99,9 @@ if (hasTable("users") && !hasColumn("users", "avatar_url")) {
 if (hasTable("users") && !hasColumn("users", "bio")) {
   sqlite.exec("ALTER TABLE users ADD COLUMN bio TEXT");
 }
+if (hasTable("users") && !hasColumn("users", "auth_version")) {
+  sqlite.exec("ALTER TABLE users ADD COLUMN auth_version INTEGER NOT NULL DEFAULT 0");
+}
 
 sqlite.exec(`
 CREATE TABLE IF NOT EXISTS tactic_categories (
@@ -122,6 +125,19 @@ CREATE TABLE IF NOT EXISTS invite_codes (
   used_at INTEGER
 );
 CREATE INDEX IF NOT EXISTS idx_invite_codes_created_by ON invite_codes(created_by);
+`);
+
+sqlite.exec(`
+CREATE TABLE IF NOT EXISTS password_reset_tokens (
+  id TEXT PRIMARY KEY NOT NULL,
+  user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  token_hash TEXT NOT NULL UNIQUE,
+  expires_at INTEGER NOT NULL,
+  created_at INTEGER NOT NULL,
+  used_at INTEGER
+);
+CREATE INDEX IF NOT EXISTS idx_password_reset_user ON password_reset_tokens(user_id);
+CREATE INDEX IF NOT EXISTS idx_password_reset_expires ON password_reset_tokens(expires_at);
 `);
 
 sqlite.exec(`

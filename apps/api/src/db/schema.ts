@@ -29,6 +29,7 @@ export const users = sqliteTable("users", {
   /** 个人简介，展示用 */
   bio: text("bio"),
   role: text("role").notNull().default("coach"),
+  authVersion: integer("auth_version").notNull().default(0),
   createdAt: integer("created_at", { mode: "timestamp_ms" })
     .notNull()
     .$defaultFn(() => new Date()),
@@ -50,6 +51,28 @@ export const refreshTokens = sqliteTable(
       .$defaultFn(() => new Date()),
   },
   (t) => [index("idx_refresh_user").on(t.userId)],
+);
+
+export const passwordResetTokens = sqliteTable(
+  "password_reset_tokens",
+  {
+    id: text("id")
+      .primaryKey()
+      .$defaultFn(() => crypto.randomUUID()),
+    userId: text("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    tokenHash: text("token_hash").notNull().unique(),
+    expiresAt: integer("expires_at", { mode: "timestamp_ms" }).notNull(),
+    createdAt: integer("created_at", { mode: "timestamp_ms" })
+      .notNull()
+      .$defaultFn(() => new Date()),
+    usedAt: integer("used_at", { mode: "timestamp_ms" }),
+  },
+  (t) => [
+    index("idx_password_reset_user").on(t.userId),
+    index("idx_password_reset_expires").on(t.expiresAt),
+  ],
 );
 
 export const inviteCodes = sqliteTable(

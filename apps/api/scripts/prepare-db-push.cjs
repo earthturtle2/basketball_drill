@@ -34,8 +34,26 @@ if (!existsSync(dir)) {
 
 const db = new Database(dbPath);
 
+function hasTable(name) {
+  return Boolean(
+    db.prepare("select name from sqlite_master where type = 'table' and name = ?").get(name),
+  );
+}
+
+function hasColumn(table, column) {
+  return db
+    .prepare(`PRAGMA table_info(${quoteIdent(table)})`)
+    .all()
+    .some((entry) => entry.name === column);
+}
+
 function quoteIdent(value) {
   return `"${String(value).replace(/"/g, '""')}"`;
+}
+
+if (hasTable("users") && !hasColumn("users", "auth_version")) {
+  db.exec("ALTER TABLE users ADD COLUMN auth_version INTEGER NOT NULL DEFAULT 0");
+  console.log(`prepare-db-push: added users.auth_version on ${dbPath}`);
 }
 
 // Older deployments may have created indexes before drizzle-kit tracked the
@@ -43,6 +61,7 @@ function quoteIdent(value) {
 // indexes owned by tables managed in schema.ts; drizzle-kit recreates them.
 const managedTables = new Set([
   "refresh_tokens",
+  "password_reset_tokens",
   "invite_codes",
   "teams",
   "plays",

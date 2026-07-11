@@ -1,11 +1,12 @@
 import { useState } from "react";
-import { Link, Navigate, useNavigate } from "react-router-dom";
+import { Link, Navigate, useLocation, useNavigate } from "react-router-dom";
 import { useAuth } from "../auth";
 import { ApiError } from "../api";
 import { useT } from "../i18n";
 
 export function LoginPage() {
   const nav = useNavigate();
+  const location = useLocation();
   const { user, login } = useAuth();
   const { t } = useT();
   const [email, setEmail] = useState("");
@@ -30,6 +31,9 @@ export function LoginPage() {
       <div className="card auth-card">
         <h1>{t("login.title")}</h1>
         <p className="hint">{t("login.hint")}</p>
+        {(location.state as { passwordChanged?: boolean } | null)?.passwordChanged ? (
+          <p className="success" role="status">{t("password.changedLogin")}</p>
+        ) : null}
         {err ? <p className="error">{err}</p> : null}
         <form onSubmit={onSubmit}>
           <div className="field">
@@ -53,6 +57,9 @@ export function LoginPage() {
               onChange={(e) => setPassword(e.target.value)}
               required
             />
+            <div className="auth-link-row">
+              <Link to="/forgot-password">{t("login.forgotPassword")}</Link>
+            </div>
           </div>
           <div className="form-actions">
             <button className="btn btn-primary" type="submit">

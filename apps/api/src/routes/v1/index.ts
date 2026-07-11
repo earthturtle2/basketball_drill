@@ -10,8 +10,9 @@ import { teamRoutes } from "./teams.js";
 import { matchPrepRoutes } from "./match-preps.js";
 import { adminRoutes } from "./admin.js";
 import { db } from "../../db/index.js";
-import { refreshTokens, users, type UserRow } from "../../db/schema.js";
+import { users, type UserRow } from "../../db/schema.js";
 import { sendError, zodToMessage } from "../../lib/errors.js";
+import { replacePasswordAndRevokeSessions } from "../../lib/password-change.js";
 import { validateAvatarUrl } from "../../lib/user-profile.js";
 
 const passwordChangeBody = z.object({
@@ -125,8 +126,14 @@ export async function registerV1(fastify: FastifyInstance) {
       const ok = await bcrypt.compare(b.currentPassword, u.passwordHash);
       if (!ok) return sendError(reply, 400, "INVALID_PASSWORD", "当前密码错误");
       const passwordHash = await bcrypt.hash(b.newPassword, 10);
-      await db.update(users).set({ passwordHash }).where(eq(users.id, u.id));
-      await db.delete(refreshTokens).where(eq(refreshTokens.userId, u.id));
+      const changed = replacePasswordAndRevokeSessions({
+        userId: u.id,
+        passwordHash,
+        expectedPasswordHash: u.passwordHash,
+      });
+      if (!changed) {
+        return sendError(reply, 409, "PASSWORD_CHANGED", "密码已发生变化，请重新登录后再试");
+      }
       return reply.send({ ok: true });
     });
 

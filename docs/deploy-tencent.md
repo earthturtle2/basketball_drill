@@ -80,11 +80,21 @@ bash scripts/server-release.sh
 DATABASE_URL=file:./data/basketball.db
 JWT_ACCESS_SECRET=<自动生成的随机字符串>
 PUBLIC_APP_URL=https://basketball.itorange.online
+SMTP_HOST=<邮件服务 SMTP 地址>
+SMTP_PORT=587
+SMTP_SECURE=false
+SMTP_USER=<SMTP 用户名>
+SMTP_PASS=<SMTP 密码或授权码>
+MAIL_FROM=Greenfighter <no-reply@your-domain.example>
+PASSWORD_RESET_LOG_LINKS=false
+PASSWORD_RESET_TTL_MINUTES=30
+PASSWORD_RESET_COOLDOWN_SECONDS=60
 PORT=3002
 HOST=127.0.0.1
 ```
 
 > `.env` 在 `.gitignore` 中，`git push` 不会覆盖它。
+> 生产环境必须配置 `SMTP_HOST` 与 `MAIL_FROM`；需要认证的 SMTP 同时配置 `SMTP_USER`、`SMTP_PASS`。`PASSWORD_RESET_LOG_LINKS` 只能在本机开发开启，预发与生产必须保持 `false`。未配置 SMTP 时找回密码接口会返回暂不可用，且不会在生产日志输出重置令牌。
 
 ## 七、目录说明
 
