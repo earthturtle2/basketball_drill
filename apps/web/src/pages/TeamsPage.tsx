@@ -95,7 +95,7 @@ export function TeamsPage() {
   const [teams, setTeams] = useState<Team[]>([]);
   const [err, setErr] = useState<string | null>(null);
   const [name, setName] = useState("");
-  const [color, setColor] = useState("#2e7d32");
+  const [color, setColor] = useState("#3ddc55");
   const [players, setPlayers] = useState<TeamPlayer[]>(() => defaultPlayers());
   const [editId, setEditId] = useState<string | null>(null);
   const [editName, setEditName] = useState("");
@@ -148,7 +148,7 @@ export function TeamsPage() {
         body: JSON.stringify({ name: name.trim(), color, players: normalizePlayers(players) }),
       });
       setName("");
-      setColor("#2e7d32");
+      setColor("#3ddc55");
       setPlayers(defaultPlayers());
       await load();
     } catch (e) {
