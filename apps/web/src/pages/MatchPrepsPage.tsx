@@ -121,16 +121,17 @@ function MatchPrepListPage() {
     }
   }, []);
 
-  const load = useCallback(async () => {
+  const load = useCallback(async (signal?: AbortSignal) => {
     setErr(null);
     try {
       const params = new URLSearchParams();
       if (q.trim()) params.set("q", q.trim());
       if (filterTeamId) params.set("teamId", filterTeamId);
       const qs = params.toString() ? `?${params.toString()}` : "";
-      const res = await api<{ items: PrepListItem[] }>(`/api/v1/match-preps${qs}`);
+      const res = await api<{ items: PrepListItem[] }>(`/api/v1/match-preps${qs}`, { signal });
       setItems(res.items);
     } catch (e) {
+      if (e instanceof DOMException && e.name === "AbortError") return;
       setErr(e instanceof ApiError ? e.message : t("matchPrep.loadFailed"));
     }
   }, [filterTeamId, q, t]);
@@ -142,8 +143,14 @@ function MatchPrepListPage() {
   }, [user, loadTeams]);
 
   useEffect(() => {
-    if (user) void load();
-  }, [user, load]);
+    if (!user) return;
+    const controller = new AbortController();
+    const timer = window.setTimeout(() => void load(controller.signal), q || filterTeamId ? 250 : 0);
+    return () => {
+      window.clearTimeout(timer);
+      controller.abort();
+    };
+  }, [filterTeamId, load, q, user]);
 
   if (!user) return <Navigate to="/login" replace />;
 
@@ -209,20 +216,20 @@ function MatchPrepListPage() {
         </div>
         <div className="match-prep-form-grid">
           <div className="field">
-            <label>{t("matchPrep.planTitle")}</label>
-            <input value={title} onChange={(e) => setTitle(e.target.value)} />
+            <label htmlFor="match-prep-title">{t("matchPrep.planTitle")}</label>
+            <input id="match-prep-title" value={title} onChange={(e) => setTitle(e.target.value)} />
           </div>
           <div className="field">
-            <label>{t("matchPrep.opponent")}</label>
-            <input value={opponent} onChange={(e) => setOpponent(e.target.value)} placeholder={t("matchPrep.opponentPlaceholder")} />
+            <label htmlFor="match-prep-opponent">{t("matchPrep.opponent")}</label>
+            <input id="match-prep-opponent" value={opponent} onChange={(e) => setOpponent(e.target.value)} placeholder={t("matchPrep.opponentPlaceholder")} />
           </div>
           <div className="field">
-            <label>{t("matchPrep.gameDate")}</label>
-            <input type="date" value={gameDate} onChange={(e) => setGameDate(e.target.value)} />
+            <label htmlFor="match-prep-date">{t("matchPrep.gameDate")}</label>
+            <input id="match-prep-date" type="date" value={gameDate} onChange={(e) => setGameDate(e.target.value)} />
           </div>
           <div className="field">
-            <label>{t("matchPrep.team")}</label>
-            <select value={teamId} onChange={(e) => setTeamId(e.target.value)}>
+            <label htmlFor="match-prep-team">{t("matchPrep.team")}</label>
+            <select id="match-prep-team" value={teamId} onChange={(e) => setTeamId(e.target.value)}>
               <option value="">{t("matchPrep.noTeam")}</option>
               {teams.map((tm) => (
                 <option key={tm.id} value={tm.id}>

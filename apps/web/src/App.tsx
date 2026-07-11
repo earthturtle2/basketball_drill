@@ -1,23 +1,36 @@
-import { useEffect, useRef, useState, type ReactNode } from "react";
-import { Link, Navigate, NavLink, Route, Routes, useLocation, useNavigate } from "react-router-dom";
+import { lazy, Suspense, useEffect, useLayoutEffect, useRef, useState, type ReactNode } from "react";
+import { Link, Navigate, NavLink, Route, Routes, useLocation, useNavigate, useNavigationType } from "react-router-dom";
 import { useAuth } from "./auth";
 import { useT, LangToggle } from "./i18n";
-import { HomePage } from "./pages/HomePage";
-import { LoginPage } from "./pages/LoginPage";
-import { RegisterPage } from "./pages/RegisterPage";
-import { PlaysPage } from "./pages/PlaysPage";
-import { PlayEditPage } from "./pages/PlayEditPage";
-import { LibraryPage } from "./pages/LibraryPage";
-import { TeamsPage } from "./pages/TeamsPage";
-import { MatchPrepsPage } from "./pages/MatchPrepsPage";
-import { MatchPrepViewPage } from "./pages/MatchPrepViewPage";
-import { ViewPage } from "./pages/ViewPage";
-import { AdminPage } from "./pages/AdminPage";
-import { ChangePasswordPage } from "./pages/ChangePasswordPage";
-import { ProfilePage } from "./pages/ProfilePage";
+import { flushPendingSave } from "./pending-save";
+
+const HomePage = lazy(() => import("./pages/HomePage").then((module) => ({ default: module.HomePage })));
+const LoginPage = lazy(() => import("./pages/LoginPage").then((module) => ({ default: module.LoginPage })));
+const RegisterPage = lazy(() => import("./pages/RegisterPage").then((module) => ({ default: module.RegisterPage })));
+const PlaysPage = lazy(() => import("./pages/PlaysPage").then((module) => ({ default: module.PlaysPage })));
+const PlayEditPage = lazy(() => import("./pages/PlayEditPage").then((module) => ({ default: module.PlayEditPage })));
+const LibraryPage = lazy(() => import("./pages/LibraryPage").then((module) => ({ default: module.LibraryPage })));
+const TeamsPage = lazy(() => import("./pages/TeamsPage").then((module) => ({ default: module.TeamsPage })));
+const MatchPrepsPage = lazy(() => import("./pages/MatchPrepsPage").then((module) => ({ default: module.MatchPrepsPage })));
+const MatchPrepViewPage = lazy(() => import("./pages/MatchPrepViewPage").then((module) => ({ default: module.MatchPrepViewPage })));
+const ViewPage = lazy(() => import("./pages/ViewPage").then((module) => ({ default: module.ViewPage })));
+const AdminPage = lazy(() => import("./pages/AdminPage").then((module) => ({ default: module.AdminPage })));
+const ChangePasswordPage = lazy(() => import("./pages/ChangePasswordPage").then((module) => ({ default: module.ChangePasswordPage })));
+const ProfilePage = lazy(() => import("./pages/ProfilePage").then((module) => ({ default: module.ProfilePage })));
 
 function isAdmin(role: string) {
   return role === "admin" || role === "org_admin";
+}
+
+function ScrollToTop() {
+  const { pathname } = useLocation();
+  const navigationType = useNavigationType();
+
+  useLayoutEffect(() => {
+    if (navigationType !== "POP") window.scrollTo(0, 0);
+  }, [navigationType, pathname]);
+
+  return null;
 }
 
 function Layout({ children }: { children: ReactNode }) {
@@ -65,7 +78,12 @@ function Layout({ children }: { children: ReactNode }) {
   }, []);
 
   if (loc.pathname.startsWith("/view/")) {
-    return <div className="app-shell">{children}</div>;
+    return (
+      <div className="app-shell">
+        <a className="skip-link" href="#main-content">{t("app.skipContent")}</a>
+        <main id="main-content">{children}</main>
+      </div>
+    );
   }
 
   const closeNav = () => {
@@ -78,6 +96,7 @@ function Layout({ children }: { children: ReactNode }) {
 
   return (
     <div className="app-shell">
+      <a className="skip-link" href="#main-content">{t("app.skipContent")}</a>
       <header className={`top${topNavOpen ? " top--nav-open" : ""}`}>
         <Link to="/" className="brand">
           {t("app.brand")}
@@ -124,7 +143,7 @@ function Layout({ children }: { children: ReactNode }) {
                   type="button"
                   className={`btn btn-ghost top-account-trigger${accountOpen || accountActive ? " nav-link--active" : ""}`}
                   aria-expanded={accountOpen}
-                  aria-haspopup="menu"
+                  aria-controls="account-navigation"
                   onClick={() => setAccountOpen((o) => !o)}
                 >
                   <span className="top-account-avatar" aria-hidden="true">
@@ -134,21 +153,23 @@ function Layout({ children }: { children: ReactNode }) {
                   <span className="top-account-caret" aria-hidden="true">v</span>
                 </button>
                 {accountOpen ? (
-                  <div className="top-account-menu" role="menu">
-                    <NavLink to="/profile" className={navLinkClass} onClick={closeNav} role="menuitem">
+                  <div id="account-navigation" className="top-account-menu">
+                    <NavLink to="/profile" className={navLinkClass} onClick={closeNav}>
                       {t("app.profile")}
                     </NavLink>
-                    <NavLink to="/password" className={navLinkClass} onClick={closeNav} role="menuitem">
+                    <NavLink to="/password" className={navLinkClass} onClick={closeNav}>
                       {t("app.password")}
                     </NavLink>
                     <button
                       type="button"
                       className="btn btn-ghost"
-                      role="menuitem"
                       onClick={() => {
                         closeNav();
-                        logout();
-                        nav("/login");
+                        void flushPendingSave().then((saved) => {
+                          if (!saved) return;
+                          logout();
+                          nav("/login");
+                        });
                       }}
                     >
                       {t("app.logout")}
@@ -178,7 +199,7 @@ function Layout({ children }: { children: ReactNode }) {
           onClick={() => setTopNavOpen(false)}
         />
       ) : null}
-      {children}
+      <main id="main-content">{children}</main>
     </div>
   );
 }
@@ -222,9 +243,19 @@ function RequireAdmin({ children }: { children: ReactNode }) {
 }
 
 export function App() {
+  const { t } = useT();
   return (
-    <Layout>
-      <Routes>
+    <>
+      <ScrollToTop />
+      <Layout>
+        <Suspense
+          fallback={(
+            <div className="state-surface state-surface--loading" role="status">
+              <p>{t("view.loading")}</p>
+            </div>
+          )}
+        >
+        <Routes>
         <Route path="/" element={<HomePage />} />
         <Route path="/login" element={<LoginPage />} />
         <Route path="/register" element={<RegisterPage />} />
@@ -275,7 +306,9 @@ export function App() {
         <Route path="/view/prep/:token" element={<MatchPrepViewPage />} />
         <Route path="/view/:token" element={<ViewPage />} />
         <Route path="*" element={<NotFound />} />
-      </Routes>
-    </Layout>
+        </Routes>
+        </Suspense>
+      </Layout>
+    </>
   );
 }

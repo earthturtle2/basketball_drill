@@ -68,7 +68,7 @@ export function FinishOptions({ document, courtMode = "half", visibleAtTimeMs }:
 
     const [tx, ty] = tacticToSvg(target.x, target.y, courtMode);
     const isShot = option.kind === "shot";
-    const isPrimary = option.priority === "primary" || isShot;
+    const isPrimary = option.priority === "primary" || (option.priority === undefined && isShot);
     const stroke = isShot ? "#ff7043" : "#4dd0e1";
     const fill = isShot ? "rgba(255, 112, 67, 0.16)" : "rgba(77, 208, 225, 0.14)";
     const label = option.label?.trim() || (option.priority ? option.priority : "");

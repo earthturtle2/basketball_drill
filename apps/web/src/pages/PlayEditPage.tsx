@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { Link, Navigate, useNavigate, useParams } from "react-router-dom";
+import { Link, Navigate, useBlocker, useNavigate, useParams } from "react-router-dom";
 import { api, ApiError } from "../api";
 import { useAuth } from "../auth";
 import { useT } from "../i18n";
@@ -17,6 +17,7 @@ import {
   uniqueTacticCategoryOptions,
   withDocumentCategory,
 } from "../tactic/categories";
+import { registerPendingSaveHandler } from "../pending-save";
 
 type Play = {
   id: string;
@@ -119,7 +120,11 @@ export function PlayEditPage() {
   const savePayloadRef = useRef<SavePayload | null>(null);
   savePayloadRef.current = savePayload;
   const saveInFlightRef = useRef(false);
+  const savePromiseRef = useRef<Promise<boolean> | null>(null);
   const saveQueuedRef = useRef(false);
+  const failedSnapshotRef = useRef<string | null>(null);
+  const allowNavigationRef = useRef(false);
+  const deletingRef = useRef(false);
   const tMsRef = useRef(0);
   tMsRef.current = tMs;
   const speedRef = useRef(playbackSpeed);
@@ -127,11 +132,13 @@ export function PlayEditPage() {
   const frameStepTargetRef = useRef(frameStepTarget);
   frameStepTargetRef.current = frameStepTarget;
   const autoSaveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const saveOnUnmountRef = useRef<(force?: boolean) => Promise<boolean>>(async () => false);
   const undoStackRef = useRef<TacticDocumentV1[]>([]);
   const redoStackRef = useRef<TacticDocumentV1[]>([]);
   const lastUndoPushAtRef = useRef(0);
   const revokingShareRef = useRef(false);
   const [historyVersion, setHistoryVersion] = useState(0);
+  const [editorSession, setEditorSession] = useState(0);
 
   const isDirty = useCallback(() => {
     return Boolean(doc) && currentSnapshot !== savedSnapshotRef.current;
@@ -213,6 +220,8 @@ export function PlayEditPage() {
   useEffect(() => {
     const onKeyDown = (e: KeyboardEvent) => {
       if (!(e.metaKey || e.ctrlKey)) return;
+      const target = e.target instanceof HTMLElement ? e.target : null;
+      if (target?.closest("input, textarea, select, [contenteditable='true']")) return;
       const key = e.key.toLowerCase();
       if (key === "z" && !e.shiftKey) {
         e.preventDefault();
@@ -226,15 +235,16 @@ export function PlayEditPage() {
     return () => window.removeEventListener("keydown", onKeyDown);
   }, [undo, redo]);
 
-  const doSave = useCallback(async () => {
-    if (!id) return;
+  const doSave = useCallback((force = false): Promise<boolean> => {
+    if (!id) return Promise.resolve(false);
     if (saveInFlightRef.current) {
       saveQueuedRef.current = true;
-      return;
+      return savePromiseRef.current ?? Promise.resolve(false);
     }
     const payload = savePayloadRef.current;
-    if (!payload) return;
+    if (!payload) return Promise.resolve(false);
     const payloadSnapshot = snapshotSavePayload(payload);
+    if (!force && failedSnapshotRef.current === payloadSnapshot) return Promise.resolve(false);
     const nextCategory = normalizeTacticCategory(payload.category) || DEFAULT_TACTIC_CATEGORY;
     const nextDoc = withDocumentCategory(payload.doc, nextCategory);
     const savedSnapshot = snapshotSavePayload({
@@ -245,52 +255,116 @@ export function PlayEditPage() {
     saveInFlightRef.current = true;
     setSaveStatus("saving");
     setErr(null);
-    try {
-      await api<Play>(`/api/v1/plays/${id}`, {
-        method: "PATCH",
-        body: JSON.stringify({
-          name: payload.name,
-          description: payload.description,
-          category: nextCategory,
-          teamId: payload.assignedTeamIds[0] ?? null,
-          teamIds: payload.assignedTeamIds,
-          libraryScope: payload.libraryScope,
-          sharedWithUserIds:
-            payload.libraryScope === "partial" ? payload.sharedWithUserIds : [],
-          document: nextDoc,
-        }),
-      });
-      if (currentSnapshotRef.current === payloadSnapshot) {
-        setCategory(nextCategory);
-        setDoc(nextDoc);
-        syncJsonText(nextDoc);
-        savedSnapshotRef.current = savedSnapshot;
-        saveQueuedRef.current = false;
-        setSaveStatus("saved");
-      } else if (savedSnapshotRef.current !== currentSnapshotRef.current) {
-        saveQueuedRef.current = true;
+    const request = (async () => {
+      try {
+        await api<Play>(`/api/v1/plays/${id}`, {
+          method: "PATCH",
+          body: JSON.stringify({
+            name: payload.name,
+            description: payload.description,
+            category: nextCategory,
+            teamId: payload.assignedTeamIds[0] ?? null,
+            teamIds: payload.assignedTeamIds,
+            libraryScope: payload.libraryScope,
+            sharedWithUserIds:
+              payload.libraryScope === "partial" ? payload.sharedWithUserIds : [],
+            document: nextDoc,
+          }),
+        });
+        failedSnapshotRef.current = null;
+        if (currentSnapshotRef.current === payloadSnapshot) {
+          setCategory(nextCategory);
+          setDoc(nextDoc);
+          syncJsonText(nextDoc);
+          currentSnapshotRef.current = savedSnapshot;
+          savedSnapshotRef.current = savedSnapshot;
+          saveQueuedRef.current = false;
+          setSaveStatus("saved");
+        } else if (savedSnapshotRef.current !== currentSnapshotRef.current) {
+          saveQueuedRef.current = true;
+          setSaveStatus("unsaved");
+        } else {
+          setSaveStatus("saved");
+        }
+        return true;
+      } catch (e) {
+        failedSnapshotRef.current = payloadSnapshot;
+        setErr(e instanceof ApiError ? e.message : t("edit.saveFailed"));
         setSaveStatus("unsaved");
-      } else {
-        setSaveStatus("saved");
+        return false;
+      } finally {
+        saveInFlightRef.current = false;
+        savePromiseRef.current = null;
+        if (saveQueuedRef.current && savedSnapshotRef.current !== currentSnapshotRef.current) {
+          saveQueuedRef.current = false;
+          void doSave();
+        }
       }
-    } catch (e) {
-      setErr(e instanceof ApiError ? e.message : t("edit.saveFailed"));
-      setSaveStatus("unsaved");
-    } finally {
-      saveInFlightRef.current = false;
-      if (saveQueuedRef.current && savedSnapshotRef.current !== currentSnapshotRef.current) {
-        saveQueuedRef.current = false;
-        void doSave();
-      }
-    }
+    })();
+    savePromiseRef.current = request;
+    return request;
   }, [id, syncJsonText, t]);
+
+  const flushSave = useCallback(async () => {
+    for (;;) {
+      const pending = savePromiseRef.current;
+      if (pending) {
+        saveQueuedRef.current = true;
+        if (!(await pending)) return false;
+        continue;
+      }
+      if (savedSnapshotRef.current === currentSnapshotRef.current) return true;
+      if (!(await doSave(true))) return false;
+    }
+  }, [doSave]);
+  saveOnUnmountRef.current = doSave;
+
+  const navigationBlocker = useBlocker(useCallback(() => {
+    return !allowNavigationRef.current
+      && !deletingRef.current
+      && Boolean(savePayloadRef.current)
+      && currentSnapshotRef.current !== savedSnapshotRef.current;
+  }, []));
+
+  useEffect(() => registerPendingSaveHandler(flushSave), [flushSave]);
+
+  useEffect(() => {
+    if (navigationBlocker.state !== "blocked") return;
+    let active = true;
+    void flushSave().then((success) => {
+      if (!active) return;
+      if (success) {
+        allowNavigationRef.current = true;
+        navigationBlocker.proceed();
+      } else {
+        navigationBlocker.reset();
+      }
+    });
+    return () => {
+      active = false;
+    };
+  }, [flushSave, navigationBlocker]);
+
+  useEffect(() => {
+    allowNavigationRef.current = false;
+    deletingRef.current = false;
+  }, [id]);
+
+  useEffect(() => {
+    return () => {
+      if (!deletingRef.current && savePayloadRef.current && currentSnapshotRef.current !== savedSnapshotRef.current) {
+        void saveOnUnmountRef.current();
+      }
+    };
+  }, []);
 
   useEffect(() => {
     if (!doc || saveStatus === "saved" || saveStatus === "saving") return;
+    if (currentSnapshot === failedSnapshotRef.current) return;
     if (autoSaveTimer.current) clearTimeout(autoSaveTimer.current);
     autoSaveTimer.current = setTimeout(() => {
       void doSave();
-    }, 3000);
+    }, 900);
     return () => {
       if (autoSaveTimer.current) clearTimeout(autoSaveTimer.current);
     };
@@ -316,6 +390,7 @@ export function PlayEditPage() {
       const nextDoc = withDocumentCategory(p.document, nextCategory);
       setDoc(nextDoc);
       setJsonText(JSON.stringify(nextDoc, null, 2));
+      setEditorSession((value) => value + 1);
       undoStackRef.current = [];
       redoStackRef.current = [];
       setHistoryVersion((v) => v + 1);
@@ -517,6 +592,7 @@ export function PlayEditPage() {
       setCategory(nextCategory);
       setDoc(nextDoc);
       setJsonText(JSON.stringify(nextDoc, null, 2));
+      setEditorSession((value) => value + 1);
       setSaveStatus("unsaved");
     } catch {
       setErr(t("edit.jsonInvalid"));
@@ -525,11 +601,14 @@ export function PlayEditPage() {
 
   async function del() {
     if (!confirm(t("edit.confirmDelete"))) return;
+    deletingRef.current = true;
     setErr(null);
     try {
       await api(`/api/v1/plays/${id}`, { method: "DELETE" });
+      allowNavigationRef.current = true;
       nav("/plays", { replace: true });
     } catch (e) {
+      deletingRef.current = false;
       setErr(e instanceof ApiError ? e.message : t("edit.deleteFailed"));
     }
   }
@@ -537,10 +616,12 @@ export function PlayEditPage() {
   async function duplicate() {
     setErr(null);
     try {
+      if (!(await flushSave())) return;
       const res = await api<{ id: string }>(`/api/v1/plays/${id}/duplicate`, {
         method: "POST",
         body: JSON.stringify({ name: `${name}${t("edit.copySuffix")}` }),
       });
+      allowNavigationRef.current = true;
       nav(`/plays/${res.id}`);
     } catch (e) {
       setErr(e instanceof ApiError ? e.message : t("edit.duplicateFailed"));
@@ -632,7 +713,9 @@ export function PlayEditPage() {
           </h1>
         </div>
         <div className="page-header__actions">
-          <span className={`save-status save-status--${saveStatus}`}>{statusLabel}</span>
+          <span className={`save-status save-status--${saveStatus}`} role="status" aria-live="polite">
+            {statusLabel}
+          </span>
         </div>
       </header>
       {err ? (
@@ -674,38 +757,56 @@ export function PlayEditPage() {
           </div>
         </div>
       ) : null}
-      <div className="page-toolbar">
-        <button type="button" className="btn btn-primary" onClick={() => void doSave()}>
-          {t("edit.save")}
-        </button>
-        <button
-          type="button"
-          className="btn"
-          disabled={!canUndo}
-          onClick={undo}
-          title="⌘Z / Ctrl+Z"
-        >
-          {t("edit.undo")}
-        </button>
-        <button
-          type="button"
-          className="btn"
-          disabled={!canRedo}
-          onClick={redo}
-          title="⌘⇧Z / Ctrl+Y"
-        >
-          {t("edit.redo")}
-        </button>
-        <button type="button" className="btn" onClick={() => void duplicate()}>
-          {t("edit.duplicate")}
-        </button>
-        <button type="button" className="btn" onClick={() => void share()}>
-          {t("edit.share")}
-        </button>
-        <button type="button" className="btn" onClick={() => void del()}>
-          {t("edit.delete")}
-        </button>
+      <div className="editor-commandbar" role="toolbar" aria-label={t("edit.commands")}>
+        <div className="editor-commandbar__group">
+          <button
+            type="button"
+            className="btn btn-primary"
+            onClick={() => void doSave(true)}
+            disabled={saveStatus === "saving"}
+          >
+            {saveStatus === "saving" ? t("edit.statusSaving") : t("edit.save")}
+          </button>
+          <button
+            type="button"
+            className="btn"
+            disabled={!canUndo}
+            onClick={undo}
+            title="⌘Z / Ctrl+Z"
+          >
+            {t("edit.undo")}
+          </button>
+          <button
+            type="button"
+            className="btn"
+            disabled={!canRedo}
+            onClick={redo}
+            title="⌘⇧Z / Ctrl+Y"
+          >
+            {t("edit.redo")}
+          </button>
+        </div>
+        <div className="editor-commandbar__group editor-commandbar__group--secondary">
+          <button type="button" className="btn editor-commandbar__duplicate" onClick={() => void duplicate()}>
+            {t("edit.duplicate")}
+          </button>
+          <button type="button" className="btn editor-commandbar__share" onClick={() => void share()}>
+            {t("edit.share")}
+          </button>
+          <button type="button" className="btn btn-destructive" onClick={() => void del()}>
+            {t("edit.delete")}
+          </button>
+        </div>
       </div>
+      <details className="play-settings">
+        <summary>
+          <span>
+            <strong>{t("edit.settings")}</strong>
+            <span>{t("edit.settingsHint")}</span>
+          </span>
+          <span className="status-pill">{displayTacticCategory(category, t)}</span>
+        </summary>
+        <div className="play-settings__content">
       <div className="field">
         <label htmlFor="n">{t("edit.name")}</label>
         <input
@@ -863,9 +964,12 @@ export function PlayEditPage() {
           </div>
         </>
       ) : null}
+        </div>
+      </details>
 
       {doc ? (
         <TacticEditor
+          key={`${id}:${editorSession}`}
           document={doc}
           onChange={handleDocChange}
           onOpenTemplates={() => setShowTemplates(true)}
@@ -1034,6 +1138,10 @@ export function PlayEditPage() {
         <TemplateLibrary
           confirmBeforeSelect={!!doc}
           onSelect={(tmpl) => {
+            setPlaying(false);
+            setFrameStepTarget(null);
+            setTms(0);
+            setEditorSession((value) => value + 1);
             handleDocChange(tmpl);
             setShowTemplates(false);
           }}

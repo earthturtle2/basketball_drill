@@ -25,11 +25,11 @@ export function PlayPreview({
   courtMode?: CourtMode;
 }) {
   const poses = useMemo(() => samplePoses(doc, tMs), [doc, tMs]);
-  const ballState = useMemo(() => resolveBallState(doc, tMs, poses), [doc, tMs, poses]);
+  const ballState = useMemo(() => resolveBallState(doc, tMs), [doc, tMs]);
 
   const teamColors = {
-    offense: doc.teams.offense.color ?? "#e53935",
-    defense: doc.teams.defense.color ?? "#1e88e5",
+    offense: doc.teams.offense.color ?? "#c8332f",
+    defense: doc.teams.defense.color ?? "#2155a6",
   };
 
   const screenMap = useMemo(() => resolveScreenOverlaysAtT(doc, tMs), [doc, tMs]);

@@ -3,8 +3,10 @@ import { Link } from "react-router-dom";
 import { api, ApiError } from "../api";
 import { useAuth } from "../auth";
 import { useT } from "../i18n";
-import { TEMPLATES } from "../tactic/templates";
+import { TEMPLATES, localizeTemplateDocument } from "../tactic/templates";
 import { displayTacticCategory } from "../tactic/categories";
+import { PlayPreview } from "../tactic/PlayPreview";
+import { courtModeFromDocument } from "../tactic/court-geometry";
 
 type PlayListItem = {
   id: string;
@@ -47,7 +49,12 @@ function formatShortDate(value: string | null) {
 }
 
 function GuestHome() {
-  const { t } = useT();
+  const { lang, t } = useT();
+  const featuredTemplate = TEMPLATES[0]!;
+  const featuredDocument = useMemo(
+    () => localizeTemplateDocument(featuredTemplate, lang, t),
+    [featuredTemplate, lang, t],
+  );
   const heroChips = [t("home.capabilityEdit"), t("home.capabilityShare"), t("home.capabilityPrep")];
   const features = [
     { title: t("home.guestFlow1Title"), text: t("home.guestFlow1Text") },
@@ -61,11 +68,10 @@ function GuestHome() {
     { value: t("home.guestStatNoLoginValue"), label: t("home.guestStatNoLogin") },
   ];
   const lessonSteps = [t("home.guestLesson1"), t("home.guestLesson2"), t("home.guestLesson3")];
-  const points = [t("home.previewPoint1"), t("home.previewPoint2"), t("home.previewPoint3")];
 
   return (
     <div className="home-page home-page--guest">
-      <section className="home-hero home-hero--landing card">
+      <section className="home-hero home-hero--landing">
         <div className="home-hero__copy">
           <p className="home-kicker">{t("home.guestKicker")}</p>
           <h1>{t("home.guestTitle")}</h1>
@@ -89,28 +95,12 @@ function GuestHome() {
             <span>{t("home.previewTitle")}</span>
             <strong>{t("home.previewMeta")}</strong>
           </div>
-          <div className="home-court-mini" aria-hidden="true">
-            <span className="home-court-mini__line home-court-mini__line--paint" />
-            <span className="home-court-mini__line home-court-mini__line--arc" />
-            <span className="home-court-mini__player home-court-mini__player--one">1</span>
-            <span className="home-court-mini__player home-court-mini__player--two">5</span>
-            <span className="home-court-mini__player home-court-mini__player--three">2</span>
-            <span className="home-court-mini__player home-court-mini__player--defense">D</span>
-            <span className="home-court-mini__path home-court-mini__path--roll" />
-            <span className="home-court-mini__path home-court-mini__path--pass" />
-          </div>
-          <div className="home-preview-points">
-            {points.map((point, index) => (
-              <span key={point}>
-                <strong>{index + 1}</strong>
-                {point}
-              </span>
-            ))}
-          </div>
-          <div className="home-court-card__caption">
-            <p>{t("home.previewCaptionKicker")}</p>
-            <strong>{t("home.previewCaptionTitle")}</strong>
-            <span>{t("home.previewCaptionText")}</span>
+          <div className="home-court-live" aria-hidden="true">
+            <PlayPreview
+              document={featuredDocument}
+              tMs={featuredTemplate.coaching.previewAtMs}
+              courtMode={courtModeFromDocument(featuredDocument)}
+            />
           </div>
         </div>
       </section>

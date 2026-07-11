@@ -6,6 +6,7 @@ interface Props {
   cy: number;
   color: string;
   label: string;
+  ariaLabel: string;
   selected: boolean;
   hasBall: boolean;
   draggable?: boolean;
@@ -19,6 +20,7 @@ export function PlayerDot({
   cy,
   color,
   label,
+  ariaLabel,
   selected,
   hasBall,
   draggable = true,
@@ -66,12 +68,40 @@ export function PlayerDot({
     dragging.current = false;
   }, []);
 
+  const onKeyDown = useCallback(
+    (e: React.KeyboardEvent<SVGGElement>) => {
+      if (e.key === "Enter" || e.key === " ") {
+        e.preventDefault();
+        onSelect(actorId);
+        return;
+      }
+      if (!draggable) return;
+      const step = e.shiftKey ? 5 : 2;
+      const offsets: Record<string, [number, number]> = {
+        ArrowLeft: [-step, 0],
+        ArrowRight: [step, 0],
+        ArrowUp: [0, -step],
+        ArrowDown: [0, step],
+      };
+      const offset = offsets[e.key];
+      if (!offset) return;
+      e.preventDefault();
+      onSelect(actorId);
+      onDrag(actorId, cx + offset[0], cy + offset[1]);
+    },
+    [actorId, cx, cy, draggable, onDrag, onSelect],
+  );
+
   return (
     <g
+      role="button"
+      tabIndex={0}
+      aria-label={ariaLabel}
       style={{ cursor: draggable ? "grab" : "pointer" }}
       onPointerDown={onPointerDown}
       onPointerMove={onPointerMove}
       onPointerUp={onPointerUp}
+      onKeyDown={onKeyDown}
       onClick={(e) => e.stopPropagation()}
     >
       {/* Ball halo — yellow ring around the holder */}

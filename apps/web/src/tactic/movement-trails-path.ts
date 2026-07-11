@@ -125,6 +125,8 @@ function eventSplitCandidates(doc: TacticDocumentV1, t0: number, t1: number): nu
     if (e.kind === "pass" && e.from && e.to) {
       const flightStart = Math.max(0, e.t - passFlyMs(doc, e.t));
       candidates.push(flightStart, e.t);
+    } else if (e.kind === "handoff" && e.from && e.to) {
+      candidates.push(e.t);
     } else if (e.kind === "possess" || e.kind === "possess_end") {
       candidates.push(e.t);
     }

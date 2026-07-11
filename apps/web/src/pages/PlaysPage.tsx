@@ -126,11 +126,11 @@ export function PlaysPage() {
         </div>
         <div className="page-header__actions">
           <span className="status-pill page-count-pill">{items.length}</span>
-          <button type="button" className="btn btn-primary" onClick={() => void create()}>
-            {t("plays.createBlank")}
-          </button>
-          <button type="button" className="btn btn-ghost" onClick={() => setShowQuickStart(true)}>
+          <button type="button" className="btn btn-primary" onClick={() => setShowQuickStart(true)}>
             {t("plays.createFromTemplate")}
+          </button>
+          <button type="button" className="btn btn-ghost" onClick={() => void create()}>
+            {t("plays.createBlank")}
           </button>
         </div>
       </header>

@@ -1,9 +1,11 @@
-import { useMemo, useState } from "react";
+import { useCallback, useMemo, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { api, ApiError } from "../api";
 import { useT } from "../i18n";
-import { DEFAULT_TACTIC_CATEGORY, displayTacticCategory, normalizeTacticCategory, withDocumentCategory } from "../tactic/categories";
-import { TEMPLATES, type Template } from "../tactic/templates";
+import { DEFAULT_TACTIC_CATEGORY, normalizeTacticCategory, withDocumentCategory } from "../tactic/categories";
+import { TEMPLATES, localizeTemplateDocument, type Template } from "../tactic/templates";
+import { TemplateCardContent } from "../tactic/TemplateCard";
+import { useModalDialog } from "./useModalDialog";
 
 type TeamOption = {
   id: string;
@@ -23,7 +25,7 @@ function templateCategory(template: Template) {
 
 export function CreatePlayWizard({ teams, initialTeamId = "", onClose }: Props) {
   const nav = useNavigate();
-  const { t } = useT();
+  const { lang, t } = useT();
   const firstTemplate = TEMPLATES[0];
   const [selectedId, setSelectedId] = useState(firstTemplate?.id ?? "");
   const selected = useMemo(
@@ -36,6 +38,11 @@ export function CreatePlayWizard({ teams, initialTeamId = "", onClose }: Props) 
   const [teamId, setTeamId] = useState(initialTeamId);
   const [creating, setCreating] = useState(false);
   const [err, setErr] = useState<string | null>(null);
+  const closeButtonRef = useRef<HTMLButtonElement | null>(null);
+  const requestClose = useCallback(() => {
+    if (!creating) onClose();
+  }, [creating, onClose]);
+  const panelRef = useModalDialog(requestClose, closeButtonRef);
 
   function pickTemplate(template: Template) {
     setSelectedId(template.id);
@@ -51,7 +58,7 @@ export function CreatePlayWizard({ teams, initialTeamId = "", onClose }: Props) 
     setErr(null);
     try {
       const nextCategory = normalizeTacticCategory(category) || DEFAULT_TACTIC_CATEGORY;
-      const document = structuredClone(selected.document);
+      const document = localizeTemplateDocument(selected, lang, t);
       document.meta = {
         ...document.meta,
         name: name.trim(),
@@ -78,16 +85,31 @@ export function CreatePlayWizard({ teams, initialTeamId = "", onClose }: Props) 
   }
 
   return (
-    <div className="modal-overlay" onClick={creating ? undefined : onClose}>
-      <div className="modal-content quick-start-modal" onClick={(e) => e.stopPropagation()}>
+    <div className="modal-overlay" onClick={requestClose} role="presentation">
+      <div
+        ref={panelRef}
+        className="modal-content quick-start-modal"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="quick-start-title"
+        onClick={(e) => e.stopPropagation()}
+      >
         <div className="quick-start-modal__header">
           <div>
             <p className="home-kicker">{t("quick.kicker")}</p>
-            <h2>{t("quick.title")}</h2>
+            <h2 id="quick-start-title">{t("quick.title")}</h2>
             <p className="hint">{t("quick.hint")}</p>
           </div>
-          <button type="button" className="btn btn-sm" onClick={onClose} disabled={creating}>
-            {t("tpl.close")}
+          <button
+            ref={closeButtonRef}
+            type="button"
+            className="btn btn-sm modal-close-button"
+            aria-label={t("tpl.close")}
+            onClick={requestClose}
+            disabled={creating}
+          >
+            <span aria-hidden="true">×</span>
+            <span className="sr-only">{t("tpl.close")}</span>
           </button>
         </div>
 
@@ -96,21 +118,40 @@ export function CreatePlayWizard({ teams, initialTeamId = "", onClose }: Props) 
         <div className="quick-start-layout">
           <section className="quick-start-template-list" aria-label={t("quick.chooseTemplate")}>
             <p className="quick-start-step">{t("quick.stepTemplate")}</p>
-            <div className="template-grid">
+            <label className="quick-start-mobile-picker" htmlFor="quick-template-select">
+              <span>{t("quick.chooseTemplate")}</span>
+              <select
+                id="quick-template-select"
+                value={selected?.id ?? ""}
+                onChange={(event) => {
+                  const template = TEMPLATES.find((item) => item.id === event.target.value);
+                  if (template) pickTemplate(template);
+                }}
+                disabled={creating}
+              >
+                {TEMPLATES.map((template) => (
+                  <option key={template.id} value={template.id}>
+                    {t(template.nameKey)}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <div className="template-grid template-grid--picker">
               {TEMPLATES.map((template) => (
-                <button
+                <div
                   key={template.id}
-                  type="button"
                   className={`template-card quick-start-template-card${template.id === selected?.id ? " quick-start-template-card--active" : ""}`}
-                  onClick={() => pickTemplate(template)}
-                  disabled={creating}
                 >
-                  <strong>{t(template.nameKey)}</strong>
-                  <span className="muted">{t(template.descKey)}</span>
-                  <span className="status-pill">
-                    {displayTacticCategory(templateCategory(template), t)}
-                  </span>
-                </button>
+                  <button
+                    type="button"
+                    className="template-card__action"
+                    aria-label={t(template.nameKey)}
+                    aria-pressed={template.id === selected?.id}
+                    onClick={() => pickTemplate(template)}
+                    disabled={creating}
+                  />
+                  <TemplateCardContent template={template} compact />
+                </div>
               ))}
             </div>
           </section>
@@ -161,7 +202,7 @@ export function CreatePlayWizard({ teams, initialTeamId = "", onClose }: Props) 
               <button type="button" className="btn btn-primary" onClick={() => void create()} disabled={creating || !name.trim()}>
                 {creating ? t("quick.creating") : t("quick.create")}
               </button>
-              <button type="button" className="btn btn-ghost" onClick={onClose} disabled={creating}>
+              <button type="button" className="btn btn-ghost" onClick={requestClose} disabled={creating}>
                 {t("teams.cancel")}
               </button>
             </div>

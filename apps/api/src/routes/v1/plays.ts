@@ -168,7 +168,17 @@ export async function playRoutes(fastify: FastifyInstance) {
     if (q.q) {
       const pattern = `%${escapeIlike(q.q)}%`;
       conditions.push(
-        sql`(lower(${plays.name}) like lower(${pattern}) or lower(${users.email}) like lower(${pattern}))`,
+        sql`(
+          lower(${plays.name}) like lower(${pattern})
+          or lower(coalesce(${plays.description}, '')) like lower(${pattern})
+          or lower(coalesce(${plays.category}, '')) like lower(${pattern})
+          or lower(coalesce(${users.name}, '')) like lower(${pattern})
+          or lower(${users.email}) like lower(${pattern})
+          or exists (
+            select 1 from json_each(${plays.tags}) as tag
+            where lower(cast(tag.value as text)) like lower(${pattern})
+          )
+        )`,
       );
     }
     if (q.tag) {

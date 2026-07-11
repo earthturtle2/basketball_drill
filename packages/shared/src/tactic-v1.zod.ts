@@ -13,6 +13,18 @@ const keyframe = z.object({
   poses: z.record(z.string().min(1), vec2d),
 });
 
+const finishOption = z
+  .object({
+    kind: z.enum(["shot", "pass"]),
+    label: z.string().max(120).optional(),
+    to: z.string().min(1).optional(),
+    x: z.number().min(0).max(1).optional(),
+    y: z.number().min(0).max(1).optional(),
+    priority: z.string().max(64).optional(),
+    trigger: z.string().max(280).optional(),
+  })
+  .passthrough();
+
 const event = z
   .object({
     t: z.number().int().min(0),
@@ -29,13 +41,13 @@ const event = z
       })
       .passthrough()
       .optional(),
-    cut: z.enum(["basket", "curl", "flare", "backdoor", "pop", "lift", "replace", "split"]).optional(),
+    cut: z.enum(["basket", "curl", "flare", "backdoor", "pop", "lift", "replace", "split", "flash"]).optional(),
     handoff: z.enum(["dho", "pitch", "handoff_fake", "keep"]).optional(),
     screenSubtype: z
-      .enum(["ball", "down", "pin_down", "flare", "back", "cross", "ram", "ghost", "drag", "rescreen"])
+      .enum(["ball", "down", "pin_down", "flare", "back", "cross", "ram", "ghost", "drag", "rescreen", "split"])
       .optional(),
     screen_subtype: z
-      .enum(["ball", "down", "pin_down", "flare", "back", "cross", "ram", "ghost", "drag", "rescreen"])
+      .enum(["ball", "down", "pin_down", "flare", "back", "cross", "ram", "ghost", "drag", "rescreen", "split"])
       .optional(),
     coverage: z
       .enum(["drop", "show", "hedge", "switch", "ice", "under", "over", "trap", "zone", "help_recover"])
@@ -46,6 +58,8 @@ const event = z
     player_task: z.string().max(280).optional(),
     commonMistake: z.string().max(280).optional(),
     common_mistake: z.string().max(280).optional(),
+    durationMs: z.number().int().min(500).max(6000).optional(),
+    options: z.array(finishOption).min(1).max(8).optional(),
   })
   .passthrough();
 
@@ -228,6 +242,26 @@ export const TacticDocumentV1Schema = z
       if (ev.kind === "handoff") {
         requirePlayerRef(ev.from, ["events", i, "from"], "手递手发起人");
         requirePlayerRef(ev.to, ["events", i, "to"], "手递手接球人");
+        return;
+      }
+
+      if (ev.kind === "finish_options") {
+        requirePlayerRef(ev.from, ["events", i, "from"], "终结阅读发起人");
+        if (!ev.options?.length) {
+          addCustomIssue(ctx, ["events", i, "options"], "终结阅读至少需要一个选项");
+          return;
+        }
+        ev.options.forEach((option, optionIndex) => {
+          if (option.kind === "pass") {
+            requirePlayerRef(option.to, ["events", i, "options", optionIndex, "to"], "终结阅读接球人");
+          } else if (option.x === undefined || option.y === undefined) {
+            addCustomIssue(
+              ctx,
+              ["events", i, "options", optionIndex],
+              "投篮选项必须提供 x 和 y 落点",
+            );
+          }
+        });
         return;
       }
 

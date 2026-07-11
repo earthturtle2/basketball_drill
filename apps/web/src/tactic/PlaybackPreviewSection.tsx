@@ -53,15 +53,15 @@ function eventTitle(event: EventRow, doc: TacticDocumentV1, t: (key: string) => 
   return label;
 }
 
-function eventDetails(event: EventRow) {
+function eventDetails(event: EventRow, t: (key: string) => string) {
   const details = [
-    event.note,
-    teachingField(event, "explanation"),
-    stringField(event, "readTrigger") ?? stringField(event, "read_trigger"),
-    stringField(event, "playerTask") ?? stringField(event, "player_task"),
-    stringField(event, "commonMistake") ?? stringField(event, "common_mistake"),
-  ].filter((item): item is string => Boolean(item?.trim()));
-  return [...new Set(details)];
+    { label: t("view.coachingPoint"), value: event.note },
+    { label: t("view.explanation"), value: teachingField(event, "explanation") },
+    { label: t("view.readTrigger"), value: stringField(event, "readTrigger") ?? stringField(event, "read_trigger") },
+    { label: t("view.playerTask"), value: stringField(event, "playerTask") ?? stringField(event, "player_task") },
+    { label: t("view.commonMistake"), value: stringField(event, "commonMistake") ?? stringField(event, "common_mistake") },
+  ].filter((item): item is { label: string; value: string } => Boolean(item.value?.trim()));
+  return details.filter((item, index) => details.findIndex((candidate) => candidate.value === item.value) === index);
 }
 
 function eventTags(event: EventRow) {
@@ -97,6 +97,18 @@ function hasTeachingValue(event: EventRow) {
   );
 }
 
+function playbackStopTimes(doc: TacticDocumentV1) {
+  const endT = playbackEndMs(doc);
+  return [...new Set([
+    0,
+    ...doc.keyframes.map((keyframe) => keyframe.t),
+    ...(doc.events ?? []).map((event) => event.t),
+    endT,
+  ])]
+    .filter((time) => time >= 0 && time <= endT)
+    .sort((a, b) => a - b);
+}
+
 export function PlaybackPreviewSection({ document: doc, resetPlaybackKey, rangeInputId = "playback-range" }: Props) {
   const { t } = useT();
   const [tMs, setTms] = useState(0);
@@ -124,9 +136,7 @@ export function PlaybackPreviewSection({ document: doc, resetPlaybackKey, rangeI
 
   const startFrameStep = useCallback(() => {
     if (frameStepTargetRef.current) return;
-    const endT = playbackEndMs(doc);
-    const stops = [...new Set(doc.keyframes.map((k) => k.t))].sort((a, b) => a - b);
-    if (endT > (stops[stops.length - 1] ?? 0)) stops.push(endT);
+    const stops = playbackStopTimes(doc);
     if (stops.length === 0) return;
     const E = 0.5;
     const from = tMsRef.current;
@@ -210,8 +220,12 @@ export function PlaybackPreviewSection({ document: doc, resetPlaybackKey, rangeI
   }, [doc, playing, loop, playbackSpeed, frameByFrame]);
 
   const previewStopTimes = useMemo(() => {
+    return playbackStopTimes(doc);
+  }, [doc]);
+
+  const keyframeMarkerTimes = useMemo(() => {
     const endT = playbackEndMs(doc);
-    return [...new Set([0, ...doc.keyframes.map((k) => k.t), endT])]
+    return [...new Set([0, ...doc.keyframes.map((keyframe) => keyframe.t), endT])]
       .filter((tm) => tm >= 0 && tm <= endT)
       .sort((a, b) => a - b);
   }, [doc]);
@@ -232,13 +246,13 @@ export function PlaybackPreviewSection({ document: doc, resetPlaybackKey, rangeI
   const teachingEvent = useMemo(() => {
     const candidates = teachingEvents
       .filter((event) => event.kind !== "finish_options" || isFinishOptionsVisibleAt(doc, event, tMs))
-      .filter((event) => event.t <= tMs + 250)
+      .filter((event) => event.t <= tMs)
       .sort((a, b) => a.t - b.t);
     return candidates.at(-1) ?? null;
   }, [doc, teachingEvents, tMs]);
 
   const progressPct = effectiveEnd > 0 ? Math.max(0, Math.min(100, (tMs / effectiveEnd) * 100)) : 0;
-  const currentStopIdx = previewStopTimes.findIndex((tm) => Math.abs(tm - tMs) < 1);
+  const currentMarkerIdx = keyframeMarkerTimes.findIndex((tm) => Math.abs(tm - tMs) < 1);
   const previousStop =
     [...previewStopTimes].reverse().find((tm) => tm < tMs - 1) ?? previewStopTimes[0];
   const nextStop = previewStopTimes.find((tm) => tm > tMs + 1) ?? previewStopTimes[previewStopTimes.length - 1];
@@ -272,9 +286,9 @@ export function PlaybackPreviewSection({ document: doc, resetPlaybackKey, rangeI
                   />
                 );
               })}
-              {previewStopTimes.map((tm, i) => {
+              {keyframeMarkerTimes.map((tm, i) => {
                 const left = effectiveEnd > 0 ? (tm / effectiveEnd) * 100 : 0;
-                const active = currentStopIdx === i;
+                const active = currentMarkerIdx === i;
                 return (
                   <button
                     key={`${tm}-${i}`}
@@ -382,7 +396,7 @@ export function PlaybackPreviewSection({ document: doc, resetPlaybackKey, rangeI
         <section className="teaching-panel teaching-panel--timeline" aria-label={t("view.teachingTitle")}>
           <div className="teaching-panel__list">
             {teachingEvents.map((event, index) => {
-              const teachingDetails = eventDetails(event);
+              const teachingDetails = eventDetails(event, t);
               const teachingTags = eventTags(event);
               const teachingFinishLabels = finishLabels(event);
               const active = teachingEvent === event;
@@ -403,11 +417,14 @@ export function PlaybackPreviewSection({ document: doc, resetPlaybackKey, rangeI
                     </div>
                   ) : null}
                   {teachingDetails.length > 0 ? (
-                    <ul className="teaching-panel__details">
+                    <dl className="teaching-panel__details">
                       {teachingDetails.map((detail) => (
-                        <li key={detail}>{detail}</li>
+                        <div key={`${detail.label}-${detail.value}`}>
+                          <dt>{detail.label}</dt>
+                          <dd>{detail.value}</dd>
+                        </div>
                       ))}
-                    </ul>
+                    </dl>
                   ) : null}
                   {teachingFinishLabels.length > 0 ? (
                     <p className="teaching-panel__reads">

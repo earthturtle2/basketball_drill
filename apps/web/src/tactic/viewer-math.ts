@@ -206,14 +206,13 @@ export interface BallFlightInfo {
 export function resolveBallState(
   doc: TacticDocumentV1,
   tMs: number,
-  poses: Record<string, Vec>,
 ): { holder: string | undefined; flight?: BallFlightInfo } {
   const inflight = findInFlightPass(doc, tMs);
   if (inflight) {
     const flyDur = inflight.t - inflight.flightStart;
     const progress = flyDur > 0 ? (tMs - inflight.flightStart) / flyDur : 1;
-    const fp = poses[inflight.from];
-    const tp = poses[inflight.to];
+    const fp = samplePoses(doc, inflight.flightStart)[inflight.from];
+    const tp = samplePoses(doc, inflight.t)[inflight.to];
     if (fp && tp) {
       return {
         holder: undefined,

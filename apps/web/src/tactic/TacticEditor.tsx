@@ -286,8 +286,8 @@ export function TacticEditor({
   const manuallyTimedKeyframes = useRef(false);
 
   const teamColors = {
-    offense: doc.teams.offense.color ?? "#e53935",
-    defense: doc.teams.defense.color ?? "#1e88e5",
+    offense: doc.teams.offense.color ?? "#c8332f",
+    defense: doc.teams.defense.color ?? "#2155a6",
   };
 
   const kf = doc.keyframes[activeKfIdx];
@@ -1000,6 +1000,7 @@ export function TacticEditor({
                   cy={sy}
                   color={isPassSrc ? "#4caf50" : color}
                   label={a.label}
+                  ariaLabel={`${a.team === "offense" ? doc.teams.offense.label : doc.teams.defense.label} ${a.label}`}
                   selected={a.id === selectedActorId}
                   hasBall={a.id === ballHolderId}
                   draggable={tool === "select"}

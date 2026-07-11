@@ -8,6 +8,7 @@
   "scripts": {
     "dev": "concurrently -n web,api -c cyan,magenta \"npm run dev -w @basketball/web\" \"npm run dev -w @basketball/api\"",
     "build": "npm run build -w @basketball/shared && npm run build -w @basketball/api && npm run build -w @basketball/web",
+    "test:templates": "npm run build -w @basketball/shared && node apps/web/scripts/validate-templates.mjs",
     "db:push": "npm run db:push -w @basketball/api"
   },
   "devDependencies": {
