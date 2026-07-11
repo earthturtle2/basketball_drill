@@ -69,7 +69,7 @@ export async function sendPasswordResetEmail(input: {
   await getTransporter().sendMail({
     from: env.mailFrom,
     to: input.email,
-    subject: "Greenfighter 篮球俱乐部 - 重置密码",
+    subject: "篮球俱乐部 - 重置密码",
     text: [
       "我们收到了你的密码重置申请。",
       "",
